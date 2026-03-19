@@ -130,13 +130,35 @@ Yatırımcıya gösterilecek çalışır durumda minimum ürün.
 └─────────────────────────────────────────────┘
 ```
 
-### Rust Backend Sorumlulukları
+### Rust Backend — Tauri IPC Komutları
 
-- **Download Manager:** Paralel indirme, pause/resume, SHA-256 hash doğrulama
-- **Game Launcher:** Process spawn, durum izleme, oyun süre takibi
-- **File Manager:** Kurulum, güncelleme, disk alanı yönetimi
-- **Auth & Session:** JWT token yönetimi, OS Keyring ile güvenli depolama
-- **Auto Updater:** Uygulama güncelleme, delta patch desteği
+Her modül `#[tauri::command]` fonksiyonları olarak expose edilir. React tarafı `invoke("komut_adı", { args })` ile çağırır.
+
+**Download Manager:**
+- `download_game(game_id, url, dest_path)` → indirmeyi başlat, download_id döner
+- `pause_download(download_id)` → indirmeyi duraklat
+- `resume_download(download_id)` → indirmeyi devam ettir
+- `cancel_download(download_id)` → indirmeyi iptal et
+- Event: `download-progress { download_id, percent, speed_bps, eta_secs }` → React'e gerçek zamanlı ilerleme
+
+**Game Launcher:**
+- `launch_game(game_id, exe_path)` → oyunu başlat, process_id döner
+- `stop_game(game_id)` → oyunu kapat
+- Event: `game-status { game_id, status: "running"|"stopped", play_time_secs }` → oyun durumu
+
+**File Manager:**
+- `get_disk_space(path)` → `{ free_bytes, total_bytes }`
+- `verify_game_files(game_id, path, expected_hash)` → SHA-256 hash doğrulama
+- `uninstall_game(game_id, path)` → oyun dosyalarını sil
+
+**Auth & Session:**
+- `store_token(key, value)` → OS Keyring'e kaydet
+- `get_token(key)` → OS Keyring'den oku
+- `delete_token(key)` → OS Keyring'den sil
+
+**Auto Updater (Faz 0'da basit):**
+- Tauri 2.0 built-in updater plugin kullanılır
+- Update check: uygulama açılışında ve her 4 saatte
 
 ### Proje Yapısı
 
@@ -177,28 +199,31 @@ Tauri App → Auth Middleware (JWT + Rate Limit) → API Routes → Services →
 
 ### API Endpoint'leri (Demo Kapsamı)
 
+Tüm endpoint'ler JSON döner. Başarı: `{ data: ... }`, hata: `{ error: { code: string, message: string } }`.
+Auth gerektiren endpoint'ler `Authorization: Bearer <token>` header'ı bekler, geçersiz/eksik token'da `401` döner.
+
 **Auth (4 endpoint):**
-- `POST /auth/register` — kayıt
-- `POST /auth/login` — giriş
-- `POST /auth/refresh` — token yenileme
-- `POST /auth/verify-student` — öğrenci doğrulama
+- `POST /auth/register` — kayıt → 201 `{ data: { user, tokens } }` | 409 email/username çakışması
+- `POST /auth/login` — giriş → 200 `{ data: { user, tokens } }` | 401 geçersiz credentials
+- `POST /auth/refresh` — token yenileme → 200 `{ data: { tokens } }` | 401 geçersiz refresh token
+- `POST /auth/verify-student` — öğrenci doğrulama (🔒 auth) → 200 `{ data: { verified } }` | 400 geçersiz email
 
 **Games (4 endpoint):**
-- `GET /games` — liste + filtreleme
-- `GET /games/:slug` — oyun detay
-- `GET /games/featured` — vitrin oyunları
-- `GET /games/search?q=` — arama
+- `GET /games` — liste + filtreleme → 200 `{ data: Game[], meta: { total, page } }`
+- `GET /games/:slug` — oyun detay → 200 `{ data: Game }` | 404
+- `GET /games/featured` — vitrin oyunları → 200 `{ data: Game[] }`
+- `GET /games/search?q=` — arama → 200 `{ data: Game[], meta: { total } }`
 
 **Library (3 endpoint):**
-- `GET /library` — kullanıcının oyunları
-- `PATCH /library/:id` — oyun süresi güncelle
-- `GET /library/:id/download` — signed indirme URL'i
+- `GET /library` (🔒 auth) — kullanıcının oyunları → 200 `{ data: LibraryItem[] }`
+- `PATCH /library/:id` (🔒 auth) — oyun süresi güncelle → 200 | 404
+- `GET /library/:id/download` (🔒 auth) — signed indirme URL'i → 200 `{ data: { url, expires_at } }` | 403 lisans yok
 
 **Payments (4 endpoint):**
-- `POST /payments/init` — ödeme başlat
-- `POST /payments/callback` — iyzico webhook
-- `GET /payments/installments` — taksit seçenekleri sorgula (BIN bazlı)
-- `GET /payments/history` — ödeme geçmişi
+- `POST /payments/init` (🔒 auth) — ödeme başlat → 200 `{ data: { payment_id, three_d_html } }` | 400
+- `POST /payments/callback` — iyzico webhook (HMAC doğrulama, idempotent: provider_tx_id ile duplicate kontrol) → 200
+- `GET /payments/installments` (🔒 auth) — taksit seçenekleri sorgula (BIN bazlı) → 200 `{ data: InstallmentOption[] }`
+- `GET /payments/history` (🔒 auth) — ödeme geçmişi → 200 `{ data: Payment[] }`
 
 ---
 
@@ -225,11 +250,12 @@ Tauri App → Auth Middleware (JWT + Rate Limit) → API Routes → Services →
 
 **Payment:**
 - id (UUID PK), user_id (FK → User), game_id (FK → Game)
-- amount (DECIMAL), currency (TRY), installment_count (INT)
+- base_price (DECIMAL), discount_amount (DECIMAL), final_amount (DECIMAL)
+- currency (TRY), installment_count (INT)
 - payment_method (ENUM: credit_card/papara/ininal)
-- provider (iyzico/paytr), provider_tx_id
+- provider (iyzico/paytr), provider_tx_id (UNIQUE — idempotency key)
 - status (ENUM: pending/success/failed/refunded)
-- referral_code_used, student_discount (BOOL)
+- referral_id (FK → Referral, nullable), student_discount_applied (BOOL)
 - created_at
 
 **Referral:**
@@ -251,7 +277,14 @@ Tauri App → Auth Middleware (JWT + Rate Limit) → API Routes → Services →
 - Game 1 ←→ N LibraryItem
 - Game N ←→ 1 Publisher
 - User 1 ←→ 1 Referral
-- Payment → Referral (kullanılan referans kodu)
+- Payment.referral_id → Referral.id (FK, kullanılan referans kodu)
+
+### İndeksler
+
+- Game: status, release_date (vitrin sorgulama)
+- LibraryItem: user_id (kütüphane listeleme)
+- Payment: user_id, status, provider_tx_id (geçmiş + idempotency)
+- Referral: code (referans kodu arama)
 
 ---
 
@@ -289,11 +322,32 @@ Server: Payment kaydı + LibraryItem + Referral komisyon → "Başarılı!" bild
 
 ### Fiyatlandırma Mantığı
 
-- Baz fiyat (TL cinsinden)
+- Baz fiyat (TL cinsinden, yayıncı tarafından belirlenir)
 - Öğrenci indirimi: -%10 (doğrulanmış hesaplar)
 - Referans kodu: -%5
-- Taksit farkı: banka komisyonuna göre değişir
+- Taksit farkı: banka komisyonuna göre değişir (müşteriye yansıtılır)
 - İndirimler çakışabilir, toplam max %15
+
+**İndirim maliyetini kim karşılar:** İndirimler toplam satış fiyatını düşürür. Gelir dağılımı (yayıncı %80, platform %17, içerik üretici %3) indirim sonrası fiyat (final_amount) üzerinden hesaplanır. Yani indirim maliyeti tüm taraflara oransal olarak dağılır.
+
+**Ödeme geçidi komisyonu:** iyzico işlem başı komisyon alır (~%2.49 + taksit farkı). Bu komisyon, Stealike'ın %17 payından düşülür. Yayıncı payı etkilenmez.
+
+### 3D Secure Akışı (Tauri İçinde)
+
+Tauri app içinde 3D Secure akışı:
+1. Server, iyzico API'den 3D Secure HTML'ini alır
+2. Tauri, ayrı bir WebView penceresi açar ve bu HTML'i render eder
+3. Kullanıcı banka sayfasında SMS doğrulama yapar
+4. iyzico, callback URL'e yönlendirir → Tauri bu URL'i `navigation` event ile yakalar
+5. WebView kapatılır, sonuç ana pencereye bildirilir
+
+### Webhook İdempotency
+
+iyzico webhook'ları birden fazla kez gönderilebilir. Koruma:
+- `provider_tx_id` UNIQUE constraint ile duplicate insert engellenir
+- Callback handler: önce `provider_tx_id` ile mevcut Payment kaydı kontrol edilir
+- Zaten işlenmiş → 200 döner, tekrar işlem yapılmaz
+- İşlenmemiş → Payment + LibraryItem + Referral komisyon yazılır (tek transaction)
 
 ### Güvenlik
 
@@ -309,25 +363,39 @@ Server: Payment kaydı + LibraryItem + Referral komisyon → "Başarılı!" bild
 
 ### Lisans Sistemi
 
-1. **Satın alma:** Ödeme başarılı → LibraryItem + JWT bazlı lisans token üretilir
-2. **İndirme:** Lisans token ile istek → Signed URL üretilir (15dk geçerli, paylaşılamaz)
-3. **Oyun başlatma:** Uygulama açıkken periyodik online doğrulama, offline grace: 72 saat
+**Faz 0 (Demo):**
+1. **Satın alma:** Ödeme başarılı → LibraryItem oluşturulur
+2. **İndirme:** Auth token ile `GET /library/:id/download` → S3 pre-signed URL üretilir (15dk TTL, user_id + game_id + IP signed). URL süresi dolursa yeni URL istenir. İndirme sırasında süre dolarsa mevcut bağlantı kesilmez (S3 davranışı).
+3. **Oyun başlatma:** LibraryItem mevcudiyeti kontrol edilir, oyun başlatılır
 
-### Kimlik Doğrulama
+**Faz 1 (ek özellikler):**
+- Periyodik online lisans doğrulama (her 4 saatte)
+- Offline grace period: 72 saat
+- Eşzamanlı cihaz limiti: max 3 kurulu, 1 aktif oyun
+- HWID takibi
+
+### Kimlik Doğrulama (Faz 0)
 
 - JWT + Refresh Token çifti
 - Access token: 15dk ömür, Refresh token: 30 gün (tek kullanım, rotation)
 - Şifre hash: Argon2id
+- Token depolama: OS Keyring (Windows Credential Manager / macOS Keychain)
+
+### Kimlik Doğrulama (Faz 1 ek)
+
 - Cihaz bazlı oturum yönetimi
 - Şüpheli giriş → email bildirimi
 
-### Korsan Koruması
+### Korsan Koruması (Faz 0)
 
-- İndirme URL'leri signed + süreli (15dk)
-- Dosya bütünlüğü: SHA-256 hash doğrulama
+- İndirme URL'leri signed + süreli (15dk, S3 pre-signed)
+- Dosya bütünlüğü: SHA-256 hash doğrulama (indirme sonrası)
+
+### Korsan Koruması (Faz 1 ek)
+
 - Eşzamanlı cihaz limiti: max 3 kurulu, 1 aktif oyun
-- HWID (Hardware ID) takibi (Faz 1)
-- Hesap paylaşımı tespit algoritması (Faz 1)
+- HWID (Hardware ID) takibi
+- Hesap paylaşımı tespit algoritması
 
 ### API Güvenliği
 
@@ -400,6 +468,15 @@ Platform komisyonu (%17): Steam'in %30'undan düşük, Epic'in %12'sine yakın. 
 - Öğrenci indirimi (.edu.tr doğrulama)
 - Referans kodu sistemi (kullanıcı referansı)
 - Basit referans istatistik sayfası
+
+### Mock Oyun Verisi (Demo)
+
+5-10 oyun, DB seed script'i ile yüklenir. Her oyun:
+- Gerçek oyun isimleri ve görselleri (lisanslama sorunu yok — sadece demo amaçlı, yayınlanmayacak)
+- Gerçekçi TL fiyatları (₺100-₺1500 arası)
+- Ekran görüntüleri (3-5 adet, URL olarak)
+- Kısa/uzun açıklama, minimum sistem gereksinimleri
+- İndirme dosyası: küçük placeholder (10-50MB zip)
 
 ### Hariç (Faz 1+)
 
