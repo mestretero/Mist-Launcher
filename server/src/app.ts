@@ -9,6 +9,7 @@ import authPlugin from "./plugins/auth.plugin.js";
 import authRoutes from "./routes/auth.js";
 import gameRoutes from "./routes/games.js";
 import libraryRoutes from "./routes/library.js";
+import paymentRoutes from "./routes/payments.js";
 import { AppError } from "./lib/errors.js";
 import { ZodError } from "zod";
 
@@ -47,6 +48,7 @@ export async function buildApp() {
   await app.register(authRoutes);
   await app.register(gameRoutes);
   await app.register(libraryRoutes);
+  await app.register(paymentRoutes);
 
   return app;
 }
