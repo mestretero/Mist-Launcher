@@ -29,6 +29,9 @@
     "pg": "^8.19.0",
     "zod": "^4.3.6"
   },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "devDependencies": {
     "@faker-js/faker": "^10.3.0",
     "@types/jsonwebtoken": "^9.0.10",
