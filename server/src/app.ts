@@ -35,7 +35,7 @@ export async function buildApp() {
     }
     if (error instanceof ZodError) {
       return reply.status(400).send({
-        error: { code: "VALIDATION_ERROR", message: error.errors[0]?.message || "Invalid input" },
+        error: { code: "VALIDATION_ERROR", message: error.issues[0]?.message || "Invalid input" },
       });
     }
     request.log.error(error);

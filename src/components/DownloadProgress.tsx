@@ -4,7 +4,7 @@ interface Props {
   etaSecs: number;
 }
 
-export function DownloadProgress({ percent, speedBps, etaSecs }: Props) {
+export function DownloadProgress({ percent, speedBps, etaSecs: _etaSecs }: Props) {
   const formatSpeed = (bps: number) => {
     if (bps > 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
     if (bps > 1024) return `${(bps / 1024).toFixed(0)} KB/s`;

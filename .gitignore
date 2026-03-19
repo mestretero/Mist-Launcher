@@ -35,3 +35,4 @@ target/
 
 # Stealike internal
 .superpowers/
+server/public/downloads/

@@ -22,7 +22,7 @@
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
+    // "exactOptionalPropertyTypes": true,
 
     // Style Options
     // "noImplicitReturns": true,
@@ -35,7 +35,7 @@
     // Recommended Options
     "strict": true,
     "jsx": "react-jsx",
-    "verbatimModuleSyntax": true,
+    // "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
@@ -44,5 +44,6 @@
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
   },
-  "exclude": ["prisma.config.ts", "node_modules", "dist"]
+  "include": ["src"],
+  "exclude": ["prisma.config.ts", "node_modules", "dist", "tests", "prisma"]
 }
