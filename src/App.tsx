@@ -1,50 +1,55 @@
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
-import "./App.css";
+import { useState, useEffect } from "react";
+import { useAuthStore } from "./stores/authStore";
+import { useDownloadStore } from "./stores/downloadStore";
+import { Layout } from "./components/Layout";
+import { LoginPage } from "./pages/LoginPage";
+import { RegisterPage } from "./pages/RegisterPage";
+import { StorePage } from "./pages/StorePage";
+import { LibraryPage } from "./pages/LibraryPage";
+import { GameDetailPage } from "./pages/GameDetailPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const { isAuthenticated, isLoading, loadSession } = useAuthStore();
+  const { initListener } = useDownloadStore();
+  const [page, setPage] = useState("store");
+  const [gameSlug, setGameSlug] = useState<string | null>(null);
+  const [authPage, setAuthPage] = useState<"login" | "register">("login");
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  useEffect(() => {
+    loadSession();
+    initListener();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-950 text-white">
+        <div className="text-lg">Yükleniyor...</div>
+      </div>
+    );
   }
 
+  if (!isAuthenticated) {
+    if (authPage === "register") {
+      return <RegisterPage onSwitch={() => setAuthPage("login")} />;
+    }
+    return <LoginPage onSwitch={() => setAuthPage("register")} />;
+  }
+
+  const navigate = (p: string, slug?: string) => {
+    setPage(p);
+    if (slug) setGameSlug(slug);
+  };
+
   return (
-    <main className="container">
-      <h1>Welcome to Tauri + React</h1>
-
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
-    </main>
+    <Layout currentPage={page} onNavigate={(p) => navigate(p)}>
+      {page === "store" && <StorePage onGameClick={(slug) => navigate("game", slug)} />}
+      {page === "game" && gameSlug && (
+        <GameDetailPage slug={gameSlug} onBack={() => navigate("store")} />
+      )}
+      {page === "library" && <LibraryPage />}
+      {page === "settings" && <SettingsPage />}
+    </Layout>
   );
 }
 
