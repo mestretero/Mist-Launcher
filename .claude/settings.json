@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker info:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s http://localhost:3001/health)",
+      "Bash(curl -s -X POST http://localhost:3001/auth/register -H \"Content-Type: application/json\" -d '{\"\"email\"\":\"\"boran@test.com\"\",\"\"username\"\":\"\"boran\"\",\"\"password\"\":\"\"test1234\"\"}')",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //PID 7620 //F)",
+      "Bash(taskkill //IM node.exe //F)",
+      "Bash(timeout 10 npx tsx src/index.ts)",
+      "Read(//tmp/**)",
+      "Bash(curl -s http://localhost:3001/games)",
+      "Bash(npx tsx:*)"
+    ]
+  }
+}

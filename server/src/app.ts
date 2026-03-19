@@ -15,6 +15,11 @@ import { ZodError } from "zod";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
+// BigInt serialization support for Prisma 7
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
+
 export async function buildApp() {
   const app = Fastify({ logger: true });
 
