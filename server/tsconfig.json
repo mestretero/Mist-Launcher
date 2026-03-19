@@ -43,5 +43,6 @@
 
     "moduleResolution": "nodenext",
     "esModuleInterop": true,
-  }
+  },
+  "exclude": ["prisma.config.ts", "node_modules", "dist"]
 }

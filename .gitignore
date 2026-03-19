@@ -28,7 +28,10 @@ target/
 
 # Environment files
 .env
-.env.*
+.env.local
+.env.development
+.env.production
+!.env.example
 
 # Stealike internal
 .superpowers/
