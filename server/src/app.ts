@@ -7,6 +7,7 @@ import { join } from "path";
 import { fileURLToPath } from "url";
 import authPlugin from "./plugins/auth.plugin.js";
 import authRoutes from "./routes/auth.js";
+import gameRoutes from "./routes/games.js";
 import { AppError } from "./lib/errors.js";
 import { ZodError } from "zod";
 
@@ -43,6 +44,7 @@ export async function buildApp() {
 
   app.get("/health", async () => ({ status: "ok" }));
   await app.register(authRoutes);
+  await app.register(gameRoutes);
 
   return app;
 }
