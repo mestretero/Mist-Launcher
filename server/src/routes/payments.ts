@@ -13,6 +13,7 @@ export default async function paymentRoutes(app: FastifyInstance) {
   });
 
   app.post("/payments/callback", async (request) => {
+    // iyzico sends `paymentId`; service param is named `paymentToken` (positional)
     const { paymentId } = request.body as { paymentId: string };
     const result = await paymentService.handleCallback(paymentId);
     return { data: result };
