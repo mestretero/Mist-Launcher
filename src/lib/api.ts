@@ -86,7 +86,12 @@ export const api = {
       request<any>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
   },
   games: {
-    list: (page = 1) => request<any[]>(`/games?page=${page}`),
+    list: (page = 1, category?: string) => {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      if (category && category !== "Tümü") params.set("category", category);
+      return request<any[]>(`/games?${params}`);
+    },
     featured: () => request<any[]>("/games/featured"),
     getBySlug: (slug: string) => request<any>(`/games/${slug}`),
     search: (q: string) => request<any[]>(`/games/search?q=${encodeURIComponent(q)}`),

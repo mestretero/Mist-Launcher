@@ -6,6 +6,8 @@ datasource db {
   provider = "postgresql"
 }
 
+// ─── Enums ───────────────────────────────────────
+
 enum GameStatus {
   DRAFT
   PUBLISHED
@@ -16,6 +18,7 @@ enum PaymentMethod {
   CREDIT_CARD
   PAPARA
   ININAL
+  WALLET
 }
 
 enum PaymentStatus {
@@ -30,24 +33,65 @@ enum ReferralOwnerType {
   USER
 }
 
-model User {
-  id                 String        @id @default(uuid()) @db.Uuid
-  email              String        @unique
-  username           String        @unique
-  passwordHash       String        @map("password_hash")
-  avatarUrl          String?       @map("avatar_url")
-  isStudent          Boolean       @default(false) @map("is_student")
-  studentVerifiedAt  DateTime?     @map("student_verified_at")
-  referralCode       String        @unique @map("referral_code")
-  referredBy         String?       @map("referred_by") @db.Uuid
-  createdAt          DateTime      @default(now()) @map("created_at")
-  updatedAt          DateTime      @updatedAt @map("updated_at")
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
+}
 
-  referrer           User?         @relation("UserReferrals", fields: [referredBy], references: [id])
-  referees           User[]        @relation("UserReferrals")
-  libraryItems       LibraryItem[]
-  payments           Payment[]
-  referral           Referral?
+enum WalletTxType {
+  DEPOSIT
+  PURCHASE
+  REFERRAL_EARNING
+  REFUND
+}
+
+enum NotificationType {
+  PAYMENT_SUCCESS
+  WISHLIST_SALE
+  FRIEND_REQUEST
+  FRIEND_ACCEPTED
+  ACHIEVEMENT_UNLOCKED
+  SYSTEM
+}
+
+// ─── Core Models ─────────────────────────────────
+
+model User {
+  id                  String        @id @default(uuid()) @db.Uuid
+  email               String        @unique
+  username            String        @unique
+  passwordHash        String        @map("password_hash")
+  avatarUrl           String?       @map("avatar_url")
+  bio                 String?
+  isStudent           Boolean       @default(false) @map("is_student")
+  studentVerifiedAt   DateTime?     @map("student_verified_at")
+  referralCode        String        @unique @map("referral_code")
+  referredBy          String?       @map("referred_by") @db.Uuid
+  walletBalance       Decimal       @default(0) @map("wallet_balance") @db.Decimal(10, 2)
+  isEmailVerified     Boolean       @default(false) @map("is_email_verified")
+  emailVerifyToken    String?       @map("email_verify_token")
+  passwordResetToken  String?       @map("password_reset_token")
+  passwordResetExpiry DateTime?     @map("password_reset_expiry")
+  twoFactorSecret     String?       @map("two_factor_secret")
+  twoFactorEnabled    Boolean       @default(false) @map("two_factor_enabled")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  referrer            User?                @relation("UserReferrals", fields: [referredBy], references: [id])
+  referees            User[]               @relation("UserReferrals")
+  libraryItems        LibraryItem[]
+  payments            Payment[]
+  referral            Referral?
+  wishlistItems       Wishlist[]
+  reviews             Review[]
+  walletTransactions  WalletTransaction[]
+  notifications       Notification[]
+  userAchievements    UserAchievement[]
+  sentFriendships     Friendship[]         @relation("FriendshipSender")
+  receivedFriendships Friendship[]         @relation("FriendshipReceiver")
+  collections         GameCollection[]
+  cart                Cart?
 
   @@map("users")
 }
@@ -77,22 +121,34 @@ model Game {
   discountPercent  Int        @default(0) @map("discount_percent")
   coverImageUrl    String     @map("cover_image_url")
   screenshots      Json       @default("[]")
+  trailerUrl       String?    @map("trailer_url")
   publisherId      String     @map("publisher_id") @db.Uuid
   minRequirements  Json       @default("{}") @map("min_requirements")
   releaseDate      DateTime   @map("release_date")
+  categories       String[]   @default([])
   status           GameStatus @default(PUBLISHED)
   downloadUrl      String?    @map("download_url")
   downloadSize     BigInt?    @map("download_size")
   fileHash         String?    @map("file_hash")
+  parentGameId     String?    @map("parent_game_id") @db.Uuid
   createdAt        DateTime   @default(now()) @map("created_at")
 
-  publisher        Publisher     @relation(fields: [publisherId], references: [id])
+  publisher        Publisher            @relation(fields: [publisherId], references: [id])
+  parentGame       Game?                @relation("GameDLCs", fields: [parentGameId], references: [id])
+  dlcs             Game[]               @relation("GameDLCs")
   libraryItems     LibraryItem[]
   payments         Payment[]
+  wishlistItems    Wishlist[]
+  reviews          Review[]
+  achievements     Achievement[]
+  collectionItems  GameCollectionItem[]
+  cartItems        CartItem[]
 
   @@index([status, releaseDate])
   @@map("games")
 }
+
+// ─── Library & Payments ──────────────────────────
 
 model LibraryItem {
   id           String    @id @default(uuid()) @db.Uuid
@@ -166,4 +222,176 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
+}
+
+// ─── Wishlist ────────────────────────────────────
+
+model Wishlist {
+  id      String   @id @default(uuid()) @db.Uuid
+  userId  String   @map("user_id") @db.Uuid
+  gameId  String   @map("game_id") @db.Uuid
+  addedAt DateTime @default(now()) @map("added_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  game    Game     @relation(fields: [gameId], references: [id])
+
+  @@unique([userId, gameId])
+  @@index([userId])
+  @@map("wishlists")
+}
+
+// ─── Reviews ─────────────────────────────────────
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  gameId    String   @map("game_id") @db.Uuid
+  rating    Int      // 1-5
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+  game      Game     @relation(fields: [gameId], references: [id])
+
+  @@unique([userId, gameId])
+  @@index([gameId])
+  @@map("reviews")
+}
+
+// ─── Wallet ──────────────────────────────────────
+
+model WalletTransaction {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  amount       Decimal      @db.Decimal(10, 2)
+  type         WalletTxType
+  referenceId  String?      @map("reference_id")
+  balanceAfter Decimal      @map("balance_after") @db.Decimal(10, 2)
+  description  String?
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("wallet_transactions")
+}
+
+// ─── Notifications ───────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  message   String
+  data      Json             @default("{}")
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── Achievements ────────────────────────────────
+
+model Achievement {
+  id          String            @id @default(uuid()) @db.Uuid
+  gameId      String            @map("game_id") @db.Uuid
+  name        String
+  description String
+  iconUrl     String?           @map("icon_url")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  game        Game              @relation(fields: [gameId], references: [id])
+  unlocks     UserAchievement[]
+
+  @@index([gameId])
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(uuid()) @db.Uuid
+  userId        String      @map("user_id") @db.Uuid
+  achievementId String      @map("achievement_id") @db.Uuid
+  unlockedAt    DateTime    @default(now()) @map("unlocked_at")
+
+  user          User        @relation(fields: [userId], references: [id])
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// ─── Friends ─────────────────────────────────────
+
+model Friendship {
+  id         String           @id @default(uuid()) @db.Uuid
+  senderId   String           @map("sender_id") @db.Uuid
+  receiverId String           @map("receiver_id") @db.Uuid
+  status     FriendshipStatus @default(PENDING)
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  sender     User             @relation("FriendshipSender", fields: [senderId], references: [id])
+  receiver   User             @relation("FriendshipReceiver", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId])
+  @@map("friendships")
+}
+
+// ─── Game Collections ────────────────────────────
+
+model GameCollection {
+  id        String               @id @default(uuid()) @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
+  name      String
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  user      User                 @relation(fields: [userId], references: [id])
+  items     GameCollectionItem[]
+
+  @@index([userId])
+  @@map("game_collections")
+}
+
+model GameCollectionItem {
+  id           String         @id @default(uuid()) @db.Uuid
+  collectionId String         @map("collection_id") @db.Uuid
+  gameId       String         @map("game_id") @db.Uuid
+  addedAt      DateTime       @default(now()) @map("added_at")
+
+  collection   GameCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  game         Game           @relation(fields: [gameId], references: [id])
+
+  @@unique([collectionId, gameId])
+  @@map("game_collection_items")
+}
+
+// ─── Shopping Cart ───────────────────────────────
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @unique @map("user_id") @db.Uuid
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id      String   @id @default(uuid()) @db.Uuid
+  cartId  String   @map("cart_id") @db.Uuid
+  gameId  String   @map("game_id") @db.Uuid
+  addedAt DateTime @default(now()) @map("added_at")
+
+  cart    Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  game    Game     @relation(fields: [gameId], references: [id])
+
+  @@unique([cartId, gameId])
+  @@map("cart_items")
 }

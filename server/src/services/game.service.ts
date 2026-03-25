@@ -1,16 +1,20 @@
 import { prisma } from "../lib/prisma.js";
 import { notFound } from "../lib/errors.js";
 
-export async function listGames(page: number, limit: number) {
+export async function listGames(page: number, limit: number, category?: string) {
+  const where: any = { status: "PUBLISHED" };
+  if (category && category !== "Tümü") {
+    where.categories = { has: category };
+  }
   const [games, total] = await Promise.all([
     prisma.game.findMany({
-      where: { status: "PUBLISHED" },
+      where,
       include: { publisher: { select: { name: true, slug: true } } },
       orderBy: { releaseDate: "desc" },
       skip: (page - 1) * limit,
       take: limit,
     }),
-    prisma.game.count({ where: { status: "PUBLISHED" } }),
+    prisma.game.count({ where }),
   ]);
   return { games, total, page };
 }

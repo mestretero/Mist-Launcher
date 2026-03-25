@@ -4,8 +4,8 @@ import * as gameService from "../services/game.service.js";
 
 export default async function gameRoutes(app: FastifyInstance) {
   app.get("/games", async (request, reply) => {
-    const { page, limit } = gameListSchema.parse(request.query);
-    const result = await gameService.listGames(page, limit);
+    const { page, limit, category } = gameListSchema.parse(request.query);
+    const result = await gameService.listGames(page, limit, category);
     return reply.send({ data: result.games, meta: { total: result.total, page: result.page } });
   });
 
