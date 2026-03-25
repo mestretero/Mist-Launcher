@@ -358,6 +358,11 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                 </div>
               )}
 
+              {/* Add to Collection */}
+              <div className="mb-6 w-64">
+                <AddToCollectionDropdown gameId={selectedItem.gameId} />
+              </div>
+
               {/* Sub Navigation Tabs */}
               <div className="flex items-center gap-6 border-b border-[#2a2e38] pb-1 mb-6 text-sm font-bold text-[#8f98a0]">
                 {tabs.map((tab) => (
