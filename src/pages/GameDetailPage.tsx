@@ -6,6 +6,7 @@ import { useCartStore } from "../stores/cartStore";
 import { InstallmentSelector } from "../components/InstallmentSelector";
 import { ScreenshotLightbox } from "../components/ScreenshotLightbox";
 import { AddToCollectionDropdown } from "../components/AddToCollectionDropdown";
+import { AchievementCard } from "../components/AchievementCard";
 import type { Game, LibraryItem } from "../lib/types";
 
 interface Props {
@@ -32,6 +33,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState("");
+  const [achievements, setAchievements] = useState<any[]>([]);
 
   useEffect(() => {
     api.games.getBySlug(slug).then(setGame);
@@ -55,6 +57,15 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
   // Fetch reviews
   useEffect(() => {
     api.reviews.list(slug).then(setReviews).catch(() => {});
+  }, [slug]);
+
+  // Fetch achievements
+  useEffect(() => {
+    api.achievements.forGame(slug).then((res: any) => {
+      if (Array.isArray(res)) setAchievements(res);
+      else if (res?.achievements) setAchievements(res.achievements);
+      else setAchievements([]);
+    }).catch(() => setAchievements([]));
   }, [slug]);
 
   if (!game) {
@@ -318,6 +329,23 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                 <p className="text-sm text-brand-500 font-medium">Henuz degerlendirme yapilmamis.</p>
               )}
             </div>
+
+            {/* Achievements section */}
+            {achievements.length > 0 && (
+              <div className="mt-10 bg-brand-900 border border-brand-800 rounded p-6">
+                <div className="flex items-center justify-between mb-4 border-b border-brand-800 pb-2">
+                  <h2 className="text-base font-bold text-brand-100 uppercase tracking-widest">Basarimlar</h2>
+                  <span className="text-xs font-bold text-brand-500">
+                    {achievements.filter((a: any) => a.unlocked).length} / {achievements.length}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {achievements.map((ach: any) => (
+                    <AchievementCard key={ach.id} achievement={ach} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right: purchase panel */}

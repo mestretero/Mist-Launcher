@@ -5,6 +5,7 @@ import { useDownloadStore } from "../stores/downloadStore";
 import { useToastStore } from "../stores/toastStore";
 import { DownloadProgress } from "../components/DownloadProgress";
 import { AddToCollectionDropdown } from "../components/AddToCollectionDropdown";
+import { AchievementCard } from "../components/AchievementCard";
 import type { LibraryItem } from "../lib/types";
 
 type LibTab = "overview" | "dlc" | "community" | "discussions" | "workshop" | "guides" | "support";
@@ -20,6 +21,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   const [uninstallConfirm, setUninstallConfirm] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [achievementStats, setAchievementStats] = useState({ total: 0, unlocked: 0 });
+  const [achievements, setAchievements] = useState<any[]>([]);
 
   useEffect(() => {
     api.library.list()
@@ -32,12 +34,18 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
       .catch(err => addToast("Kütüphane verileri yüklenemedi: " + err.message, "error"));
   }, []);
 
-  // Fetch achievement stats for selected game
+  // Fetch achievement stats and list for selected game
   useEffect(() => {
     if (selectedItem) {
       api.achievements.forLibraryItem(selectedItem.id).then((res: any) => {
         if (res) setAchievementStats(res);
       }).catch(() => setAchievementStats({ total: 0, unlocked: 0 }));
+
+      api.achievements.forGame(selectedItem.game.slug).then((res: any) => {
+        if (Array.isArray(res)) setAchievements(res);
+        else if (res?.achievements) setAchievements(res.achievements);
+        else setAchievements([]);
+      }).catch(() => setAchievements([]));
     }
   }, [selectedItem?.id]);
 
@@ -396,17 +404,20 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                     <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
                       <div className="px-4 py-3 border-b border-[#2a2e38] flex justify-between items-center">
                         <h3 className="text-sm font-bold text-white uppercase tracking-wider">Başarımlar</h3>
+                        <span className="text-xs font-bold text-[#67707b]">
+                          {achievementStats.unlocked} / {achievementStats.total}
+                        </span>
                       </div>
-                      <div className="p-4 flex items-center justify-between">
-                        <div className="flex gap-2">
-                          {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="w-12 h-12 rounded bg-[#2a2e38] border border-[#3d4450] flex items-center justify-center text-xs font-black text-[#5e6673]">+</div>
-                          ))}
-                        </div>
-                        <div className="flex flex-col items-end border-l border-[#2a2e38] pl-6 ml-6">
-                          <span className="text-[10px] uppercase font-bold text-[#67707b] mb-1">Kilitli Olanlar</span>
-                          <span className="text-sm font-bold text-white">+{achievementStats.total - achievementStats.unlocked}</span>
-                        </div>
+                      <div className="p-4">
+                        {achievements.length > 0 ? (
+                          <div className="space-y-2">
+                            {achievements.map((ach: any) => (
+                              <AchievementCard key={ach.id} achievement={ach} />
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[#5e6673] font-medium text-center py-4">Henüz başarım yok</p>
+                        )}
                       </div>
                     </div>
 

@@ -254,6 +254,21 @@ async function main() {
 
   console.log(`Seeded ${createdGames.length} games`);
 
+  // Create achievements for each game
+  for (const game of createdGames) {
+    await prisma.achievement.createMany({
+      data: [
+        { gameId: game.id, name: "İlk Adım", description: "10 dakika oynadın" },
+        { gameId: game.id, name: "Kaşif", description: "1 saat oynadın" },
+        { gameId: game.id, name: "Veteran", description: "10 saat oynadın" },
+        { gameId: game.id, name: "Uzman", description: "30 saat oynadın" },
+        { gameId: game.id, name: "Efsane", description: "100 saat oynadın" },
+      ],
+      skipDuplicates: true,
+    });
+  }
+  console.log(`Seeded achievements for ${createdGames.length} games`);
+
   // Create library items for all users
   const users = await prisma.user.findMany();
   if (users.length > 0) {
