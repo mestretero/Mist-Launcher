@@ -70,20 +70,32 @@ export const api = {
     register: (data: { email: string; username: string; password: string }) =>
       request<{ user: any; tokens: any }>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
     login: (data: { email: string; password: string }) =>
-      request<{ user: any; tokens: any }>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+      request<{ user?: any; tokens?: any; requires2FA?: boolean; userId?: string }>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
     refresh: (refreshToken: string) =>
       request<{ tokens: any }>("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }),
     verifyStudent: (studentEmail: string) =>
       request<{ verified: boolean }>("/auth/verify-student", { method: "POST", body: JSON.stringify({ studentEmail }) }),
-    me: () => request<{ id: string; email: string; username: string; isStudent: boolean; referralCode: string; avatarUrl?: string; bio?: string; walletBalance: string; isEmailVerified: boolean; twoFactorEnabled: boolean; createdAt?: string }>("/auth/me"),
+    me: () => request<{ id: string; email: string; username: string; isStudent: boolean; referralCode: string; avatarUrl?: string; bio?: string; walletBalance: string; isEmailVerified: boolean; twoFactorEnabled: boolean; preferences?: Record<string, any>; createdAt?: string }>("/auth/me"),
     updateProfile: (data: { bio?: string; avatarUrl?: string }) =>
       request<any>("/auth/profile", { method: "PATCH", body: JSON.stringify(data) }),
+    updatePreferences: (prefs: Record<string, any>) =>
+      request<any>("/auth/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
     forgotPassword: (email: string) =>
       request<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     resetPassword: (token: string, password: string) =>
       request<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, newPassword: password }) }),
     verifyEmail: (token: string) =>
       request<any>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+    twoFactor: {
+      setup: () =>
+        request<{ qrCodeDataUrl: string; secret: string }>("/auth/2fa/setup", { method: "POST" }),
+      verify: (token: string) =>
+        request<{ enabled: boolean }>("/auth/2fa/verify", { method: "POST", body: JSON.stringify({ token }) }),
+      disable: () =>
+        request<{ enabled: boolean }>("/auth/2fa/disable", { method: "POST" }),
+      login: (userId: string, token: string) =>
+        request<{ user: any; tokens: any }>("/auth/2fa/login", { method: "POST", body: JSON.stringify({ userId, token }) }),
+    },
   },
   games: {
     list: (page = 1, category?: string) => {

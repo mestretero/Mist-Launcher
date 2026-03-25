@@ -9,6 +9,7 @@ export interface User {
   walletBalance: string;
   isEmailVerified: boolean;
   twoFactorEnabled: boolean;
+  preferences?: Record<string, any>;
   createdAt?: string;
 }
 

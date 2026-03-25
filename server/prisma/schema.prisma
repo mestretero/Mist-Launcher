@@ -75,6 +75,7 @@ model User {
   passwordResetExpiry DateTime?     @map("password_reset_expiry")
   twoFactorSecret     String?       @map("two_factor_secret")
   twoFactorEnabled    Boolean       @default(false) @map("two_factor_enabled")
+  preferences         Json          @default("{}")
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
 

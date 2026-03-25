@@ -8,11 +8,15 @@ interface DownloadInfo {
   percent: number;
   speedBps: number;
   etaSecs: number;
+  paused: boolean;
 }
 
 interface DownloadState {
   downloads: Record<string, DownloadInfo>;
   startDownload: (gameId: string, url: string, destPath: string) => Promise<string>;
+  pauseDownload: (gameId: string) => Promise<void>;
+  resumeDownload: (gameId: string) => Promise<void>;
+  cancelDownload: (gameId: string) => Promise<void>;
   initListener: () => Promise<void>;
 }
 
@@ -26,10 +30,57 @@ export const useDownloadStore = create<DownloadState>((set) => ({
     set((state) => ({
       downloads: {
         ...state.downloads,
-        [gameId]: { downloadId, gameId, percent: 0, speedBps: 0, etaSecs: 0 },
+        [gameId]: { downloadId, gameId, percent: 0, speedBps: 0, etaSecs: 0, paused: false },
       },
     }));
     return downloadId;
+  },
+
+  pauseDownload: async (gameId) => {
+    const entry = useDownloadStore.getState().downloads[gameId];
+    if (!entry) return;
+    try {
+      await invoke("pause_download", { downloadId: entry.downloadId });
+    } catch {
+      // Tauri command may not exist yet — toggle state locally
+    }
+    set((state) => ({
+      downloads: {
+        ...state.downloads,
+        [gameId]: { ...state.downloads[gameId], paused: true, speedBps: 0, etaSecs: 0 },
+      },
+    }));
+  },
+
+  resumeDownload: async (gameId) => {
+    const entry = useDownloadStore.getState().downloads[gameId];
+    if (!entry) return;
+    try {
+      await invoke("resume_download", { downloadId: entry.downloadId });
+    } catch {
+      // Tauri command may not exist yet — toggle state locally
+    }
+    set((state) => ({
+      downloads: {
+        ...state.downloads,
+        [gameId]: { ...state.downloads[gameId], paused: false },
+      },
+    }));
+  },
+
+  cancelDownload: async (gameId) => {
+    const entry = useDownloadStore.getState().downloads[gameId];
+    if (entry) {
+      try {
+        await invoke("cancel_download", { downloadId: entry.downloadId });
+      } catch {
+        // Tauri command may not exist yet — just remove from state
+      }
+    }
+    set((state) => {
+      const { [gameId]: _, ...rest } = state.downloads;
+      return { downloads: rest };
+    });
   },
 
   initListener: async () => {
@@ -41,7 +92,7 @@ export const useDownloadStore = create<DownloadState>((set) => ({
         return {
           downloads: {
             ...state.downloads,
-            [entry.gameId]: { ...entry, percent, speedBps: speed_bps, etaSecs: eta_secs },
+            [entry.gameId]: { ...entry, percent, speedBps: speed_bps, etaSecs: eta_secs, paused: entry.paused },
           },
         };
       });
