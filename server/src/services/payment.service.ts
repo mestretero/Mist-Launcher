@@ -3,6 +3,7 @@ import { notFound, badRequest, conflict } from "../lib/errors.js";
 import { calculatePrice } from "./pricing.service.js";
 import * as iyzico from "../plugins/iyzico.plugin.js";
 import { randomUUID } from "crypto";
+import { createNotification } from "./notification.service.js";
 
 export async function initPayment(userId: string, input: {
   gameId: string;
@@ -163,6 +164,18 @@ export async function handleCallback(paymentToken: string) {
       });
     }
   });
+
+  const paymentWithGame = await prisma.payment.findUniqueOrThrow({
+    where: { id: conversationId },
+    include: { game: true },
+  });
+  await createNotification(
+    paymentWithGame.userId,
+    "PAYMENT_SUCCESS",
+    "Satın Alma Başarılı",
+    `${paymentWithGame.game.title} kütüphanene eklendi!`,
+    { gameId: paymentWithGame.gameId, paymentId: paymentWithGame.id }
+  );
 
   return { success: true };
 }
