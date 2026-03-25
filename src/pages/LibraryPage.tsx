@@ -22,6 +22,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   const [verifying, setVerifying] = useState(false);
   const [achievementStats, setAchievementStats] = useState({ total: 0, unlocked: 0 });
   const [achievements, setAchievements] = useState<any[]>([]);
+  const [dlcs, setDlcs] = useState<any[]>([]);
+  const [dlcsLoading, setDlcsLoading] = useState(false);
 
   useEffect(() => {
     api.library.list()
@@ -49,8 +51,19 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     }
   }, [selectedItem?.id]);
 
+  // Fetch DLCs when DLC tab is active
+  useEffect(() => {
+    if (activeTab === "dlc" && selectedItem) {
+      setDlcsLoading(true);
+      api.games.dlcs(selectedItem.game.slug)
+        .then((data) => setDlcs(Array.isArray(data) ? data : []))
+        .catch(() => setDlcs([]))
+        .finally(() => setDlcsLoading(false));
+    }
+  }, [activeTab, selectedItem?.id]);
+
   // Reset tab when selecting a different game
-  useEffect(() => { setActiveTab("overview"); setUninstallConfirm(null); }, [selectedItem?.id]);
+  useEffect(() => { setActiveTab("overview"); setUninstallConfirm(null); setDlcs([]); }, [selectedItem?.id]);
 
   const handleDownload = async (item: LibraryItem) => {
     const destDir = await getDownloadDir();
@@ -451,10 +464,42 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                 </div>
               )}
 
-              {activeTab === "dlc" && renderTabPlaceholder(
-                "DLC Bulunamadı",
-                "Bu oyun için henüz ek içerik paketi yayınlanmamış.",
-                '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'
+              {activeTab === "dlc" && (
+                dlcsLoading ? (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="w-8 h-8 border-2 border-[#47bfff] border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : dlcs.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {dlcs.map((dlc: any) => (
+                      <div key={dlc.id} className="bg-[#1a1c23] border border-[#2a2e38] rounded overflow-hidden hover:border-[#3d4450] transition-colors group">
+                        {dlc.coverImageUrl && (
+                          <img src={dlc.coverImageUrl} alt={dlc.title} className="w-full h-36 object-cover group-hover:brightness-110 transition-all" />
+                        )}
+                        <div className="p-4">
+                          <h4 className="text-sm font-bold text-white mb-1 truncate">{dlc.title}</h4>
+                          {dlc.publisher?.name && (
+                            <p className="text-xs text-[#67707b] mb-3">{dlc.publisher.name}</p>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-[#47bfff]">
+                              {dlc.price ? `${Number(dlc.price).toFixed(2)} ₺` : "Ücretsiz"}
+                            </span>
+                            <button className="px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded transition-colors bg-[#47bfff]/20 text-[#47bfff] hover:bg-[#47bfff]/30 border border-[#47bfff]/30">
+                              Satın Al
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  renderTabPlaceholder(
+                    "Bu oyun için DLC bulunmuyor",
+                    "Bu oyun için henüz ek içerik paketi yayınlanmamış.",
+                    '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'
+                  )
+                )
               )}
 
               {activeTab === "community" && renderTabPlaceholder(

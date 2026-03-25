@@ -107,6 +107,7 @@ export const api = {
     featured: () => request<any[]>("/games/featured"),
     getBySlug: (slug: string) => request<any>(`/games/${slug}`),
     search: (q: string) => request<any[]>(`/games/search?q=${encodeURIComponent(q)}`),
+    dlcs: (slug: string) => request<any[]>(`/games/${slug}/dlcs`),
   },
   library: {
     list: () => request<any[]>("/library"),

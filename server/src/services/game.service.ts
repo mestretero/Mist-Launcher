@@ -37,6 +37,14 @@ export async function getFeaturedGames() {
   });
 }
 
+export async function getGameDLCs(slug: string) {
+  const game = await prisma.game.findUniqueOrThrow({ where: { slug } });
+  return prisma.game.findMany({
+    where: { parentGameId: game.id, status: "PUBLISHED" },
+    include: { publisher: true },
+  });
+}
+
 export async function searchGames(query: string) {
   const games = await prisma.game.findMany({
     where: {

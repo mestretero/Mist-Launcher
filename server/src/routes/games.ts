@@ -25,4 +25,10 @@ export default async function gameRoutes(app: FastifyInstance) {
     const game = await gameService.getGameBySlug(slug);
     return reply.send({ data: game });
   });
+
+  app.get("/games/:slug/dlcs", async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+    const dlcs = await gameService.getGameDLCs(slug);
+    return reply.send({ data: dlcs });
+  });
 }
