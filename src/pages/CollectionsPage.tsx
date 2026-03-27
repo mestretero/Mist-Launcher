@@ -7,7 +7,7 @@ import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
 interface Collection {
   id: string;
   name: string;
-  games: { id: string; gameId: string; game: { id: string; title: string; slug: string; coverImageUrl: string; price: string; publisher: { name: string } } }[];
+  items: { id: string; gameId: string; game: { id: string; title: string; slug: string; coverImageUrl: string; price: string; publisher: { name: string } } }[];
 }
 
 export function CollectionsPage() {
@@ -177,7 +177,7 @@ export function CollectionsPage() {
                       <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                     </svg>
                     <span className="text-sm truncate font-medium flex-1">{col.name}</span>
-                    <span className="text-[10px] font-bold text-[#5e6673]">{col.games?.length || 0}</span>
+                    <span className="text-[10px] font-bold text-[#5e6673]">{col.items?.length || 0}</span>
                   </div>
                 );
               })}
@@ -208,7 +208,7 @@ export function CollectionsPage() {
                 </svg>
                 <h2 className="text-xl font-bold text-[#c6d4df] uppercase tracking-widest">{selected.name}</h2>
                 <span className="text-sm font-bold bg-[#2a2e38] px-3 py-1 rounded text-[#8f98a0]">
-                  {(selected.games?.length || 0) + localGamesInCollection.length} OYUN
+                  {(selected.items?.length || 0) + localGamesInCollection.length} OYUN
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -241,7 +241,7 @@ export function CollectionsPage() {
             </div>
 
             {/* Games Grid */}
-            {(!selected.games || selected.games.length === 0) && localGamesInCollection.length === 0 ? (
+            {(!selected.items || selected.items.length === 0) && localGamesInCollection.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <svg className="mb-6 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -257,7 +257,7 @@ export function CollectionsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-4 gap-6">
-                {selected.games.map((entry) => (
+                {selected.items.map((entry) => (
                   <div
                     key={entry.id}
                     className="rounded overflow-hidden bg-[#161920] border border-[#2a2e38] transition-all hover:-translate-y-1 hover:border-[#3d4450] hover:shadow-lg hover:shadow-black/20 group relative"
