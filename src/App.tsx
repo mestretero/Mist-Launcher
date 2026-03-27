@@ -16,6 +16,7 @@ import { CartPage } from "./pages/CartPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
+import GameScannerPage from "./pages/GameScannerPage";
 import { ToastContainer } from "./components/ToastContainer";
 
 function App() {
@@ -107,6 +108,7 @@ function App() {
       {page === "wishlist" && <WishlistPage onGameClick={(slug) => navigate("game", slug)} />}
       {page === "cart" && <CartPage onGameClick={(slug) => navigate("game", slug)} onNavigate={navigate} />}
       {page === "collections" && <CollectionsPage />}
+      {page === "scanner" && <GameScannerPage onNavigate={navigate} />}
       {page === "friends" && <FriendsPage />}
       {page === "settings" && <SettingsPage />}
       {page === "profile" && <ProfilePage onNavigate={navigate} />}

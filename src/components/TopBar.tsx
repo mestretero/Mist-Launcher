@@ -48,6 +48,7 @@ export function TopBar({
     { id: "wishlist", label: "İSTEK LİSTESİ" },
     { id: "library", label: "KÜTÜPHANE" },
     { id: "collections", label: "KOLEKSİYONLAR" },
+    { id: "scanner", label: "OYUN TARA" },
   ];
 
   if (user) {
