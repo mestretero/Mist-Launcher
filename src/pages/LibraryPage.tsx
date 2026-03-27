@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../lib/api";
@@ -14,6 +15,7 @@ import type { LibraryItem } from "../lib/types";
 type LibTab = "overview" | "dlc" | "community" | "discussions" | "workshop" | "guides" | "support";
 
 export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,7 +42,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
           if (data.length > 0) setSelectedItem(data[0]);
         }
       })
-      .catch(err => addToast("Kütüphane verileri yüklenemedi: " + err.message, "error"));
+      .catch(err => addToast(t("common.error") + ": " + err.message, "error"));
     loadLocalGames();
   }, []);
 
@@ -82,7 +84,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
       if (needed > 0 && space.free_bytes < needed) {
         const freeGB = (space.free_bytes / (1024 ** 3)).toFixed(1);
         const needGB = (needed / (1024 ** 3)).toFixed(1);
-        addToast(`Yetersiz disk alanı! Gereken: ${needGB} GB, Boş: ${freeGB} GB`, "error");
+        addToast(t("common.error") + `: ${needGB} GB / ${freeGB} GB`, "error");
         return;
       }
     } catch { /* proceed anyway */ }
@@ -96,9 +98,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
         gameId: item.gameId,
         exePath: item.installPath || `C:/Games/Stealike/${item.game.slug}/game.exe`,
       });
-      addToast(`${item.game.title} başlatılıyor...`, "info");
+      addToast(t("collections.launching", { title: item.game.title }), "info");
     } catch (err: any) {
-      addToast("Oyun başlatılamadı: " + (err?.message || err), "error");
+      addToast(t("common.launchError"), "error");
     }
   };
 
@@ -106,12 +108,12 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     const path = item.installPath || `C:/Games/Stealike/${item.game.slug}`;
     const hash = item.game.fileHash || "";
     setVerifying(true);
-    addToast("Dosya doğrulama başlatıldı...", "info");
+    addToast(t("common.loading"), "info");
     try {
       const valid = await invoke<boolean>("verify_game_files", { gameId: item.gameId, path, expectedHash: hash });
-      addToast(valid ? "Tüm dosyalar doğrulandı!" : "Dosya bütünlüğü bozuk. Yeniden indirmeniz önerilir.", valid ? "success" : "error");
+      addToast(valid ? t("common.confirm") : t("common.error"), valid ? "success" : "error");
     } catch (err: any) {
-      addToast("Doğrulama başarısız: " + (err?.message || err), "error");
+      addToast(t("common.error") + ": " + (err?.message || err), "error");
     } finally {
       setVerifying(false);
     }
@@ -121,11 +123,11 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     const path = item.installPath || `C:/Games/Stealike/${item.game.slug}`;
     try {
       await invoke("uninstall_game", { gameId: item.gameId, path });
-      addToast(`${item.game.title} kaldırıldı.`, "success");
+      addToast(t("common.gameRemoved", { title: item.game.title }), "success");
       setUninstallConfirm(null);
       setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, installPath: null } : i));
     } catch (err: any) {
-      addToast("Kaldırma başarısız: " + (err?.message || err), "error");
+      addToast(t("common.removeError"), "error");
     }
   };
 
@@ -134,9 +136,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     if (!dl) return;
     try {
       await invoke("pause_download", { downloadId: dl.downloadId });
-      addToast("İndirme duraklatıldı", "info");
+      addToast(t("common.loading"), "info");
     } catch {
-      addToast("Duraklatma henüz desteklenmiyor", "info");
+      addToast(t("common.error"), "info");
     }
   };
 
@@ -145,9 +147,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     if (!dl) return;
     try {
       await invoke("resume_download", { downloadId: dl.downloadId });
-      addToast("İndirme devam ediyor", "info");
+      addToast(t("common.loading"), "info");
     } catch {
-      addToast("Devam ettirme henüz desteklenmiyor", "info");
+      addToast(t("common.error"), "info");
     }
   };
 
@@ -168,7 +170,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
       await invoke("launch_game", { gameId: game.id, exePath: game.exe_path });
     } catch (err: any) {
       setLocalGameRunning(null);
-      addToast("Oyun baslatilamadi: " + (err?.message || err), "error");
+      addToast(t("common.launchError"), "error");
     }
   };
 
@@ -176,9 +178,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     try {
       await deleteGame(game.id);
       if (selectedLocalGame?.id === game.id) setSelectedLocalGame(null);
-      addToast(`${game.title} kaldirild`, "success");
+      addToast(t("common.gameRemoved", { title: game.title }), "success");
     } catch (err: any) {
-      addToast("Kaldirilamadi: " + (err?.message || err), "error");
+      addToast(t("common.removeError"), "error");
     }
   };
 
@@ -186,9 +188,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     setRefreshingCovers(true);
     try {
       const count = await refreshCovers();
-      addToast(`${count} oyunun gorseli guncellendi`, "success");
+      addToast(t("common.coversUpdated", { count }), "success");
     } catch (err: any) {
-      addToast("Gorsel guncelleme hatasi: " + (err?.message || err), "error");
+      addToast(t("common.coversError"), "error");
     } finally {
       setRefreshingCovers(false);
     }
@@ -202,26 +204,26 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     try {
       const meta = await fetchMetadata(fileName);
       await addManualGame(exePath, meta ?? { title: fileName, cover_url: null, description: null, genres: null });
-      addToast(`${meta?.title || fileName} eklendi!`, "success");
+      addToast(t("common.gameAdded", { title: meta?.title || fileName }), "success");
     } catch (err: any) {
-      addToast("Oyun eklenemedi: " + (err?.message || err), "error");
+      addToast(t("common.error") + ": " + (err?.message || err), "error");
     }
   };
 
   const formatPlayTime = (mins: number) => {
-    if (mins < 60) return `${mins} dk`;
-    return `${Math.floor(mins / 60)} sa ${mins % 60} dk`;
+    if (mins < 60) return t("library.minutesShort", { count: mins });
+    return t("library.hoursMinutes", { hours: Math.floor(mins / 60), minutes: mins % 60 });
   };
 
   const formatRelativeDate = (dateStr: string | null) => {
-    if (!dateStr) return "Hiç oynanmadı";
+    if (!dateStr) return t("library.noPlayTime");
     const diff = Date.now() - new Date(dateStr).getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Bugün";
-    if (days === 1) return "Dün";
-    if (days < 7) return `${days} gün önce`;
-    if (days < 30) return `${Math.floor(days / 7)} hafta önce`;
-    return `${Math.floor(days / 30)} ay önce`;
+    if (days === 0) return t("library.today");
+    if (days === 1) return t("library.yesterday");
+    if (days < 7) return t("library.daysAgo", { count: days });
+    if (days < 30) return t("library.weeksAgo", { count: Math.floor(days / 7) });
+    return t("library.monthsAgo", { count: Math.floor(days / 30) });
   };
 
   const filteredItems = items
@@ -241,13 +243,13 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   );
 
   const tabs: { id: LibTab; label: string }[] = [
-    { id: "overview", label: "Genel Bakış" },
-    { id: "dlc", label: "DLC'ler" },
-    { id: "community", label: "Topluluk" },
-    { id: "discussions", label: "Tartışmalar" },
-    { id: "workshop", label: "Atölye" },
-    { id: "guides", label: "Rehberler" },
-    { id: "support", label: "Destek" },
+    { id: "overview", label: t("library.tabs.overview") },
+    { id: "dlc", label: t("library.tabs.dlc") },
+    { id: "community", label: t("library.tabs.community") },
+    { id: "discussions", label: t("library.tabs.discussions") },
+    { id: "workshop", label: t("library.tabs.workshop") },
+    { id: "guides", label: t("library.tabs.guides") },
+    { id: "support", label: t("library.tabs.support") },
   ];
 
   const renderTabPlaceholder = (title: string, description: string, icon: string) => (
@@ -268,13 +270,13 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
               onClick={() => onNavigate && onNavigate("scanner")}
               className="flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded transition-colors text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20"
             >
-              Oyun Tara
+              {t("library.scanButton")}
             </button>
             <button
               onClick={handleAddManual}
               className="flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded transition-colors text-brand-300 bg-brand-800 hover:bg-brand-700"
             >
-              Oyun Ekle
+              {t("library.addButton")}
             </button>
           </div>
           {localGames.some(g => !g.cover_url) && (
@@ -283,14 +285,14 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
               disabled={refreshingCovers}
               className="w-full text-[10px] font-bold uppercase tracking-widest py-1 rounded transition-colors text-blue-400 bg-blue-400/10 hover:bg-blue-400/20 disabled:opacity-50"
             >
-              {refreshingCovers ? "Gorseller Yukleniyor..." : "Gorselleri Yukle"}
+              {refreshingCovers ? t("library.refreshingCovers") : t("library.refreshCovers")}
             </button>
           )}
           <div className="flex gap-1">
-            {([["name", "A-Z"], ["recent", "Son"], ["playtime", "Süre"]] as const).map(([key, label]) => (
+            {([["name", t("library.sortAZ")], ["recent", t("library.sortRecent")], ["playtime", t("library.sortPlaytime")]] as [string, string][]).map(([key, label]) => (
               <button
                 key={key}
-                onClick={() => setSortBy(key)}
+                onClick={() => setSortBy(key as "name" | "recent" | "playtime")}
                 className={`flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded transition-colors ${
                   sortBy === key ? "text-white bg-[#2a2e38] shadow-sm" : "text-[#8f98a0] hover:text-white hover:bg-[#2a2e38]"
                 }`}
@@ -303,7 +305,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#67707b]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input
               type="text"
-              placeholder="Arama yap..."
+              placeholder={t("library.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#20232c] border border-[#2a2e38] text-[#c6d4df] text-sm pl-8 pr-3 py-1.5 focus:outline-none focus:border-[#3d4450] transition-colors rounded shadow-inner"
@@ -314,7 +316,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
         <div className="flex-1 overflow-y-auto mt-2">
           <div className="px-3 pb-1">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-2 mb-1 flex items-center justify-between">
-              <span>Tüm Oyunlar</span>
+              <span>{t("library.allGames")}</span>
               <span>{filteredItems.length + filteredLocalGames.length}</span>
             </div>
           </div>
@@ -348,7 +350,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
             })}
             {filteredLocalGames.length > 0 && (
               <>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-5 pt-3 pb-1">Yerel Oyunlar</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-5 pt-3 pb-1">{t("library.localGames")}</div>
                 {filteredLocalGames.map((game: LocalGame) => {
                   const isLocalSelected = selectedLocalGame?.id === game.id;
                   return (
@@ -365,8 +367,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                         }
                       </div>
                       <span className={`text-sm truncate font-medium flex-1 ${isLocalSelected ? "text-white font-bold" : ""}`}>{game.title}</span>
-                      {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Tarandi</span>}
-                      {game.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded">Manuel</span>}
+                      {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">{t("library.scanned")}</span>}
+                      {game.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded">{t("library.manual")}</span>}
                     </div>
                   );
                 })}
@@ -401,8 +403,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                   {selectedLocalGame.title}
                 </h1>
                 <div className="flex gap-2 mt-2">
-                  {selectedLocalGame.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">Tarandi</span>}
-                  {selectedLocalGame.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded">Manuel</span>}
+                  {selectedLocalGame.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">{t("library.scanned")}</span>}
+                  {selectedLocalGame.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded">{t("library.manual")}</span>}
                   {selectedLocalGame.launcher && selectedLocalGame.launcher !== "none" && (
                     <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded capitalize">{selectedLocalGame.launcher}</span>
                   )}
@@ -418,14 +420,14 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                   disabled={localGameRunning === selectedLocalGame.id}
                   className="px-8 py-3 bg-[#1a9fff] hover:bg-[#47bfff] disabled:bg-[#1a9fff]/50 text-white font-black uppercase tracking-widest text-sm rounded transition-colors"
                 >
-                  {localGameRunning === selectedLocalGame.id ? "Calisiyor..." : "Baslat"}
+                  {localGameRunning === selectedLocalGame.id ? t("library.running") : t("library.launch")}
                 </button>
                 <div className="flex-1" />
                 <button
                   onClick={() => handleDeleteLocal(selectedLocalGame)}
                   className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded text-xs font-bold uppercase tracking-widest transition-colors"
                 >
-                  Kutuphanden Kaldir
+                  {t("library.removeFromLibrary")}
                 </button>
               </div>
 
@@ -436,38 +438,38 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Oyun Bilgileri</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.gameInfo")}</h3>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-[#67707b]">Oynama Suresi</span>
-                      <span className="text-[#c6d4df] font-medium">{selectedLocalGame.play_time > 0 ? formatPlayTime(Math.floor(selectedLocalGame.play_time / 60)) : "Henuz oynanmadi"}</span>
+                      <span className="text-[#67707b]">{t("library.playTime")}</span>
+                      <span className="text-[#c6d4df] font-medium">{selectedLocalGame.play_time > 0 ? formatPlayTime(Math.floor(selectedLocalGame.play_time / 60)) : t("library.neverPlayed")}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#67707b]">Son Oynama</span>
+                      <span className="text-[#67707b]">{t("library.lastPlayed")}</span>
                       <span className="text-[#c6d4df] font-medium">{formatRelativeDate(selectedLocalGame.last_played)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#67707b]">Ekleme Tarihi</span>
+                      <span className="text-[#67707b]">{t("library.addedDate")}</span>
                       <span className="text-[#c6d4df] font-medium">{new Date(selectedLocalGame.added_at).toLocaleDateString("tr-TR")}</span>
                     </div>
                     {selectedLocalGame.genres && selectedLocalGame.genres.length > 0 && (
                       <div className="flex justify-between">
-                        <span className="text-[#67707b]">Turler</span>
+                        <span className="text-[#67707b]">{t("library.genres")}</span>
                         <span className="text-[#c6d4df] font-medium">{selectedLocalGame.genres.join(", ")}</span>
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Dosya Bilgileri</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.fileInfo")}</h3>
                   <div className="space-y-3 text-sm">
                     <div>
-                      <span className="text-[#67707b] block mb-1">Calistirilabilir Dosya</span>
+                      <span className="text-[#67707b] block mb-1">{t("library.exePath")}</span>
                       <span className="text-[#c6d4df] font-mono text-xs break-all">{selectedLocalGame.exe_path}</span>
                     </div>
                     {selectedLocalGame.install_path && (
                       <div>
-                        <span className="text-[#67707b] block mb-1">Kurulum Klasoru</span>
+                        <span className="text-[#67707b] block mb-1">{t("library.installPath")}</span>
                         <span className="text-[#c6d4df] font-mono text-xs break-all">{selectedLocalGame.install_path}</span>
                       </div>
                     )}
@@ -477,7 +479,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
 
               {selectedLocalGame.description && (
                 <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5 mt-6">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Aciklama</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.description")}</h3>
                   <p className="text-sm text-[#8f98a0] leading-relaxed">{selectedLocalGame.description}</p>
                 </div>
               )}
@@ -486,8 +488,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
         ) : items.length === 0 && localGames.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <svg className="mb-6 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            <h2 className="text-2xl font-black text-[#8f98a0] tracking-widest uppercase mb-2">Henuz Oyun Yok</h2>
-            <p className="text-[#67707b] text-sm font-medium max-w-sm">Oyun tarayiciyi kullanarak veya magzadan oyun alarak kutuphanenizi olusturmaya baslayabilirsiniz.</p>
+            <h2 className="text-2xl font-black text-[#8f98a0] tracking-widest uppercase mb-2">{t("library.emptyTitle")}</h2>
+            <p className="text-[#67707b] text-sm font-medium max-w-sm">{t("library.emptyHint")}</p>
           </div>
         ) : selectedItem ? (
           <>
@@ -516,20 +518,20 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                           etaSecs={downloads[selectedItem.gameId].etaSecs}
                         />
                       </div>
-                      <button onClick={() => handlePause(selectedItem.gameId)} className="p-1.5 rounded hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white transition-colors" title="Duraklat">
+                      <button onClick={() => handlePause(selectedItem.gameId)} className="p-1.5 rounded hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white transition-colors" title={t("library.pauseDownload")}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                       </button>
-                      <button onClick={() => handleResume(selectedItem.gameId)} className="p-1.5 rounded hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white transition-colors" title="Devam Et">
+                      <button onClick={() => handleResume(selectedItem.gameId)} className="p-1.5 rounded hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white transition-colors" title={t("library.resumeDownload")}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                       </button>
                     </div>
                   ) : downloads[selectedItem.gameId]?.percent >= 100 ? (
                     <button onClick={() => handleLaunch(selectedItem)} className="px-8 py-2.5 rounded text-white font-black text-xl uppercase tracking-widest shadow-md transition-all hover:scale-105" style={{ background: "linear-gradient(to right, #47bfff, #1a70cb)", textShadow: "0px 2px 4px rgba(0,0,0,0.3)" }}>
-                      Oyna
+                      {t("library.play")}
                     </button>
                   ) : (
                     <button onClick={() => handleDownload(selectedItem)} className="px-8 py-2.5 rounded text-white font-black text-lg uppercase tracking-widest shadow-md transition-all hover:scale-105 hover:brightness-110" style={{ background: "linear-gradient(to right, #799905, #536904)", textShadow: "0px 2px 4px rgba(0,0,0,0.3)" }}>
-                      Yükle
+                      {t("library.install")}
                     </button>
                   )}
                 </div>
@@ -537,22 +539,22 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                 {/* Stats */}
                 <div className="flex items-center gap-12 ml-10">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">Son Oynama</span>
+                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.lastPlayed")}</span>
                     <span className="text-sm font-semibold text-white">{formatRelativeDate(selectedItem.lastPlayedAt)}</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">Oynama Süresi</span>
+                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.playTime")}</span>
                     <span className="text-sm font-semibold text-white">{formatPlayTime(selectedItem.playTimeMins)}</span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">Bulut Durumu</span>
+                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.cloudStatus")}</span>
                     <span className="text-sm font-semibold text-white flex items-center gap-1">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-                      Güncel
+                      {t("library.cloudUpToDate")}
                     </span>
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">Başarımlar</span>
+                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.achievements")}</span>
                     <span className="text-sm font-semibold text-white">
                       {achievementStats.unlocked} / {achievementStats.total}
                       <div className="w-24 h-1.5 bg-[#2a2e38] rounded-full mt-1.5 overflow-hidden">
@@ -568,18 +570,18 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                     onClick={() => handleVerifyFiles(selectedItem)}
                     disabled={verifying}
                     className="p-1.5 hover:text-white transition-colors disabled:opacity-50"
-                    title="Dosya Doğrula"
+                    title={t("library.verifyFiles")}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   </button>
                   <button
                     onClick={() => setUninstallConfirm(uninstallConfirm === selectedItem.id ? null : selectedItem.id)}
                     className="p-1.5 hover:text-red-400 transition-colors"
-                    title="Kaldır"
+                    title={t("library.uninstall")}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
-                  <button className="p-1.5 hover:text-white transition-colors" title="Ayarlar">
+                  <button className="p-1.5 hover:text-white transition-colors" title={t("nav.settings")}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                   </button>
                 </div>
@@ -589,14 +591,14 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
               {uninstallConfirm === selectedItem.id && (
                 <div className="mb-6 p-4 bg-red-900/20 border border-red-900/50 rounded flex items-center justify-between">
                   <p className="text-sm text-red-400 font-bold">
-                    {selectedItem.game.title} kaldırılsın mı? Bu işlem geri alınamaz.
+                    {t("library.uninstallConfirm", { title: selectedItem.game.title })}
                   </p>
                   <div className="flex gap-2">
                     <button onClick={() => setUninstallConfirm(null)} className="px-4 py-1.5 text-xs font-bold text-[#8f98a0] hover:text-white bg-[#2a2e38] rounded transition-colors uppercase tracking-widest">
-                      İptal
+                      {t("common.cancel")}
                     </button>
                     <button onClick={() => handleUninstall(selectedItem)} className="px-4 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded transition-colors uppercase tracking-widest">
-                      Kaldır
+                      {t("library.uninstall")}
                     </button>
                   </div>
                 </div>
@@ -627,11 +629,11 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                     {/* Friends Playing */}
                     <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
                       <div className="px-4 py-3 border-b border-[#2a2e38]">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Bu oyunu oynayan arkadaşlarınız</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.friendsPlaying")}</h3>
                       </div>
                       <div className="p-4">
                         <button onClick={() => onNavigate?.("friends")} className="text-sm text-[#47bfff] hover:text-[#66ccff] transition-colors font-medium">
-                          Arkadaşlarını Gör →
+                          {t("library.viewFriends")}
                         </button>
                       </div>
                     </div>
@@ -639,7 +641,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                     {/* Achievements */}
                     <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
                       <div className="px-4 py-3 border-b border-[#2a2e38] flex justify-between items-center">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Başarımlar</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.achievements")}</h3>
                         <span className="text-xs font-bold text-[#67707b]">
                           {achievementStats.unlocked} / {achievementStats.total}
                         </span>
@@ -652,7 +654,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                             ))}
                           </div>
                         ) : (
-                          <p className="text-sm text-[#5e6673] font-medium text-center py-4">Henüz başarım yok</p>
+                          <p className="text-sm text-[#5e6673] font-medium text-center py-4">{t("library.noAchievements")}</p>
                         )}
                       </div>
                     </div>
@@ -660,17 +662,17 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                     {/* Activity */}
                     <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
                       <div className="px-4 py-3 border-b border-[#2a2e38]">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">Etkinlikleriniz</h3>
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.activity")}</h3>
                       </div>
                       <div className="p-4 space-y-4">
                         {selectedItem?.lastPlayedAt ? (
                           <div className="flex items-center gap-3 text-sm text-[#8f98a0]">
-                            <span>Son oynama: {new Date(selectedItem.lastPlayedAt).toLocaleDateString("tr-TR")}</span>
+                            <span>{t("library.lastPlayedDetail", { date: new Date(selectedItem.lastPlayedAt).toLocaleDateString() })}</span>
                             <span>·</span>
-                            <span>{Math.round((selectedItem.playTimeMins || 0) / 60)} saat oynandı</span>
+                            <span>{t("library.hoursPlayed", { hours: Math.round((selectedItem.playTimeMins || 0) / 60) })}</span>
                           </div>
                         ) : (
-                          <p className="text-sm text-[#5e6673]">Henüz etkinlik yok</p>
+                          <p className="text-sm text-[#5e6673]">{t("library.noActivity")}</p>
                         )}
                       </div>
                     </div>
@@ -678,10 +680,10 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
 
                   {/* Right Column */}
                   <div className="space-y-6">
-                    <h3 className="text-sm font-bold text-[#8f98a0] uppercase tracking-wider mb-2">Geliştirici Etkinliği</h3>
+                    <h3 className="text-sm font-bold text-[#8f98a0] uppercase tracking-wider mb-2">{t("library.devActivity")}</h3>
                     <div className="bg-[#1a1c23] border border-[#2a2e38] rounded p-6 flex flex-col items-center justify-center text-center">
                       <svg className="mb-3 text-[#3d4450]" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                      <p className="text-sm text-[#5e6673] font-medium">Geliştirici güncellemesi yok</p>
+                      <p className="text-sm text-[#5e6673] font-medium">{t("library.noDevUpdates")}</p>
                     </div>
                   </div>
                 </div>
@@ -706,10 +708,10 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                           )}
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-bold text-[#47bfff]">
-                              {dlc.price ? `${Number(dlc.price).toFixed(2)} ₺` : "Ücretsiz"}
+                              {dlc.price ? `${Number(dlc.price).toFixed(2)} ₺` : t("library.free")}
                             </span>
                             <button className="px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded transition-colors bg-[#47bfff]/20 text-[#47bfff] hover:bg-[#47bfff]/30 border border-[#47bfff]/30">
-                              Satın Al
+                              {t("library.buy")}
                             </button>
                           </div>
                         </div>
@@ -718,34 +720,34 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                   </div>
                 ) : (
                   renderTabPlaceholder(
-                    "Bu oyun için DLC bulunmuyor",
-                    "Bu oyun için henüz ek içerik paketi yayınlanmamış.",
+                    t("library.dlcEmpty"),
+                    t("library.dlcEmptyHint"),
                     '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>'
                   )
                 )
               )}
 
               {activeTab === "community" && renderTabPlaceholder(
-                "Topluluk",
-                "Oyuncu topluluğu, ekran görüntüleri ve paylaşımlar çok yakında burada olacak.",
+                t("library.tabs.community"),
+                t("library.communityHint"),
                 '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
               )}
 
               {activeTab === "discussions" && renderTabPlaceholder(
-                "Tartışmalar",
-                "Oyuncuların strateji paylaştığı, sorunları tartıştığı forumlar çok yakında aktif olacak.",
+                t("library.tabs.discussions"),
+                t("library.discussionsHint"),
                 '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
               )}
 
               {activeTab === "workshop" && renderTabPlaceholder(
-                "Atölye",
-                "Topluluk tarafından oluşturulan modlar, haritalar ve içerikler çok yakında burada paylaşılacak.",
+                t("library.tabs.workshop"),
+                t("library.workshopHint"),
                 '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>'
               )}
 
               {activeTab === "guides" && renderTabPlaceholder(
-                "Rehberler",
-                "Oyuncu rehberleri, ipuçları ve tam çözüm yolları çok yakında eklenecek.",
+                t("library.tabs.guides"),
+                t("library.guidesHint"),
                 '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
               )}
 
@@ -754,14 +756,14 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                   <div className="w-16 h-16 rounded-full bg-[#2a2e38] flex items-center justify-center mb-4 text-[#67707b]">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                   </div>
-                  <h3 className="text-lg font-black text-[#8f98a0] uppercase tracking-widest mb-2">Destek</h3>
-                  <p className="text-sm text-[#67707b] font-medium max-w-md mb-6">Sorun mu yaşıyorsunuz? Aşağıdaki seçeneklerden birini kullanarak yardım alabilirsiniz.</p>
+                  <h3 className="text-lg font-black text-[#8f98a0] uppercase tracking-widest mb-2">{t("library.tabs.support")}</h3>
+                  <p className="text-sm text-[#67707b] font-medium max-w-md mb-6">{t("library.supportHint")}</p>
                   <div className="flex gap-4">
                     <button className="px-6 py-2.5 rounded bg-[#2a2e38] hover:bg-[#3d4450] text-white text-xs font-bold uppercase tracking-widest transition-colors">
-                      Sık Sorulan Sorular
+                      {t("library.faq")}
                     </button>
                     <button className="px-6 py-2.5 rounded bg-[#47bfff]/20 hover:bg-[#47bfff]/30 text-[#47bfff] text-xs font-bold uppercase tracking-widest transition-colors border border-[#47bfff]/30">
-                      Destek Talebi Oluştur
+                      {t("library.createSupportTicket")}
                     </button>
                   </div>
                 </div>
@@ -771,8 +773,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <svg className="mb-4 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            <h2 className="text-2xl font-black text-[#5e6673] tracking-widest uppercase">Kütüphane</h2>
-            <p className="text-[#3d4450] text-sm font-medium">Lütfen soldaki listeden bir oyun seçiniz.</p>
+            <h2 className="text-2xl font-black text-[#5e6673] tracking-widest uppercase">{t("library.libraryTitle")}</h2>
+            <p className="text-[#3d4450] text-sm font-medium">{t("library.selectGame")}</p>
           </div>
         )}
       </div>

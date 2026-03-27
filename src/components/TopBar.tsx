@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useCartStore } from "../stores/cartStore";
 import { useNotificationStore } from "../stores/notificationStore";
@@ -14,6 +15,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoBack, onGoForward }: TopBarProps) {
+  const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const cartItemCount = useCartStore((s) => s.items.length);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
@@ -38,10 +40,10 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
   };
 
   const navItems = [
-    { id: "store", label: "Magaza" },
-    { id: "library", label: "Kutuphane" },
-    { id: "collections", label: "Koleksiyonlar" },
-    { id: "scanner", label: "Oyun Tara" },
+    { id: "store", label: t("nav.store") },
+    { id: "library", label: t("nav.library") },
+    { id: "collections", label: t("nav.collections") },
+    { id: "scanner", label: t("nav.scanner") },
   ];
 
   const noDrag = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
@@ -49,7 +51,7 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
   return (
     <div
       onMouseDown={handleDrag}
-      className="w-full flex-shrink-0 flex items-center justify-between h-11 bg-brand-950 border-b border-brand-800/50 select-none text-[#8f98a0]"
+      className="relative z-[100] w-full flex-shrink-0 flex items-center justify-between h-11 bg-brand-950 border-b border-brand-800/50 select-none text-[#8f98a0] shadow-md"
       style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
     >
       {/* Left: Nav arrows + Brand + Tabs */}
@@ -98,26 +100,26 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
             {/* Wishlist */}
             <button onClick={() => onNavigate("wishlist")}
               className={`p-1.5 rounded transition-colors ${currentPage === "wishlist" ? "text-[#1a9fff]" : "text-brand-400 hover:text-white hover:bg-brand-800"}`}
-              title="Istek Listesi">
+              title={t("nav.wishlist")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </button>
             {/* Friends */}
             <button onClick={() => onNavigate("friends")}
               className={`p-1.5 rounded transition-colors ${currentPage === "friends" ? "text-[#1a9fff]" : "text-brand-400 hover:text-white hover:bg-brand-800"}`}
-              title="Arkadaslar">
+              title={t("nav.friends")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </button>
             {/* Notifications */}
             <button onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-1.5 rounded text-brand-400 hover:text-white hover:bg-brand-800 transition-colors"
-              title="Bildirimler">
+              title={t("notifications.title")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
               {unreadCount > 0 && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">{unreadCount}</span>}
             </button>
             {/* Cart */}
             <button onClick={() => onNavigate("cart")}
               className={`relative p-1.5 rounded transition-colors ${currentPage === "cart" ? "text-[#1a9fff]" : "text-brand-400 hover:text-white hover:bg-brand-800"}`}
-              title="Sepet">
+              title={t("nav.cart")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
               {cartItemCount > 0 && <span className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">{cartItemCount}</span>}
             </button>
@@ -148,7 +150,7 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
                   </div>
                   {/* Wallet */}
                   <div className="px-4 py-2 border-b border-brand-800 flex items-center justify-between">
-                    <span className="text-xs text-brand-400">Cuzdan</span>
+                    <span className="text-xs text-brand-400">{t("nav.wallet")}</span>
                     <span className="text-xs font-bold text-brand-200">{user.walletBalance ? parseFloat(user.walletBalance).toFixed(2) : "0.00"} TL</span>
                   </div>
                   {/* Menu items */}
@@ -158,14 +160,14 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
                       className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-brand-300 hover:bg-brand-800 hover:text-white transition-colors"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                      Profil
+                      {t("nav.profile")}
                     </button>
                     <button
                       onClick={() => { onNavigate("settings"); setProfileOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-brand-300 hover:bg-brand-800 hover:text-white transition-colors"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg>
-                      Ayarlar
+                      {t("nav.settings")}
                     </button>
                   </div>
                   {/* Logout */}
@@ -173,7 +175,7 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
                     <button onClick={() => { logout(); setProfileOpen(false); }}
                       className="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                      Cikis Yap
+                      {t("nav.logout")}
                     </button>
                   </div>
                 </div>
@@ -203,12 +205,12 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
       {showNotifications && (
         <div className="fixed top-11 right-40 z-50 w-72 bg-brand-900 border border-brand-700 rounded-lg shadow-2xl p-3" style={noDrag}>
           <div className="flex items-center justify-between mb-2 pb-2 border-b border-brand-800">
-            <h3 className="text-xs font-bold text-brand-200 uppercase tracking-widest">Bildirimler</h3>
+            <h3 className="text-xs font-bold text-brand-200 uppercase tracking-widest">{t("notifications.title")}</h3>
             <button onClick={() => setShowNotifications(false)} className="text-brand-500 hover:text-white text-xs">X</button>
           </div>
           {unreadCount === 0
-            ? <p className="text-xs text-brand-500 text-center py-3">Yeni bildirim yok</p>
-            : <p className="text-xs text-brand-400 text-center py-3">{unreadCount} okunmamis bildirim</p>
+            ? <p className="text-xs text-brand-500 text-center py-3">{t("notifications.empty")}</p>
+            : <p className="text-xs text-brand-400 text-center py-3">{t("notifications.unread", { count: unreadCount })}</p>
           }
         </div>
       )}

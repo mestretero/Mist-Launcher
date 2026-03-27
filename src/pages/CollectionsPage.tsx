@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
 import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
+import { useTranslation } from "react-i18next";
 
 const PlayOverlay = () => (
   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
@@ -19,6 +20,7 @@ interface Collection {
 }
 
 export function CollectionsPage() {
+  const { t } = useTranslation();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -42,7 +44,7 @@ export function CollectionsPage() {
         setSelectedId(list[0].id);
       }
     } catch (err: any) {
-      addToast("Koleksiyonlar yüklenemedi: " + (err?.message || err), "error");
+      addToast(t("common.error") + ": " + (err?.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -70,9 +72,9 @@ export function CollectionsPage() {
       setNewName("");
       await fetchCollections();
       setSelectedId(created.id);
-      addToast(`"${trimmed}" koleksiyonu oluşturuldu`, "success");
+      addToast(t("common.addedToCollection", { name: trimmed }), "success");
     } catch (err: any) {
-      addToast(err?.message || "Koleksiyon oluşturulamadı", "error");
+      addToast(err?.message || t("common.operationFailed"), "error");
     } finally {
       setCreating(false);
     }
@@ -84,9 +86,9 @@ export function CollectionsPage() {
       setDeleteConfirm(null);
       if (selectedId === id) setSelectedId(null);
       await fetchCollections();
-      addToast("Koleksiyon silindi", "success");
+      addToast(t("common.gameRemoved", { title: "" }).trim() || t("common.operationFailed"), "success");
     } catch (err: any) {
-      addToast(err?.message || "Koleksiyon silinemedi", "error");
+      addToast(err?.message || t("common.operationFailed"), "error");
     }
   };
 
@@ -94,18 +96,18 @@ export function CollectionsPage() {
     try {
       await api.collections.removeGame(collectionId, gameId);
       await fetchCollections();
-      addToast("Oyun koleksiyondan cikarildi", "success");
+      addToast(t("common.removedFromCollection", { name: "" }).trim(), "success");
     } catch (err: any) {
-      addToast(err?.message || "Oyun cikarilamadi", "error");
+      addToast(err?.message || t("common.operationFailed"), "error");
     }
   };
 
   const handleLaunchLocal = async (game: LocalGame) => {
     try {
       await invoke("launch_game", { gameId: game.id, exePath: game.exe_path });
-      addToast(`${game.title} baslatiliyor...`, "success");
+      addToast(t("collections.launching", { title: game.title }), "success");
     } catch (err: any) {
-      addToast("Oyun baslatilamadi: " + (err?.message || err), "error");
+      addToast(t("common.launchError") + ": " + (err?.message || err), "error");
     }
   };
 
@@ -113,9 +115,9 @@ export function CollectionsPage() {
     try {
       await invoke("remove_local_game_from_collection", { collectionId, gameId });
       setLocalGamesInCollection(prev => prev.filter(g => g.id !== gameId));
-      addToast("Oyun koleksiyondan cikarildi", "success");
+      addToast(t("common.removedFromCollection", { name: "" }).trim(), "success");
     } catch (err: any) {
-      addToast(err?.message || "Oyun cikarilamadi", "error");
+      addToast(err?.message || t("common.operationFailed"), "error");
     }
   };
 
@@ -128,7 +130,7 @@ export function CollectionsPage() {
           <svg className="animate-spin text-[#67707b]" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
-          <span className="text-sm font-bold text-[#67707b] uppercase tracking-widest">Yükleniyor...</span>
+          <span className="text-sm font-bold text-[#67707b] uppercase tracking-widest">{t("collections.loading")}</span>
         </div>
       </div>
     );
@@ -141,12 +143,12 @@ export function CollectionsPage() {
         {/* Create new collection */}
         <div className="p-3 border-b border-[#2a2e38]">
           <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-1 mb-2">
-            Yeni Koleksiyon
+            {t("collections.newCollection")}
           </div>
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Koleksiyon adı..."
+              placeholder={t("collections.namePlaceholder")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -157,7 +159,7 @@ export function CollectionsPage() {
               disabled={creating || !newName.trim()}
               className="px-3 py-1.5 rounded bg-[#2a2e38] text-xs font-bold text-[#8f98a0] uppercase tracking-widest hover:bg-[#3d4450] hover:text-white transition-colors disabled:opacity-40"
             >
-              Ekle
+              {t("collections.add")}
             </button>
           </div>
         </div>
@@ -166,7 +168,7 @@ export function CollectionsPage() {
         <div className="flex-1 overflow-y-auto mt-2">
           <div className="px-3 pb-1">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-2 mb-1 flex items-center justify-between">
-              <span>Koleksiyonlar</span>
+              <span>{t("collections.title")}</span>
               <span>{collections.length}</span>
             </div>
           </div>
@@ -176,7 +178,7 @@ export function CollectionsPage() {
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
               </svg>
               <p className="text-xs text-[#5e6673] font-medium">
-                Henüz koleksiyon yok. Yukarıdan yeni bir koleksiyon oluşturun.
+                {t("collections.empty")}
               </p>
             </div>
           ) : (
@@ -210,9 +212,9 @@ export function CollectionsPage() {
             <svg className="mb-4 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
             </svg>
-            <h2 className="text-2xl font-black text-[#5e6673] tracking-widest uppercase">Koleksiyonlar</h2>
+            <h2 className="text-2xl font-black text-[#5e6673] tracking-widest uppercase">{t("collections.title")}</h2>
             <p className="text-[#3d4450] text-sm font-medium mt-1">
-              {collections.length === 0 ? "Yeni bir koleksiyon oluşturarak başlayın." : "Soldaki listeden bir koleksiyon seçin."}
+              {collections.length === 0 ? t("collections.createFirst") : t("collections.selectHint")}
             </p>
           </div>
         ) : (
@@ -225,24 +227,24 @@ export function CollectionsPage() {
                 </svg>
                 <h2 className="text-xl font-bold text-[#c6d4df] uppercase tracking-widest">{selected.name}</h2>
                 <span className="text-sm font-bold bg-[#2a2e38] px-3 py-1 rounded text-[#8f98a0]">
-                  {(selected.items?.length || 0) + localGamesInCollection.length} OYUN
+                  {t("collections.gameCount", { count: (selected.items?.length || 0) + localGamesInCollection.length })}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 {deleteConfirm === selected.id ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-red-400 font-bold">Silinsin mi?</span>
+                    <span className="text-xs text-red-400 font-bold">{t("collections.deleteConfirm")}</span>
                     <button
                       onClick={() => handleDelete(selected.id)}
                       className="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-500 rounded transition-colors uppercase tracking-widest"
                     >
-                      Evet
+                      {t("collections.yes")}
                     </button>
                     <button
                       onClick={() => setDeleteConfirm(null)}
                       className="px-3 py-1.5 text-xs font-bold text-[#8f98a0] bg-[#2a2e38] hover:text-white rounded transition-colors uppercase tracking-widest"
                     >
-                      İptal
+                      {t("collections.cancel")}
                     </button>
                   </div>
                 ) : (
@@ -251,7 +253,7 @@ export function CollectionsPage() {
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest"
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                    Koleksiyonu Sil
+                    {t("collections.deleteCollection")}
                   </button>
                 )}
               </div>
@@ -266,10 +268,10 @@ export function CollectionsPage() {
                   <line x1="12" y1="17" x2="12" y2="21" />
                 </svg>
                 <h3 className="text-lg font-black text-[#8f98a0] uppercase tracking-widest mb-2">
-                  Koleksiyon Boş
+                  {t("collections.collectionEmpty")}
                 </h3>
                 <p className="text-sm text-[#67707b] font-medium max-w-sm">
-                  Oyun detay sayfasından veya kütüphaneden bu koleksiyona oyun ekleyebilirsiniz.
+                  {t("collections.collectionEmptyHint")}
                 </p>
               </div>
             ) : (
@@ -298,7 +300,7 @@ export function CollectionsPage() {
                         <button onClick={() => handleRemoveGame(selected.id, entry.gameId)}
                           className="flex items-center gap-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                          Cikar
+                          {t("collections.remove")}
                         </button>
                       </div>
                     </div>
@@ -324,7 +326,7 @@ export function CollectionsPage() {
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#161920] via-transparent to-transparent opacity-80" />
                       {/* Local badge */}
-                      <span className="absolute top-2 right-2 text-[9px] font-bold bg-blue-500/80 text-white px-1.5 py-0.5 rounded">YEREL</span>
+                      <span className="absolute top-2 right-2 text-[9px] font-bold bg-blue-500/80 text-white px-1.5 py-0.5 rounded">{t("collections.local")}</span>
                     </div>
                     <div className="p-4">
                       <h3 className="font-bold text-base text-[#c6d4df] truncate mb-1">{game.title}</h3>
@@ -335,7 +337,7 @@ export function CollectionsPage() {
                         <button onClick={(e) => { e.stopPropagation(); handleRemoveLocalGame(selected.id, game.id); }}
                           className="flex items-center gap-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                          Cikar
+                          {t("collections.remove")}
                         </button>
                       </div>
                     </div>

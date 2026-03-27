@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
 
@@ -16,6 +17,7 @@ export function AddToCollectionDropdown({ gameId, localGameId }: Props) {
   const [memberOf, setMemberOf] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const addToast = useToastStore((s) => s.addToast);
+  const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,18 +70,18 @@ export function AddToCollectionDropdown({ gameId, localGameId }: Props) {
       if (localGameId) {
         if (isIn) {
           await invoke("remove_local_game_from_collection", { collectionId, gameId: localGameId });
-          addToast(`"${collectionName}" koleksiyonundan cikarildi`, "info");
+          addToast(t("common.removedFromCollection", { name: collectionName }), "info");
         } else {
           await invoke("add_local_game_to_collection", { collectionId, gameId: localGameId });
-          addToast(`"${collectionName}" koleksiyonuna eklendi`, "success");
+          addToast(t("common.addedToCollection", { name: collectionName }), "success");
         }
       } else if (gameId) {
         if (isIn) {
           await api.collections.removeGame(collectionId, gameId);
-          addToast(`"${collectionName}" koleksiyonundan cikarildi`, "info");
+          addToast(t("common.removedFromCollection", { name: collectionName }), "info");
         } else {
           await api.collections.addGame(collectionId, gameId);
-          addToast(`"${collectionName}" koleksiyonuna eklendi`, "success");
+          addToast(t("common.addedToCollection", { name: collectionName }), "success");
         }
       }
 
@@ -90,7 +92,7 @@ export function AddToCollectionDropdown({ gameId, localGameId }: Props) {
         return next;
       });
     } catch (err: any) {
-      addToast(err?.message || "Islem basarisiz", "error");
+      addToast(err?.message || t("common.operationFailed"), "error");
     }
   };
 
@@ -105,19 +107,19 @@ export function AddToCollectionDropdown({ gameId, localGameId }: Props) {
           <line x1="12" y1="11" x2="12" y2="17" />
           <line x1="9" y1="14" x2="15" y2="14" />
         </svg>
-        Koleksiyona Ekle
+        {t("library.addToCollection")}
       </button>
 
       {open && (
         <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-brand-900 border border-brand-800 rounded shadow-2xl overflow-hidden">
           {loading ? (
             <div className="py-4 text-center">
-              <span className="text-xs text-brand-500 font-medium">Yukleniyor...</span>
+              <span className="text-xs text-brand-500 font-medium">{t("common.loading")}</span>
             </div>
           ) : collections.length === 0 ? (
             <div className="py-4 px-3 text-center">
               <span className="text-xs text-brand-500 font-medium">
-                Henuz koleksiyon yok. Koleksiyonlar sayfasindan olusturabilirsiniz.
+                {t("common.noCollections")}
               </span>
             </div>
           ) : (

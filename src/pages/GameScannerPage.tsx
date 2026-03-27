@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useLocalGameStore, ScannedGame, GameMetadata } from "../stores/localGameStore";
 import { useToastStore } from "../stores/toastStore";
+import { useTranslation } from "react-i18next";
 
 type ScanStep = "config" | "scanning" | "results" | "done";
 
@@ -13,6 +14,7 @@ interface ScanProgress {
 }
 
 export default function GameScannerPage({ onNavigate }: { onNavigate: (page: string) => void }) {
+  const { t } = useTranslation();
   const store = useLocalGameStore();
   const toast = useToastStore();
   const [step, setStep] = useState<ScanStep>("config");
@@ -153,7 +155,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
       }
     }
     await store.addScannedGames(selectedGames, metadataMap);
-    toast.addToast(`${selectedGames.length} oyun eklendi!`, "success");
+    toast.addToast(t("common.gamesAdded", { count: selectedGames.length }), "success");
     setStep("done");
   };
 
@@ -166,13 +168,13 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-brand-50 mb-6">Oyun Tarayici</h1>
+      <h1 className="text-2xl font-bold text-brand-50 mb-6">{t("scanner.title")}</h1>
 
       {step === "config" && (
         <div className="space-y-6">
           {/* Drive Selection */}
           <div className="bg-brand-800/50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-3">Taranacak Diskler</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-3">{t("scanner.drives")}</h3>
             <div className="grid grid-cols-2 gap-2">
               {store.drives.map((drive) => {
                 const isSelected = selectedDrives.has(drive.letter);
@@ -203,7 +205,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
                       <div className="w-full bg-brand-800 rounded-full h-1.5 mt-1.5">
                         <div className="bg-brand-500 h-full rounded-full" style={{ width: `${usedPercent}%` }} />
                       </div>
-                      <span className="text-brand-500 text-[10px]">{freeGB} GB bos / {totalGB} GB</span>
+                      <span className="text-brand-500 text-[10px]">{t("scanner.diskInfo", { free: freeGB, total: totalGB })}</span>
                     </div>
                   </button>
                 );
@@ -215,32 +217,32 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
           <div className="bg-brand-800/50 rounded-lg p-4 space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={includeLaunchers} onChange={(e) => setIncludeLaunchers(e.target.checked)} className="w-4 h-4 accent-yellow-400" />
-              <span className="text-brand-200 text-sm">Steam, Epic, Ubisoft vb. oyunlarini da dahil et</span>
+              <span className="text-brand-200 text-sm">{t("scanner.includeLaunchers")}</span>
             </label>
           </div>
 
           {/* Custom Paths */}
           {store.scanConfig.scan_paths.length > 0 && (
             <div className="bg-brand-800/50 rounded-lg p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-2">Ek Klasorler</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-2">{t("scanner.extraFolders")}</h3>
               <div className="space-y-1">
                 {store.scanConfig.scan_paths.map((path) => (
                   <div key={path} className="flex items-center justify-between bg-brand-900/50 rounded px-3 py-1.5">
                     <span className="text-brand-300 text-xs font-mono truncate">{path}</span>
-                    <button onClick={() => handleRemovePath(path)} className="text-red-400 hover:text-red-300 text-xs ml-2">x</button>
+                    <button onClick={() => handleRemovePath(path)} className="text-red-400 hover:text-red-300 text-xs ml-2">{t("scanner.remove")}</button>
                   </div>
                 ))}
               </div>
             </div>
           )}
-          <button onClick={handleAddPath} className="text-brand-400 hover:text-brand-200 text-xs">+ Ozel klasor ekle</button>
+          <button onClick={handleAddPath} className="text-brand-400 hover:text-brand-200 text-xs">{t("scanner.addFolder")}</button>
 
           <button
             onClick={handleScan}
             disabled={selectedDrives.size === 0}
             className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-brand-900 font-bold rounded-lg text-lg"
           >
-            {selectedDrives.size} Diski Tara
+            {t("scanner.scanButton", { count: selectedDrives.size })}
           </button>
         </div>
       )}
@@ -248,11 +250,11 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
       {step === "scanning" && (
         <div className="text-center space-y-4 py-12">
           <div className="animate-spin w-12 h-12 border-3 border-yellow-400 border-t-transparent rounded-full mx-auto" />
-          <p className="text-brand-200">Oyunlar taraniyor...</p>
+          <p className="text-brand-200">{t("scanner.scanning")}</p>
           <div className="bg-brand-800 rounded-full h-2 max-w-md mx-auto overflow-hidden">
             <div className="bg-yellow-400 h-full transition-all duration-300" style={{ width: `${progress.total_dirs ? (progress.scanned_dirs / progress.total_dirs) * 100 : 0}%` }} />
           </div>
-          <p className="text-brand-400 text-sm">{progress.found_games} sonuc bulundu | {progress.scanned_dirs}/{progress.total_dirs} klasor tarandi</p>
+          <p className="text-brand-400 text-sm">{t("scanner.scanProgress", { found: progress.found_games, scanned: progress.scanned_dirs, total: progress.total_dirs })}</p>
         </div>
       )}
 
@@ -260,9 +262,9 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
         <div className="space-y-4">
           {/* Top bar */}
           <div className="flex items-center justify-between">
-            <p className="text-brand-200">{results.length} sonuc bulundu</p>
+            <p className="text-brand-200">{t("scanner.resultsFound", { count: results.length })}</p>
             <button onClick={handleAddSelected} disabled={selectedCount === 0} className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-brand-900 font-bold rounded">
-              {selectedCount} Oyunu Ekle
+              {t("scanner.addGames", { count: selectedCount })}
             </button>
           </div>
 
@@ -271,12 +273,12 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold uppercase tracking-widest text-green-400">
-                  Oyunlar ({likelyGames.length})
+                  {t("scanner.gamesGroup", { count: likelyGames.length })}
                 </h3>
                 <div className="flex gap-2">
-                  <button onClick={() => selectAllInGroup(likelyGames)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu sec</button>
+                  <button onClick={() => selectAllInGroup(likelyGames)} className="text-xs text-brand-400 hover:text-brand-200">{t("scanner.selectAll")}</button>
                   <span className="text-brand-600">|</span>
-                  <button onClick={() => deselectAllInGroup(likelyGames)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu kaldir</button>
+                  <button onClick={() => deselectAllInGroup(likelyGames)} className="text-xs text-brand-400 hover:text-brand-200">{t("scanner.deselectAll")}</button>
                 </div>
               </div>
               <div className="space-y-1 max-h-[35vh] overflow-y-auto">
@@ -293,14 +295,14 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
               <div className="flex items-center justify-between mb-2 mt-4">
                 <button onClick={() => setShowOther(!showOther)} className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-brand-400 hover:text-brand-200">
                   <span className="text-xs">{showOther ? "▼" : "►"}</span>
-                  Diger Sonuclar ({otherResults.length})
-                  {selectedInOther > 0 && <span className="text-yellow-400 normal-case tracking-normal font-normal">({selectedInOther} secili)</span>}
+                  {t("scanner.otherGroup", { count: otherResults.length })}
+                  {selectedInOther > 0 && <span className="text-yellow-400 normal-case tracking-normal font-normal">({t("scanner.selected", { count: selectedInOther })})</span>}
                 </button>
                 {showOther && (
                   <div className="flex gap-2">
-                    <button onClick={() => selectAllInGroup(otherResults)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu sec</button>
+                    <button onClick={() => selectAllInGroup(otherResults)} className="text-xs text-brand-400 hover:text-brand-200">{t("scanner.selectAll")}</button>
                     <span className="text-brand-600">|</span>
-                    <button onClick={() => deselectAllInGroup(otherResults)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu kaldir</button>
+                    <button onClick={() => deselectAllInGroup(otherResults)} className="text-xs text-brand-400 hover:text-brand-200">{t("scanner.deselectAll")}</button>
                   </div>
                 )}
               </div>
@@ -315,7 +317,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
           )}
 
           {likelyGames.length === 0 && otherResults.length > 0 && !showOther && (
-            <p className="text-brand-400 text-center py-4">Bilinen launcher'a ait oyun bulunamadi. "Diger Sonuclar"i acarak manuel secim yapabilirsin.</p>
+            <p className="text-brand-400 text-center py-4">{t("scanner.noGamesHint")}</p>
           )}
         </div>
       )}
@@ -323,11 +325,11 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
       {step === "done" && (
         <div className="text-center py-12 space-y-4">
           <div className="text-5xl text-green-400">✓</div>
-          <p className="text-brand-100 text-xl font-bold">Oyunlar Eklendi!</p>
-          <p className="text-brand-400">Kutuphanene git ve oyunlarini gor</p>
+          <p className="text-brand-100 text-xl font-bold">{t("scanner.done")}</p>
+          <p className="text-brand-400">{t("scanner.doneHint")}</p>
           <div className="flex gap-3 justify-center">
-            <button onClick={() => onNavigate("library")} className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-brand-900 font-bold rounded">Kutuphaneye Git</button>
-            <button onClick={() => setStep("config")} className="px-6 py-2 bg-brand-700 hover:bg-brand-600 text-brand-200 rounded">Tekrar Tara</button>
+            <button onClick={() => onNavigate("library")} className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 text-brand-900 font-bold rounded">{t("scanner.goToLibrary")}</button>
+            <button onClick={() => setStep("config")} className="px-6 py-2 bg-brand-700 hover:bg-brand-600 text-brand-200 rounded">{t("scanner.rescan")}</button>
           </div>
         </div>
       )}
