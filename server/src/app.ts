@@ -10,6 +10,15 @@ import authRoutes from "./routes/auth.js";
 import gameRoutes from "./routes/games.js";
 import libraryRoutes from "./routes/library.js";
 import paymentRoutes from "./routes/payments.js";
+import wishlistRoutes from "./routes/wishlist.js";
+import walletRoutes from "./routes/wallet.js";
+import reviewRoutes from "./routes/reviews.js";
+import notificationRoutes from "./routes/notifications.js";
+import friendRoutes from "./routes/friends.js";
+import achievementRoutes from "./routes/achievements.js";
+import collectionRoutes from "./routes/collections.js";
+import cartRoutes from "./routes/cart.js";
+import profileRoutes from "./routes/profiles.js";
 import { AppError } from "./lib/errors.js";
 import { ZodError } from "zod";
 
@@ -54,6 +63,15 @@ export async function buildApp() {
   await app.register(gameRoutes);
   await app.register(libraryRoutes);
   await app.register(paymentRoutes);
+  await app.register(wishlistRoutes);
+  await app.register(walletRoutes);
+  await app.register(reviewRoutes);
+  await app.register(notificationRoutes);
+  await app.register(friendRoutes);
+  await app.register(achievementRoutes);
+  await app.register(collectionRoutes);
+  await app.register(cartRoutes);
+  await app.register(profileRoutes);
 
   return app;
 }

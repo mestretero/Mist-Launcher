@@ -147,7 +147,7 @@ export async function saveBlocks(
             profileId: profile.id,
             type: b.type as any,
             position: b.position,
-            config: b.config ?? {},
+            config: (b.config ?? {}) as any,
             visible: b.visible ?? true,
           },
         })
@@ -181,7 +181,7 @@ export async function addBlock(
       profileId: profile.id,
       type: type as any,
       position: nextPosition,
-      config,
+      config: config as any,
     },
   });
 }
