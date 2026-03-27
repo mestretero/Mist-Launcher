@@ -32,9 +32,11 @@ fn write_cache(db: &Db, normalized: &str, metadata: &GameMetadata) {
 }
 
 async fn fetch_from_rawg(title: &str) -> Option<GameMetadata> {
-    let api_key = option_env!("RAWG_API_KEY").unwrap_or("");
+    // Try runtime env first, then compile-time fallback
+    let api_key = std::env::var("RAWG_API_KEY")
+        .unwrap_or_else(|_| option_env!("RAWG_API_KEY").unwrap_or("").to_string());
     if api_key.is_empty() {
-        eprintln!("[metadata] RAWG_API_KEY not set — metadata fetch disabled. Set it at build time.");
+        eprintln!("[metadata] RAWG_API_KEY not set. Set env var RAWG_API_KEY or create src-tauri/.env");
         return None;
     }
 

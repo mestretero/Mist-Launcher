@@ -36,3 +36,4 @@ target/
 # Stealike internal
 .superpowers/
 server/public/downloads/
+src-tauri/.env
