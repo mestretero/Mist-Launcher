@@ -39,6 +39,28 @@ enum FriendshipStatus {
   BLOCKED
 }
 
+enum ProfileVisibility {
+  PUBLIC
+  FRIENDS
+  PRIVATE
+
+  @@map("profile_visibility")
+}
+
+enum ProfileBlockType {
+  GAME_SHOWCASE
+  FAVORITE_GAME
+  ACHIEVEMENTS
+  ACTIVITY
+  TEXT
+  SCREENSHOTS
+  SOCIAL_LINKS
+  STATS
+  COMMENT_WALL
+
+  @@map("profile_block_type")
+}
+
 enum WalletTxType {
   DEPOSIT
   PURCHASE
@@ -91,8 +113,10 @@ model User {
   userAchievements    UserAchievement[]
   sentFriendships     Friendship[]         @relation("FriendshipSender")
   receivedFriendships Friendship[]         @relation("FriendshipReceiver")
-  collections         GameCollection[]
-  cart                Cart?
+  collections            GameCollection[]
+  cart                   Cart?
+  profile                UserProfile?
+  profileCommentsWritten ProfileComment[]  @relation("ProfileCommentsWritten")
 
   @@map("users")
 }
@@ -395,4 +419,51 @@ model CartItem {
 
   @@unique([cartId, gameId])
   @@map("cart_items")
+}
+
+// ─── User Profiles ────────────────────────────────
+
+model UserProfile {
+  id            String             @id @default(uuid()) @db.Uuid
+  userId        String             @unique @map("user_id") @db.Uuid
+  user          User               @relation(fields: [userId], references: [id])
+  visibility    ProfileVisibility  @default(PUBLIC)
+  allowComments Boolean            @default(true) @map("allow_comments")
+  bannerTheme   String             @default("default") @map("banner_theme")
+  customStatus  String?            @map("custom_status")
+  blocks        ProfileBlock[]
+  comments      ProfileComment[]
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  @@map("user_profiles")
+}
+
+model ProfileBlock {
+  id        String           @id @default(uuid()) @db.Uuid
+  profileId String           @map("profile_id") @db.Uuid
+  profile   UserProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  type      ProfileBlockType
+  position  Int
+  config    Json             @default("{}")
+  visible   Boolean          @default(true)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@index([profileId, position])
+  @@map("profile_blocks")
+}
+
+model ProfileComment {
+  id        String      @id @default(uuid()) @db.Uuid
+  profileId String      @map("profile_id") @db.Uuid
+  profile   UserProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  authorId  String      @map("author_id") @db.Uuid
+  author    User        @relation("ProfileCommentsWritten", fields: [authorId], references: [id])
+  content   String      @db.VarChar(1000)
+  createdAt DateTime    @default(now()) @map("created_at")
+  deletedAt DateTime?   @map("deleted_at")
+
+  @@index([profileId, createdAt])
+  @@map("profile_comments")
 }
