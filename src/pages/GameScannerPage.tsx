@@ -35,12 +35,12 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
     return () => { unlisten.then(fn => fn()); };
   }, []);
 
-  // Split results into "likely games" vs "other"
+  // Split results by confidence: >=50 = likely game, <50 = other
   const { likelyGames, otherResults } = useMemo(() => {
     const likely: ScannedGame[] = [];
     const other: ScannedGame[] = [];
     for (const game of results) {
-      if (game.detected_launcher) {
+      if (game.confidence >= 50) {
         likely.push(game);
       } else {
         other.push(game);
@@ -70,8 +70,8 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
     const excludeLaunchers = includeLaunchers ? [] : store.scanConfig.exclude_launchers;
     const found = await store.scanGames(store.scanConfig.scan_paths, excludeLaunchers);
     setResults(found);
-    // Only pre-select games that have a detected launcher (likely real games)
-    const autoSelected = new Set(found.filter(g => g.detected_launcher).map(g => g.exe_path));
+    // Auto-select games with high confidence (>=50)
+    const autoSelected = new Set(found.filter(g => g.confidence >= 50).map(g => g.exe_path));
     setSelected(autoSelected);
     // Init exe choices to the backend's default pick
     const choices: Record<string, string> = {};

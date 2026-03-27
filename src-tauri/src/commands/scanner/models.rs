@@ -23,6 +23,8 @@ pub struct ScannedGame {
     pub install_path: String,
     pub detected_launcher: Option<String>,
     pub available_exes: Vec<ExeOption>,
+    /// 0-100 confidence that this is actually a game
+    pub confidence: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

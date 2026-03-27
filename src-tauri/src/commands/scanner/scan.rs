@@ -303,9 +303,106 @@ fn scan_directory(dir: &Path, max_depth: usize) -> Vec<PathBuf> {
         .collect()
 }
 
+/// Compute confidence (0-100) that a result is actually a game
+fn compute_confidence(title: &str, install_path: &Path, launcher: &Option<String>, best_exe_size: u64) -> u32 {
+    let mut score: i32 = 30; // start slightly below neutral
+    let path_lower = install_path.to_string_lossy().to_lowercase();
+    let title_lower = title.to_lowercase();
+
+    // === STRONG POSITIVE: Known launcher detected ===
+    if launcher.is_some() { score += 40; }
+
+    // === POSITIVE: Path contains game-related keywords ===
+    let game_path_words = ["games", "game", "oyun", "steamapps", "epic games",
+        "gog galaxy", "origin games", "ea games", "playnite",
+        "xbox", "battle.net", "riot games"];
+    for w in game_path_words {
+        if path_lower.contains(w) { score += 25; break; }
+    }
+
+    // === POSITIVE: Title contains game-like words ===
+    let game_title_words = ["edition", "remastered", "definitive", "deluxe", "goty",
+        "chapter", "episode", "saga", "simulator", "tycoon", "craft",
+        "quest", "legends", "warfare", "combat", "battle", "arena",
+        "rpg", "mmorpg", "souls", "survival", "sandbox", "rogue",
+        "racing", "rally", "football", "soccer", "nba", "fifa",
+        "minecraft", "fortnite", "valorant", "overwatch", "dota",
+        "witcher", "assassin", "hitman", "tomb raider", "resident evil",
+        "final fantasy", "dark souls", "elden ring", "cyberpunk",
+        "grand theft", "gta", "red dead", "call of duty", "cod",
+        "battlefield", "counter-strike", "csgo", "cs2", "halo",
+        "destiny", "world of warcraft", "diablo", "starcraft",
+        "civilization", "total war", "europa universalis", "crusader kings",
+        "cities skylines", "factorio", "satisfactory", "subnautica",
+        "terraria", "stardew", "hollow knight", "celeste", "ori ",
+        "portal", "half-life", "left 4 dead", "team fortress",
+        "rocket league", "apex legends", "pubg", "warzone",
+        "fallout", "skyrim", "elder scrolls", "mass effect",
+        "dragon age", "baldur", "divinity", "pillars of eternity",
+        "pathfinder", "no man", "sea of thieves", "deep rock",
+        "monster hunter", "devil may cry", "metal gear", "sekiro",
+        "ghost of", "god of war", "spider-man", "horizon",
+        "uncharted", "last of us", "death stranding", "detroit",
+        "far cry", "watch dogs", "the crew", "anno ", "splinter cell",
+        "robocop", "need for speed", "forza", "gran turismo",
+        "flight simulator", "ace combat", "war thunder", "world of tanks",
+        "league of legends", "smite", "paladins", "dead by daylight"];
+    for w in game_title_words {
+        if title_lower.contains(w) { score += 25; break; }
+    }
+
+    // === POSITIVE: Large exe (games tend to be big) ===
+    if best_exe_size > 500_000_000 { score += 15; }      // > 500MB
+    else if best_exe_size > 100_000_000 { score += 10; }  // > 100MB
+    else if best_exe_size > 20_000_000 { score += 5; }    // > 20MB
+    else if best_exe_size < 5_000_000 { score -= 15; }    // < 5MB — probably not a game
+
+    // === POSITIVE: Dedicated game folder (not nested in Program Files root) ===
+    let depth = path_lower.split(['\\', '/']).count();
+    if depth >= 4 { score += 5; } // deeper = more likely a dedicated game install
+
+    // === NEGATIVE: Title has tool/utility patterns ===
+    let tool_words = ["driver", "runtime", "redistribut", "sdk", "framework",
+        "update", "hotfix", "service pack", "tool", "utility", "manager",
+        "monitor", "viewer", "reader", "converter", "security", "antivirus",
+        "firewall", "backup", "development", "studio", "ide", "office",
+        "document", "creative cloud", "visual c++", "directx", ".net"];
+    for w in tool_words {
+        if title_lower.contains(w) { score -= 30; break; }
+    }
+
+    score.clamp(0, 100) as u32
+}
+
+/// Build ExeOption list and pick best exe for a set of valid exes
+fn build_exe_options(valid_exes: &[PathBuf], title_hint: &str) -> (Vec<super::models::ExeOption>, PathBuf) {
+    let available: Vec<super::models::ExeOption> = valid_exes.iter().map(|e| {
+        let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
+        super::models::ExeOption {
+            path: e.to_string_lossy().to_string(),
+            file_name: e.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+            size_bytes: size,
+        }
+    }).collect();
+
+    let hint_lower = title_hint.to_lowercase().replace(['\'', ':', '-', ' ', '_'], "");
+    let best = valid_exes.iter()
+        .max_by_key(|e| {
+            let fname = e.file_stem().map(|s| s.to_string_lossy().to_lowercase().replace(['_', '-', ' '], "")).unwrap_or_default();
+            let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
+            let name_match: u64 = if !hint_lower.is_empty() && (hint_lower.contains(&fname) || fname.contains(&hint_lower)) { 1_000_000_000_000 } else { 0 };
+            name_match + size
+        })
+        .unwrap()
+        .clone();
+
+    (available, best)
+}
+
 #[tauri::command]
 pub async fn scan_games(
     app: AppHandle,
+    db: tauri::State<'_, super::db::Db>,
     paths: Vec<String>,
     exclude_launchers: Vec<String>,
 ) -> Result<Vec<ScannedGame>, String> {
@@ -313,12 +410,22 @@ pub async fn scan_games(
         .map(|l| l.to_lowercase())
         .collect();
 
+    // Load already-known exe paths from DB to skip them
+    let known_exes: HashSet<String> = {
+        let conn = db.lock().unwrap();
+        let mut stmt = conn.prepare("SELECT LOWER(exe_path) FROM games").unwrap();
+        stmt.query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect()
+    };
+
     let mut all_games: Vec<ScannedGame> = Vec::new();
     let mut seen_paths: HashSet<String> = HashSet::new();
-
-    let registry_entries = scan_registry();
     let mut seen_install_dirs: HashSet<String> = HashSet::new();
 
+    // Phase 1: Registry scan
+    let registry_entries = scan_registry();
     for (name, install_path, _score) in &registry_entries {
         let launcher = detect_launcher(install_path);
         if let Some(ref l) = launcher {
@@ -333,34 +440,24 @@ pub async fn scan_games(
         let valid_exes: Vec<_> = exes.into_iter().filter(|e| !is_blocked_exe(e)).collect();
         if valid_exes.is_empty() { continue; }
 
-        let available: Vec<super::models::ExeOption> = valid_exes.iter().map(|e| {
-            let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
-            super::models::ExeOption {
-                path: e.to_string_lossy().to_string(),
-                file_name: e.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
-                size_bytes: size,
-            }
-        }).collect();
-
-        // Pick best default: prefer exe whose name matches game title, else largest
-        let name_lower = name.to_lowercase().replace(['\'', ':', '-', ' '], "");
-        let best = valid_exes.iter()
-            .max_by_key(|e| {
-                let fname = e.file_stem().map(|s| s.to_string_lossy().to_lowercase().replace(['_', '-', ' '], "")).unwrap_or_default();
-                let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
-                let name_match: u64 = if name_lower.contains(&fname) || fname.contains(&name_lower) { 1_000_000_000_000 } else { 0 };
-                name_match + size
-            })
-            .unwrap();
-
+        let (available, best) = build_exe_options(&valid_exes, name);
         let exe_str = best.to_string_lossy().to_string();
+
+        // Skip if already in library
+        if known_exes.contains(&exe_str.to_lowercase()) { continue; }
+        if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
         seen_paths.insert(exe_str.to_lowercase());
+
+        let best_size = std::fs::metadata(&best).map(|m| m.len()).unwrap_or(0);
+        let confidence = compute_confidence(name, install_path, &launcher, best_size);
+
         all_games.push(ScannedGame {
             exe_path: exe_str,
             suggested_title: name.clone(),
             install_path: install_path.to_string_lossy().to_string(),
-            detected_launcher: launcher.clone(),
+            detected_launcher: launcher,
             available_exes: available,
+            confidence,
         });
     }
 
@@ -370,16 +467,17 @@ pub async fn scan_games(
         found_games: all_games.len() as u32,
     });
 
+    // Phase 2: Filesystem scan
     for (i, path_str) in paths.iter().enumerate() {
         let dir = Path::new(path_str);
         if !dir.exists() || !dir.is_dir() { continue; }
         let exes = scan_directory(dir, 4);
-        // Group exes by parent directory
+
         let mut by_parent: std::collections::HashMap<String, Vec<PathBuf>> = std::collections::HashMap::new();
         for exe in exes {
             if is_blocked_exe(&exe) { continue; }
             let parent = exe.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-            by_parent.entry(parent.clone()).or_default().push(exe);
+            by_parent.entry(parent).or_default().push(exe);
         }
 
         for (parent_str, group) in &by_parent {
@@ -388,51 +486,44 @@ pub async fn scan_games(
             if seen_install_dirs.contains(&dir_key) { continue; }
             seen_install_dirs.insert(dir_key);
 
-            let available: Vec<super::models::ExeOption> = group.iter().map(|e| {
-                let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
-                super::models::ExeOption {
-                    path: e.to_string_lossy().to_string(),
-                    file_name: e.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
-                    size_bytes: size,
-                }
-            }).collect();
-
-            // Folder name is our best guess for game title
             let folder_name = Path::new(parent_str).file_name()
                 .map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            let folder_lower = folder_name.to_lowercase().replace(['\'', ':', '-', ' ', '_'], "");
 
-            // Best exe: name closest to folder name, then largest
-            let best = group.iter()
-                .max_by_key(|e| {
-                    let fname = e.file_stem().map(|s| s.to_string_lossy().to_lowercase().replace(['_', '-', ' '], "")).unwrap_or_default();
-                    let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
-                    let name_match: u64 = if folder_lower.contains(&fname) || fname.contains(&folder_lower) { 1_000_000_000_000 } else { 0 };
-                    name_match + size
-                })
-                .unwrap();
-
+            let (available, best) = build_exe_options(&group, &folder_name);
             let exe_str = best.to_string_lossy().to_string();
+
+            if known_exes.contains(&exe_str.to_lowercase()) { continue; }
             if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
-            let launcher = detect_launcher(best);
+
+            let launcher = detect_launcher(&best);
             if let Some(ref l) = launcher {
                 if exclude_set.contains(l) { continue; }
             }
+
             seen_paths.insert(exe_str.to_lowercase());
+            let title = exe_to_title(&best.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default());
+            let best_size = std::fs::metadata(&best).map(|m| m.len()).unwrap_or(0);
+            let confidence = compute_confidence(&title, Path::new(parent_str), &launcher, best_size);
+
             all_games.push(ScannedGame {
                 exe_path: exe_str,
-                suggested_title: exe_to_title(&best.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()),
+                suggested_title: title,
                 install_path: parent_str.clone(),
                 detected_launcher: launcher,
                 available_exes: available,
+                confidence,
             });
         }
+
         let _ = app.emit("scan-progress", ScanProgress {
             scanned_dirs: (i + 2) as u32,
             total_dirs: paths.len() as u32 + 1,
             found_games: all_games.len() as u32,
         });
     }
+
+    // Sort: highest confidence first
+    all_games.sort_by(|a, b| b.confidence.cmp(&a.confidence));
 
     Ok(all_games)
 }

@@ -28,6 +28,7 @@ export interface ScannedGame {
   install_path: string;
   detected_launcher: string | null;
   available_exes: ExeOption[];
+  confidence: number;
 }
 
 export interface ScanConfig {
