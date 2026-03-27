@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
+import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
 
 interface Collection {
   id: string;
@@ -16,6 +18,8 @@ export function CollectionsPage() {
   const [creating, setCreating] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const addToast = useToastStore((s) => s.addToast);
+  const { games: allLocalGames, loadGames: loadLocalGames } = useLocalGameStore();
+  const [localGamesInCollection, setLocalGamesInCollection] = useState<LocalGame[]>([]);
 
   const fetchCollections = async () => {
     try {
@@ -36,7 +40,18 @@ export function CollectionsPage() {
     }
   };
 
-  useEffect(() => { fetchCollections(); }, []);
+  useEffect(() => { fetchCollections(); loadLocalGames(); }, []);
+
+  // Fetch local games for selected collection
+  useEffect(() => {
+    if (!selectedId) { setLocalGamesInCollection([]); return; }
+    invoke<string[]>("get_local_collection_games", { collectionId: selectedId })
+      .then(ids => {
+        const games = allLocalGames.filter(g => ids.includes(g.id));
+        setLocalGamesInCollection(games);
+      })
+      .catch(() => setLocalGamesInCollection([]));
+  }, [selectedId, allLocalGames]);
 
   const handleCreate = async () => {
     const trimmed = newName.trim();
@@ -71,9 +86,19 @@ export function CollectionsPage() {
     try {
       await api.collections.removeGame(collectionId, gameId);
       await fetchCollections();
-      addToast("Oyun koleksiyondan çıkarıldı", "success");
+      addToast("Oyun koleksiyondan cikarildi", "success");
     } catch (err: any) {
-      addToast(err?.message || "Oyun çıkarılamadı", "error");
+      addToast(err?.message || "Oyun cikarilamadi", "error");
+    }
+  };
+
+  const handleRemoveLocalGame = async (collectionId: string, gameId: string) => {
+    try {
+      await invoke("remove_local_game_from_collection", { collectionId, gameId });
+      setLocalGamesInCollection(prev => prev.filter(g => g.id !== gameId));
+      addToast("Oyun koleksiyondan cikarildi", "success");
+    } catch (err: any) {
+      addToast(err?.message || "Oyun cikarilamadi", "error");
     }
   };
 
@@ -183,7 +208,7 @@ export function CollectionsPage() {
                 </svg>
                 <h2 className="text-xl font-bold text-[#c6d4df] uppercase tracking-widest">{selected.name}</h2>
                 <span className="text-sm font-bold bg-[#2a2e38] px-3 py-1 rounded text-[#8f98a0]">
-                  {selected.games?.length || 0} OYUN
+                  {(selected.games?.length || 0) + localGamesInCollection.length} OYUN
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -216,7 +241,7 @@ export function CollectionsPage() {
             </div>
 
             {/* Games Grid */}
-            {(!selected.games || selected.games.length === 0) ? (
+            {(!selected.games || selected.games.length === 0) && localGamesInCollection.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <svg className="mb-6 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                   <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
@@ -237,7 +262,6 @@ export function CollectionsPage() {
                     key={entry.id}
                     className="rounded overflow-hidden bg-[#161920] border border-[#2a2e38] transition-all hover:-translate-y-1 hover:border-[#3d4450] hover:shadow-lg hover:shadow-black/20 group relative"
                   >
-                    {/* Cover */}
                     <div className="relative overflow-hidden bg-[#1a1c23]">
                       <img
                         src={entry.game.coverImageUrl}
@@ -248,29 +272,51 @@ export function CollectionsPage() {
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#161920] via-transparent to-transparent opacity-80" />
                     </div>
-
-                    {/* Body */}
                     <div className="p-4">
-                      <h3 className="font-bold text-base text-[#c6d4df] truncate mb-1">
-                        {entry.game.title}
-                      </h3>
+                      <h3 className="font-bold text-base text-[#c6d4df] truncate mb-1">{entry.game.title}</h3>
                       {entry.game.publisher && (
-                        <p className="text-xs font-medium text-[#5e6673] uppercase tracking-widest truncate">
-                          {entry.game.publisher.name}
-                        </p>
+                        <p className="text-xs font-medium text-[#5e6673] uppercase tracking-widest truncate">{entry.game.publisher.name}</p>
                       )}
-
-                      {/* Remove from collection */}
                       <div className="mt-4 border-t border-[#2a2e38] pt-3">
-                        <button
-                          onClick={() => handleRemoveGame(selected.id, entry.gameId)}
-                          className="flex items-center gap-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </svg>
-                          Çıkar
+                        <button onClick={() => handleRemoveGame(selected.id, entry.gameId)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          Cikar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {/* Local games in this collection */}
+                {localGamesInCollection.map((game) => (
+                  <div
+                    key={`local-${game.id}`}
+                    className="rounded overflow-hidden bg-[#161920] border border-[#2a2e38] transition-all hover:-translate-y-1 hover:border-[#3d4450] hover:shadow-lg hover:shadow-black/20 group relative"
+                  >
+                    <div className="relative overflow-hidden bg-[#1a1c23]">
+                      {game.cover_url ? (
+                        <img src={game.cover_url} alt={game.title}
+                          className="w-full aspect-[16/9] object-cover transition-transform duration-700 group-hover:scale-105"
+                          style={{ filter: "brightness(0.85)" }} loading="lazy" />
+                      ) : (
+                        <div className="w-full aspect-[16/9] bg-gradient-to-br from-[#2a2e38] to-[#1a1c23] flex items-center justify-center">
+                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#161920] via-transparent to-transparent opacity-80" />
+                      {/* Local badge */}
+                      <span className="absolute top-2 right-2 text-[9px] font-bold bg-blue-500/80 text-white px-1.5 py-0.5 rounded">YEREL</span>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-base text-[#c6d4df] truncate mb-1">{game.title}</h3>
+                      {game.launcher && game.launcher !== "none" && (
+                        <p className="text-xs font-medium text-[#5e6673] uppercase tracking-widest truncate capitalize">{game.launcher}</p>
+                      )}
+                      <div className="mt-4 border-t border-[#2a2e38] pt-3">
+                        <button onClick={() => handleRemoveLocalGame(selected.id, game.id)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          Cikar
                         </button>
                       </div>
                     </div>
