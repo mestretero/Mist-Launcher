@@ -21,12 +21,21 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [includeLaunchers, setIncludeLaunchers] = useState(false);
   const [showOther, setShowOther] = useState(false);
-  // Track which exe is selected per game (keyed by install_path)
   const [, setExeChoices] = useState<Record<string, string>>({});
+  // Track which drives are selected for scanning
+  const [selectedDrives, setSelectedDrives] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     store.loadScanConfig();
+    store.loadDrives();
   }, []);
+
+  // Auto-select all drives when they load
+  useEffect(() => {
+    if (store.drives.length > 0 && selectedDrives.size === 0) {
+      setSelectedDrives(new Set(store.drives.map(d => d.letter)));
+    }
+  }, [store.drives]);
 
   useEffect(() => {
     const unlisten = listen<ScanProgress>("scan-progress", (event) => {
@@ -64,11 +73,24 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
     }
   };
 
+  const toggleDrive = (letter: string) => {
+    setSelectedDrives(prev => {
+      const next = new Set(prev);
+      if (next.has(letter)) next.delete(letter);
+      else next.add(letter);
+      return next;
+    });
+  };
+
   const handleScan = async () => {
     if (!store.scanConfig) return;
     setStep("scanning");
     const excludeLaunchers = includeLaunchers ? [] : store.scanConfig.exclude_launchers;
-    const found = await store.scanGames(store.scanConfig.scan_paths, excludeLaunchers);
+    // Combine: selected drives + any custom paths from config
+    const drivePaths = [...selectedDrives].map(d => d + "\\");
+    const customPaths = store.scanConfig.scan_paths.filter(p => !drivePaths.some(dp => p.toLowerCase().startsWith(dp.toLowerCase().replace("\\", ""))));
+    const allPaths = [...drivePaths, ...customPaths];
+    const found = await store.scanGames(allPaths, excludeLaunchers);
     setResults(found);
     // Auto-select games with high confidence (>=50)
     const autoSelected = new Set(found.filter(g => g.confidence >= 50).map(g => g.exe_path));
@@ -148,25 +170,78 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
 
       {step === "config" && (
         <div className="space-y-6">
+          {/* Drive Selection */}
           <div className="bg-brand-800/50 rounded-lg p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-3">Taranacak Diskler</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {store.drives.map((drive) => {
+                const isSelected = selectedDrives.has(drive.letter);
+                const usedPercent = drive.total_bytes > 0 ? ((drive.total_bytes - drive.free_bytes) / drive.total_bytes) * 100 : 0;
+                const freeGB = (drive.free_bytes / (1024 ** 3)).toFixed(0);
+                const totalGB = (drive.total_bytes / (1024 ** 3)).toFixed(0);
+                return (
+                  <button
+                    key={drive.letter}
+                    onClick={() => toggleDrive(drive.letter)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
+                      isSelected
+                        ? "border-yellow-400/50 bg-yellow-400/10"
+                        : "border-brand-700 bg-brand-900/30 opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <div className="flex-shrink-0">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={isSelected ? "#facc15" : "#5e6673"} strokeWidth="1.5">
+                        <rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                        <circle cx="18" cy="7" r="1" fill={isSelected ? "#facc15" : "#5e6673"}/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={`font-bold text-sm ${isSelected ? "text-yellow-400" : "text-brand-300"}`}>{drive.letter}</span>
+                        <span className="text-brand-400 text-xs truncate">{drive.label}</span>
+                      </div>
+                      <div className="w-full bg-brand-800 rounded-full h-1.5 mt-1.5">
+                        <div className="bg-brand-500 h-full rounded-full" style={{ width: `${usedPercent}%` }} />
+                      </div>
+                      <span className="text-brand-500 text-[10px]">{freeGB} GB bos / {totalGB} GB</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Options */}
+          <div className="bg-brand-800/50 rounded-lg p-4 space-y-3">
             <label className="flex items-center gap-3 cursor-pointer">
               <input type="checkbox" checked={includeLaunchers} onChange={(e) => setIncludeLaunchers(e.target.checked)} className="w-4 h-4 accent-yellow-400" />
-              <span className="text-brand-200">Steam, Epic, Ubisoft vb. oyunlarini da dahil et</span>
+              <span className="text-brand-200 text-sm">Steam, Epic, Ubisoft vb. oyunlarini da dahil et</span>
             </label>
           </div>
-          <div className="bg-brand-800/50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-3">Tarama Klasorleri</h3>
-            <div className="space-y-2">
-              {store.scanConfig.scan_paths.map((path) => (
-                <div key={path} className="flex items-center justify-between bg-brand-900/50 rounded px-3 py-2">
-                  <span className="text-brand-200 text-sm font-mono truncate">{path}</span>
-                  <button onClick={() => handleRemovePath(path)} className="text-red-400 hover:text-red-300 text-sm ml-2">Kaldir</button>
-                </div>
-              ))}
+
+          {/* Custom Paths */}
+          {store.scanConfig.scan_paths.length > 0 && (
+            <div className="bg-brand-800/50 rounded-lg p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-widest text-brand-400 mb-2">Ek Klasorler</h3>
+              <div className="space-y-1">
+                {store.scanConfig.scan_paths.map((path) => (
+                  <div key={path} className="flex items-center justify-between bg-brand-900/50 rounded px-3 py-1.5">
+                    <span className="text-brand-300 text-xs font-mono truncate">{path}</span>
+                    <button onClick={() => handleRemovePath(path)} className="text-red-400 hover:text-red-300 text-xs ml-2">x</button>
+                  </div>
+                ))}
+              </div>
             </div>
-            <button onClick={handleAddPath} className="mt-3 px-4 py-2 bg-brand-700 hover:bg-brand-600 text-brand-200 rounded text-sm">+ Klasor Ekle</button>
-          </div>
-          <button onClick={handleScan} className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 text-brand-900 font-bold rounded-lg text-lg">Taramayi Baslat</button>
+          )}
+          <button onClick={handleAddPath} className="text-brand-400 hover:text-brand-200 text-xs">+ Ozel klasor ekle</button>
+
+          <button
+            onClick={handleScan}
+            disabled={selectedDrives.size === 0}
+            className="w-full py-3 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-brand-900 font-bold rounded-lg text-lg"
+          >
+            {selectedDrives.size} Diski Tara
+          </button>
         </div>
       )}
 

@@ -51,6 +51,14 @@ pub struct ScanConfig {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct DriveInfo {
+    pub letter: String,       // "C:", "D:", etc.
+    pub label: String,        // Volume label or "Yerel Disk"
+    pub total_bytes: u64,
+    pub free_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ScanProgress {
     pub scanned_dirs: u32,
     pub total_dirs: u32,

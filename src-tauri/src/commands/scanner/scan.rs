@@ -1,8 +1,89 @@
-use super::models::{ScannedGame, ScanProgress};
+use super::models::{ScannedGame, ScanProgress, DriveInfo};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 use walkdir::WalkDir;
+
+/// List all available drives on Windows
+#[tauri::command]
+pub fn list_drives() -> Result<Vec<DriveInfo>, String> {
+    let mut drives = Vec::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        // Check drive letters A-Z
+        for letter in b'A'..=b'Z' {
+            let drive_path = format!("{}:\\", letter as char);
+            let path = Path::new(&drive_path);
+            if !path.exists() { continue; }
+
+            // Get disk space using fs2
+            let (total, free) = match fs2::available_space(path) {
+                Ok(free) => {
+                    let total = fs2::total_space(path).unwrap_or(0);
+                    (total, free)
+                }
+                Err(_) => continue, // Skip inaccessible drives
+            };
+
+            // Get volume label from registry or default
+            let label = get_volume_label(&drive_path).unwrap_or_else(|| {
+                if letter == b'C' { "Windows".to_string() }
+                else { "Yerel Disk".to_string() }
+            });
+
+            drives.push(DriveInfo {
+                letter: format!("{}:", letter as char),
+                label,
+                total_bytes: total,
+                free_bytes: free,
+            });
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        drives.push(DriveInfo {
+            letter: "/".to_string(),
+            label: "Root".to_string(),
+            total_bytes: 0,
+            free_bytes: 0,
+        });
+    }
+
+    Ok(drives)
+}
+
+#[cfg(target_os = "windows")]
+fn get_volume_label(drive_path: &str) -> Option<String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+
+    let wide_path: Vec<u16> = OsStr::new(drive_path).encode_wide().chain(std::iter::once(0)).collect();
+    let mut label_buf: Vec<u16> = vec![0u16; 256];
+    let mut fs_buf: Vec<u16> = vec![0u16; 256];
+
+    let success = unsafe {
+        windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW(
+            wide_path.as_ptr(),
+            label_buf.as_mut_ptr(),
+            label_buf.len() as u32,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            fs_buf.as_mut_ptr(),
+            fs_buf.len() as u32,
+        )
+    };
+
+    if success != 0 {
+        let len = label_buf.iter().position(|&c| c == 0).unwrap_or(0);
+        let label = String::from_utf16_lossy(&label_buf[..len]);
+        if label.is_empty() { None } else { Some(label) }
+    } else {
+        None
+    }
+}
 
 #[cfg(target_os = "windows")]
 use winreg::enums::*;

@@ -44,13 +44,22 @@ export interface GameMetadata {
   genres: string[] | null;
 }
 
+export interface DriveInfo {
+  letter: string;
+  label: string;
+  total_bytes: number;
+  free_bytes: number;
+}
+
 interface LocalGameState {
   games: LocalGame[];
   scanConfig: ScanConfig | null;
+  drives: DriveInfo[];
   loading: boolean;
   scanning: boolean;
   loadGames: () => Promise<void>;
   loadScanConfig: () => Promise<void>;
+  loadDrives: () => Promise<void>;
   updateScanConfig: (config: ScanConfig) => Promise<void>;
   scanGames: (paths: string[], excludeLaunchers: string[]) => Promise<ScannedGame[]>;
   addScannedGames: (games: ScannedGame[], metadataMap: Record<string, GameMetadata>) => Promise<void>;
@@ -63,6 +72,7 @@ interface LocalGameState {
 export const useLocalGameStore = create<LocalGameState>((set, get) => ({
   games: [],
   scanConfig: null,
+  drives: [],
   loading: false,
   scanning: false,
 
@@ -79,6 +89,11 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
   loadScanConfig: async () => {
     const config = await invoke<ScanConfig>("get_scan_config");
     set({ scanConfig: config });
+  },
+
+  loadDrives: async () => {
+    const drives = await invoke<DriveInfo[]>("list_drives");
+    set({ drives });
   },
 
   updateScanConfig: async (config) => {

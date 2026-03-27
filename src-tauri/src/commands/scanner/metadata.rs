@@ -1,6 +1,10 @@
 use super::db::Db;
 use super::models::GameMetadata;
 use tauri::State;
+use std::sync::Mutex;
+
+/// Cached IGDB access token (Twitch OAuth)
+static IGDB_TOKEN: Mutex<Option<(String, std::time::Instant)>> = Mutex::new(None);
 
 fn normalize_title(title: &str) -> String {
     title.to_lowercase()
@@ -31,41 +35,87 @@ fn write_cache(db: &Db, normalized: &str, metadata: &GameMetadata) {
     }
 }
 
-async fn fetch_from_rawg(title: &str) -> Option<GameMetadata> {
-    // Try runtime env first, then compile-time fallback
-    let api_key = std::env::var("RAWG_API_KEY")
-        .unwrap_or_else(|_| option_env!("RAWG_API_KEY").unwrap_or("").to_string());
-    if api_key.is_empty() {
-        eprintln!("[metadata] RAWG_API_KEY not set. Set env var RAWG_API_KEY or create src-tauri/.env");
+/// Get IGDB access token via Twitch OAuth (cached for ~60 days)
+async fn get_igdb_token() -> Option<String> {
+    // Check cached token
+    {
+        let lock = IGDB_TOKEN.lock().unwrap();
+        if let Some((ref token, ref created)) = *lock {
+            // Token valid for ~60 days, refresh after 30
+            if created.elapsed().as_secs() < 30 * 24 * 3600 {
+                return Some(token.clone());
+            }
+        }
+    }
+
+    let client_id = std::env::var("IGDB_CLIENT_ID").ok()?;
+    let client_secret = std::env::var("IGDB_CLIENT_SECRET").ok()?;
+
+    if client_id.is_empty() || client_secret.is_empty() {
+        eprintln!("[metadata] IGDB_CLIENT_ID or IGDB_CLIENT_SECRET not set in .env");
         return None;
     }
 
     let url = format!(
-        "https://api.rawg.io/api/games?key={}&search={}&page_size=1",
-        api_key,
-        urlencoding::encode(title)
+        "https://id.twitch.tv/oauth2/token?client_id={}&client_secret={}&grant_type=client_credentials",
+        client_id, client_secret
     );
 
-    let resp = reqwest::get(&url).await.ok()?;
+    let client = reqwest::Client::new();
+    let resp = client.post(&url).send().await.ok()?;
     let text = resp.text().await.ok()?;
     let body: serde_json::Value = serde_json::from_str(&text).ok()?;
-    let game = body["results"].as_array()?.first()?.clone();
+    let token = body["access_token"].as_str()?.to_string();
+
+    // Cache it
+    {
+        let mut lock = IGDB_TOKEN.lock().unwrap();
+        *lock = Some((token.clone(), std::time::Instant::now()));
+    }
+
+    Some(token)
+}
+
+async fn fetch_from_igdb(title: &str) -> Option<GameMetadata> {
+    let client_id = std::env::var("IGDB_CLIENT_ID").ok()?;
+    let token = get_igdb_token().await?;
+
+    let client = reqwest::Client::new();
+    let body = format!(
+        "search \"{}\"; fields name,cover.image_id,summary,genres.name; where category = 0; limit 1;",
+        title.replace('"', "\\\"")
+    );
+
+    let resp = client
+        .post("https://api.igdb.com/v4/games")
+        .header("Client-ID", &client_id)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "text/plain")
+        .body(body)
+        .send()
+        .await
+        .ok()?;
+
+    let text = resp.text().await.ok()?;
+    let games: Vec<serde_json::Value> = serde_json::from_str(&text).ok()?;
+    let game = games.first()?;
+
+    let cover_url = game["cover"]["image_id"].as_str().map(|id| {
+        format!("https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg", id)
+    });
+
+    let genres = game["genres"].as_array().map(|arr| {
+        arr.iter()
+            .filter_map(|g| g["name"].as_str().map(|s| s.to_string()))
+            .collect::<Vec<String>>()
+    });
 
     Some(GameMetadata {
         title: game["name"].as_str()?.to_string(),
-        cover_url: game["background_image"].as_str().map(|s: &str| s.to_string()),
-        description: None,
-        genres: Some(
-            game["genres"].as_array()
-                .map(|arr: &Vec<serde_json::Value>| arr.iter().filter_map(|g| g["name"].as_str().map(|s: &str| s.to_string())).collect())
-                .unwrap_or_default()
-        ),
+        cover_url,
+        description: game["summary"].as_str().map(|s| s.to_string()),
+        genres,
     })
-}
-
-// IGDB fallback — requires Twitch OAuth, stubbed for Phase 1
-async fn fetch_from_igdb(_title: &str) -> Option<GameMetadata> {
-    None
 }
 
 #[tauri::command]
@@ -79,12 +129,10 @@ pub async fn fetch_metadata(
         return Ok(Some(cached));
     }
 
-    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    // Rate limit
+    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
 
-    let metadata = match fetch_from_rawg(&game_title).await {
-        Some(m) => Some(m),
-        None => fetch_from_igdb(&game_title).await,
-    };
+    let metadata = fetch_from_igdb(&game_title).await;
 
     if let Some(ref m) = metadata {
         write_cache(&db, &normalized, m);

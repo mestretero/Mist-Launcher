@@ -31,6 +31,7 @@ pub fn run() {
             commands::auth::store_token,
             commands::auth::get_token,
             commands::auth::delete_token,
+            commands::scanner::scan::list_drives,
             commands::scanner::scan::scan_games,
             commands::scanner::metadata::fetch_metadata,
             commands::scanner::library::get_local_games,
