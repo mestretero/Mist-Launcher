@@ -4,6 +4,14 @@ import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
 import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
 
+const PlayOverlay = () => (
+  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
+    <div className="w-14 h-14 rounded-full bg-green-500/90 flex items-center justify-center shadow-lg">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="8,5 20,12 8,19"/></svg>
+    </div>
+  </div>
+);
+
 interface Collection {
   id: string;
   name: string;
@@ -89,6 +97,15 @@ export function CollectionsPage() {
       addToast("Oyun koleksiyondan cikarildi", "success");
     } catch (err: any) {
       addToast(err?.message || "Oyun cikarilamadi", "error");
+    }
+  };
+
+  const handleLaunchLocal = async (game: LocalGame) => {
+    try {
+      await invoke("launch_game", { gameId: game.id, exePath: game.exe_path });
+      addToast(`${game.title} baslatiliyor...`, "success");
+    } catch (err: any) {
+      addToast("Oyun baslatilamadi: " + (err?.message || err), "error");
     }
   };
 
@@ -291,9 +308,11 @@ export function CollectionsPage() {
                 {localGamesInCollection.map((game) => (
                   <div
                     key={`local-${game.id}`}
-                    className="rounded overflow-hidden bg-[#161920] border border-[#2a2e38] transition-all hover:-translate-y-1 hover:border-[#3d4450] hover:shadow-lg hover:shadow-black/20 group relative"
+                    className="rounded overflow-hidden bg-[#161920] border border-[#2a2e38] transition-all hover:-translate-y-1 hover:border-[#3d4450] hover:shadow-lg hover:shadow-black/20 group relative cursor-pointer"
+                    onClick={() => handleLaunchLocal(game)}
                   >
                     <div className="relative overflow-hidden bg-[#1a1c23]">
+                      <PlayOverlay />
                       {game.cover_url ? (
                         <img src={game.cover_url} alt={game.title}
                           className="w-full aspect-[16/9] object-cover transition-transform duration-700 group-hover:scale-105"
@@ -313,7 +332,7 @@ export function CollectionsPage() {
                         <p className="text-xs font-medium text-[#5e6673] uppercase tracking-widest truncate capitalize">{game.launcher}</p>
                       )}
                       <div className="mt-4 border-t border-[#2a2e38] pt-3">
-                        <button onClick={() => handleRemoveLocalGame(selected.id, game.id)}
+                        <button onClick={(e) => { e.stopPropagation(); handleRemoveLocalGame(selected.id, game.id); }}
                           className="flex items-center gap-1.5 text-xs font-bold text-[#67707b] hover:text-red-400 transition-colors uppercase tracking-widest">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                           Cikar
