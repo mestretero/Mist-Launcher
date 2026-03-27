@@ -24,6 +24,82 @@ const STRIP_SUFFIXES: &[&str] = &[
     "Shipping", "Binaries", "Bin",
 ];
 
+/// Exe filenames that are never games
+const BLOCKED_EXE_NAMES: &[&str] = &[
+    "uninstall", "unins000", "unins001", "uninst", "setup", "install",
+    "update", "updater", "autoupdate", "crashreporter", "crashhandler",
+    "vc_redist", "vcredist", "dxsetup", "dxwebsetup", "dotnetfx",
+    "uwp_helper", "helper", "service", "server", "daemon",
+    "python", "pythonw", "node", "npm", "npx", "pip",
+    "git", "bash", "sh", "cmd", "powershell",
+    "java", "javaw", "javaws",
+    "winrar", "unrar", "rar", "7z", "7zfm", "7zg",
+    "notepad++", "code", "devenv",
+    "chrome", "firefox", "msedge", "opera", "brave",
+    "filezilla", "putty", "winscp",
+    "vlc", "audacity", "obs64", "obs32",
+    "awk", "sed", "grep", "curl", "wget",
+    "mailtodisk", "mercury", "apache", "httpd", "nginx", "mysql", "mysqld",
+    "php", "php-cgi", "perl", "ruby",
+    "steam", "steamservice", "steamerrorreporter",
+    "epicgameslauncher", "unrealcefsubprocess",
+    "ubisoftconnect", "ubisoftgamelauncher",
+    "galaxyclient", "galaxycommunication",
+    "creative cloud", "adobedesktopservice",
+];
+
+/// Directory path segments that indicate non-game software
+const BLOCKED_PATH_SEGMENTS: &[&str] = &[
+    "xampp", "wamp", "mamp", "laragon",
+    "nodejs", "node_modules", "npm", "nvm",
+    "python", "anaconda", "miniconda", "pip",
+    "ruby", "perl", "php",
+    "java", "jdk", "jre", "gradle", "maven",
+    "git", ".git", "mingw", "msys",
+    "visual studio", "vs code", "vscode", "jetbrains",
+    "adobe", "creative cloud",
+    "windows kits", "windows sdk", "windowsapps",
+    "microsoft office", "microsoft visual",
+    "common files", "windows nt", "internet explorer",
+    "windows defender", "windows mail", "windows media",
+    "windowspowershell", "system32", "syswow64",
+    "filezilla", "putty", "winscp", "teraterm",
+    "7-zip", "winrar",
+    "vlc", "audacity", "obs-studio",
+    "docker", "virtualbox", "vmware",
+    "nvidia", "amd", "intel", "realtek",
+    "cmake", "rust", "cargo", ".rustup", ".cargo",
+    "tortoisegit", "tortoisesvn",
+    "postgresql", "mysql", "mongodb", "redis",
+    "mercurymail", "mailtodisk",
+    "libreoffice", "openoffice",
+    "dotnet", "framework", "sdk",
+];
+
+/// Check if an exe filename looks like a non-game executable
+fn is_blocked_exe(exe_path: &Path) -> bool {
+    let file_name = exe_path.file_stem()
+        .map(|s| s.to_string_lossy().to_lowercase())
+        .unwrap_or_default();
+
+    // Check blocked exe names
+    for blocked in BLOCKED_EXE_NAMES {
+        if file_name == *blocked || file_name.starts_with(&format!("{}-", blocked)) {
+            return true;
+        }
+    }
+
+    // Check blocked path segments
+    let full_path = exe_path.to_string_lossy().to_lowercase();
+    for segment in BLOCKED_PATH_SEGMENTS {
+        if full_path.contains(&format!("\\{}", segment)) || full_path.contains(&format!("/{}", segment)) {
+            return true;
+        }
+    }
+
+    false
+}
+
 pub fn exe_to_title(exe_name: &str) -> String {
     let name = exe_name.trim_end_matches(".exe").trim_end_matches(".EXE");
     let mut result = String::new();
@@ -64,6 +140,19 @@ fn detect_launcher(path: &Path) -> Option<String> {
     None
 }
 
+/// Known non-game publisher names in registry
+const BLOCKED_PUBLISHERS: &[&str] = &[
+    "microsoft", "adobe", "google", "mozilla", "oracle", "intel",
+    "nvidia", "amd", "realtek", "logitech", "corsair",
+    "python", "node.js", "rust", "java", "apache",
+    "xampp", "filezilla", "7-zip", "winrar", "rarlab",
+    "videolan", "audacity", "obs", "gimp",
+    "docker", "vmware", "virtualbox",
+    "postgresql", "mysql", "mongodb",
+    "jetbrains", "sublime", "notepad++", "github",
+    "libreoffice", "openoffice",
+];
+
 #[cfg(target_os = "windows")]
 fn scan_registry() -> Vec<(String, PathBuf)> {
     let mut results = Vec::new();
@@ -79,9 +168,24 @@ fn scan_registry() -> Vec<(String, PathBuf)> {
                     let display_name: Result<String, _> = subkey.get_value("DisplayName");
                     let install_loc: Result<String, _> = subkey.get_value("InstallLocation");
                     if let (Ok(name), Ok(loc)) = (display_name, install_loc) {
-                        if !loc.is_empty() {
-                            results.push((name, PathBuf::from(loc)));
+                        if loc.is_empty() { continue; }
+
+                        // Filter by publisher — skip known non-game publishers
+                        let publisher: Result<String, _> = subkey.get_value("Publisher");
+                        if let Ok(pub_name) = &publisher {
+                            let pub_lower = pub_name.to_lowercase();
+                            if BLOCKED_PUBLISHERS.iter().any(|bp| pub_lower.contains(bp)) {
+                                continue;
+                            }
                         }
+
+                        // Skip if install path is in a blocked directory
+                        let loc_path = PathBuf::from(&loc);
+                        if is_blocked_exe(&loc_path) {
+                            continue;
+                        }
+
+                        results.push((name, loc_path));
                     }
                 }
             }
@@ -131,6 +235,7 @@ pub async fn scan_games(
         }
         let exes = scan_directory(install_path, 2);
         for exe in exes {
+            if is_blocked_exe(&exe) { continue; }
             let exe_str = exe.to_string_lossy().to_string();
             if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
             seen_paths.insert(exe_str.to_lowercase());
@@ -154,6 +259,7 @@ pub async fn scan_games(
         if !dir.exists() || !dir.is_dir() { continue; }
         let exes = scan_directory(dir, 4);
         for exe in exes {
+            if is_blocked_exe(&exe) { continue; }
             let exe_str = exe.to_string_lossy().to_string();
             if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
             let launcher = detect_launcher(&exe);
