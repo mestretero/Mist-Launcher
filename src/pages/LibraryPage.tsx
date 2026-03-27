@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../lib/api";
 import { useDownloadStore } from "../stores/downloadStore";
 import { useToastStore } from "../stores/toastStore";
+import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
 import { DownloadProgress } from "../components/DownloadProgress";
 import { AddToCollectionDropdown } from "../components/AddToCollectionDropdown";
 import { AchievementCard } from "../components/AchievementCard";
@@ -16,6 +18,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   const [searchQuery, setSearchQuery] = useState("");
   const { downloads, startDownload } = useDownloadStore();
   const addToast = useToastStore((s) => s.addToast);
+  const { games: localGames, loadGames: loadLocalGames, addManualGame, fetchMetadata } = useLocalGameStore();
   const [sortBy, setSortBy] = useState<"name" | "recent" | "playtime">("name");
   const [activeTab, setActiveTab] = useState<LibTab>("overview");
   const [uninstallConfirm, setUninstallConfirm] = useState<string | null>(null);
@@ -34,6 +37,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
         }
       })
       .catch(err => addToast("Kütüphane verileri yüklenemedi: " + err.message, "error"));
+    loadLocalGames();
   }, []);
 
   // Fetch achievement stats and list for selected game
@@ -143,6 +147,20 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     }
   };
 
+  const handleAddManual = async () => {
+    const file = await open({ multiple: false, filters: [{ name: "Executable", extensions: ["exe"] }] });
+    if (!file) return;
+    const exePath = file as string;
+    const fileName = exePath.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") || "Unknown Game";
+    try {
+      const meta = await fetchMetadata(fileName);
+      await addManualGame(exePath, meta ?? { title: fileName, cover_url: null, description: null, genres: null });
+      addToast(`${meta?.title || fileName} eklendi!`, "success");
+    } catch (err: any) {
+      addToast("Oyun eklenemedi: " + (err?.message || err), "error");
+    }
+  };
+
   const formatPlayTime = (mins: number) => {
     if (mins < 60) return `${mins} dk`;
     return `${Math.floor(mins / 60)} sa ${mins % 60} dk`;
@@ -171,6 +189,10 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
       return a.game.title.localeCompare(b.game.title);
     });
 
+  const filteredLocalGames = localGames.filter(
+    g => g.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const tabs: { id: LibTab; label: string }[] = [
     { id: "overview", label: "Genel Bakış" },
     { id: "dlc", label: "DLC'ler" },
@@ -194,6 +216,20 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
       {/* Left Sidebar - Game List */}
       <div className="w-[300px] flex-shrink-0 bg-[#161920] border-r border-[#2a2e38] flex flex-col">
         <div className="p-3 border-b border-[#2a2e38] flex flex-col gap-2">
+          <div className="flex gap-1 mb-1">
+            <button
+              onClick={() => onNavigate && onNavigate("scanner")}
+              className="flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded transition-colors text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20"
+            >
+              Oyun Tara
+            </button>
+            <button
+              onClick={handleAddManual}
+              className="flex-1 text-[10px] font-bold uppercase tracking-widest py-1.5 rounded transition-colors text-brand-300 bg-brand-800 hover:bg-brand-700"
+            >
+              Oyun Ekle
+            </button>
+          </div>
           <div className="flex gap-1">
             {([["name", "A-Z"], ["recent", "Son"], ["playtime", "Süre"]] as const).map(([key, label]) => (
               <button
@@ -223,7 +259,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
           <div className="px-3 pb-1">
             <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-2 mb-1 flex items-center justify-between">
               <span>Tüm Oyunlar</span>
-              <span>{filteredItems.length}</span>
+              <span>{filteredItems.length + filteredLocalGames.length}</span>
             </div>
           </div>
           <div className="space-y-0.5">
@@ -254,6 +290,27 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                 </div>
               );
             })}
+            {filteredLocalGames.length > 0 && (
+              <>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-5 pt-3 pb-1">Yerel Oyunlar</div>
+                {filteredLocalGames.map((game: LocalGame) => (
+                  <div
+                    key={game.id}
+                    className="flex items-center gap-3 px-3 py-1.5 cursor-default select-none hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white"
+                  >
+                    <div className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center overflow-hidden bg-[#2a2e38]">
+                      {game.cover_url
+                        ? <img src={game.cover_url} className="w-full h-full object-cover" />
+                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                      }
+                    </div>
+                    <span className="text-sm truncate font-medium flex-1">{game.title}</span>
+                    {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Tarandi</span>}
+                    {game.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded">Manuel</span>}
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </div>
