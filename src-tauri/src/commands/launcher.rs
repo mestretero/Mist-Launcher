@@ -1,5 +1,6 @@
 use std::process::Command;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, State};
+use crate::commands::scanner::db::Db;
 
 #[derive(Clone, serde::Serialize)]
 struct GameStatus {
@@ -11,6 +12,7 @@ struct GameStatus {
 #[tauri::command]
 pub async fn launch_game(
     app: AppHandle,
+    db: State<'_, Db>,
     game_id: String,
     exe_path: String,
 ) -> Result<u32, String> {
@@ -21,8 +23,8 @@ pub async fn launch_game(
     let pid = child.id();
     let app_clone = app.clone();
     let game_id_clone = game_id.clone();
+    let db_clone = db.inner().clone();
 
-    // Track process in background
     tokio::spawn(async move {
         let start = std::time::Instant::now();
         let _ = app_clone.emit("game-status", GameStatus {
@@ -31,12 +33,10 @@ pub async fn launch_game(
             play_time_secs: 0,
         });
 
-        // Poll every 5 seconds
         loop {
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             let elapsed = start.elapsed().as_secs();
 
-            // Check if process still running (simplified)
             #[cfg(target_os = "windows")]
             let running = {
                 let output = Command::new("tasklist")
@@ -52,6 +52,13 @@ pub async fn launch_game(
             };
 
             if !running {
+                if let Ok(conn) = db_clone.lock() {
+                    let _ = conn.execute(
+                        "UPDATE games SET play_time = play_time + ?1, last_played = datetime('now') WHERE id = ?2",
+                        rusqlite::params![elapsed as i64, game_id_clone],
+                    );
+                }
+
                 let _ = app_clone.emit("game-status", GameStatus {
                     game_id: game_id_clone.clone(),
                     status: "stopped".to_string(),
@@ -67,6 +74,5 @@ pub async fn launch_game(
 
 #[tauri::command]
 pub async fn stop_game(_game_id: String) -> Result<(), String> {
-    // For demo: user closes game manually
     Ok(())
 }
