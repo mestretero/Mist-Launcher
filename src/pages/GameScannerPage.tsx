@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useLocalGameStore, ScannedGame, GameMetadata } from "../stores/localGameStore";
@@ -20,6 +20,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
   const [results, setResults] = useState<ScannedGame[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [includeLaunchers, setIncludeLaunchers] = useState(false);
+  const [showOther, setShowOther] = useState(false);
 
   useEffect(() => {
     store.loadScanConfig();
@@ -31,6 +32,20 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
     });
     return () => { unlisten.then(fn => fn()); };
   }, []);
+
+  // Split results into "likely games" vs "other"
+  const { likelyGames, otherResults } = useMemo(() => {
+    const likely: ScannedGame[] = [];
+    const other: ScannedGame[] = [];
+    for (const game of results) {
+      if (game.detected_launcher) {
+        likely.push(game);
+      } else {
+        other.push(game);
+      }
+    }
+    return { likelyGames: likely, otherResults: other };
+  }, [results]);
 
   const handleAddPath = async () => {
     const dir = await open({ directory: true, multiple: false });
@@ -53,7 +68,9 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
     const excludeLaunchers = includeLaunchers ? [] : store.scanConfig.exclude_launchers;
     const found = await store.scanGames(store.scanConfig.scan_paths, excludeLaunchers);
     setResults(found);
-    setSelected(new Set(found.map(g => g.exe_path)));
+    // Only pre-select games that have a detected launcher (likely real games)
+    const autoSelected = new Set(found.filter(g => g.detected_launcher).map(g => g.exe_path));
+    setSelected(autoSelected);
     setStep("results");
   };
 
@@ -62,6 +79,22 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
       const next = new Set(prev);
       if (next.has(exePath)) next.delete(exePath);
       else next.add(exePath);
+      return next;
+    });
+  };
+
+  const selectAllInGroup = (games: ScannedGame[]) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      games.forEach(g => next.add(g.exe_path));
+      return next;
+    });
+  };
+
+  const deselectAllInGroup = (games: ScannedGame[]) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      games.forEach(g => next.delete(g.exe_path));
       return next;
     });
   };
@@ -83,6 +116,9 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
   if (!store.scanConfig) {
     return <div className="flex items-center justify-center h-full"><div className="animate-spin w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full" /></div>;
   }
+
+  const selectedCount = selected.size;
+  const selectedInOther = otherResults.filter(g => selected.has(g.exe_path)).length;
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -119,28 +155,71 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
           <div className="bg-brand-800 rounded-full h-2 max-w-md mx-auto overflow-hidden">
             <div className="bg-yellow-400 h-full transition-all duration-300" style={{ width: `${progress.total_dirs ? (progress.scanned_dirs / progress.total_dirs) * 100 : 0}%` }} />
           </div>
-          <p className="text-brand-400 text-sm">{progress.found_games} oyun bulundu | {progress.scanned_dirs}/{progress.total_dirs} klasor tarandi</p>
+          <p className="text-brand-400 text-sm">{progress.found_games} sonuc bulundu | {progress.scanned_dirs}/{progress.total_dirs} klasor tarandi</p>
         </div>
       )}
 
       {step === "results" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-brand-200">{results.length} oyun bulundu — eklemek istediklerini sec</p>
-            <button onClick={handleAddSelected} disabled={selected.size === 0} className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-brand-900 font-bold rounded">{selected.size} Oyunu Ekle</button>
+          {/* Top bar */}
+          <div className="flex items-center justify-between">
+            <p className="text-brand-200">{results.length} sonuc bulundu</p>
+            <button onClick={handleAddSelected} disabled={selectedCount === 0} className="px-6 py-2 bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 text-brand-900 font-bold rounded">
+              {selectedCount} Oyunu Ekle
+            </button>
           </div>
-          <div className="space-y-1 max-h-[60vh] overflow-y-auto">
-            {results.map((game) => (
-              <label key={game.exe_path} className="flex items-center gap-3 bg-brand-800/50 hover:bg-brand-800 rounded px-4 py-3 cursor-pointer">
-                <input type="checkbox" checked={selected.has(game.exe_path)} onChange={() => toggleSelect(game.exe_path)} className="w-4 h-4 accent-yellow-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-brand-100 font-medium truncate">{game.suggested_title}</p>
-                  <p className="text-brand-400 text-xs font-mono truncate">{game.exe_path}</p>
+
+          {/* Likely Games Group */}
+          {likelyGames.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-green-400">
+                  Oyunlar ({likelyGames.length})
+                </h3>
+                <div className="flex gap-2">
+                  <button onClick={() => selectAllInGroup(likelyGames)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu sec</button>
+                  <span className="text-brand-600">|</span>
+                  <button onClick={() => deselectAllInGroup(likelyGames)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu kaldir</button>
                 </div>
-                {game.detected_launcher && <span className="text-xs bg-brand-700 text-brand-300 px-2 py-1 rounded capitalize">{game.detected_launcher}</span>}
-              </label>
-            ))}
-          </div>
+              </div>
+              <div className="space-y-1 max-h-[35vh] overflow-y-auto">
+                {likelyGames.map((game) => (
+                  <GameResultRow key={game.exe_path} game={game} selected={selected.has(game.exe_path)} onToggle={() => toggleSelect(game.exe_path)} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Results Group */}
+          {otherResults.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2 mt-4">
+                <button onClick={() => setShowOther(!showOther)} className="flex items-center gap-2 text-sm font-semibold uppercase tracking-widest text-brand-400 hover:text-brand-200">
+                  <span className="text-xs">{showOther ? "▼" : "►"}</span>
+                  Diger Sonuclar ({otherResults.length})
+                  {selectedInOther > 0 && <span className="text-yellow-400 normal-case tracking-normal font-normal">({selectedInOther} secili)</span>}
+                </button>
+                {showOther && (
+                  <div className="flex gap-2">
+                    <button onClick={() => selectAllInGroup(otherResults)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu sec</button>
+                    <span className="text-brand-600">|</span>
+                    <button onClick={() => deselectAllInGroup(otherResults)} className="text-xs text-brand-400 hover:text-brand-200">Tumunu kaldir</button>
+                  </div>
+                )}
+              </div>
+              {showOther && (
+                <div className="space-y-1 max-h-[35vh] overflow-y-auto">
+                  {otherResults.map((game) => (
+                    <GameResultRow key={game.exe_path} game={game} selected={selected.has(game.exe_path)} onToggle={() => toggleSelect(game.exe_path)} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {likelyGames.length === 0 && otherResults.length > 0 && !showOther && (
+            <p className="text-brand-400 text-center py-4">Bilinen launcher'a ait oyun bulunamadi. "Diger Sonuclar"i acarak manuel secim yapabilirsin.</p>
+          )}
         </div>
       )}
 
@@ -156,5 +235,20 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
         </div>
       )}
     </div>
+  );
+}
+
+function GameResultRow({ game, selected, onToggle }: { game: ScannedGame; selected: boolean; onToggle: () => void }) {
+  return (
+    <label className={`flex items-center gap-3 rounded px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-brand-800" : "bg-brand-800/30 opacity-70 hover:opacity-100"}`}>
+      <input type="checkbox" checked={selected} onChange={onToggle} className="w-4 h-4 accent-yellow-400 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-brand-100 font-medium truncate">{game.suggested_title}</p>
+        <p className="text-brand-400 text-xs font-mono truncate">{game.exe_path}</p>
+      </div>
+      {game.detected_launcher && (
+        <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded capitalize shrink-0">{game.detected_launcher}</span>
+      )}
+    </label>
   );
 }
