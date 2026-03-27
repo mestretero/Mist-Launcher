@@ -10,11 +10,19 @@ pub struct GameMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExeOption {
+    pub path: String,
+    pub file_name: String,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScannedGame {
     pub exe_path: String,
     pub suggested_title: String,
     pub install_path: String,
     pub detected_launcher: Option<String>,
+    pub available_exes: Vec<ExeOption>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

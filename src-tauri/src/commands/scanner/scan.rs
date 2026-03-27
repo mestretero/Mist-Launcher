@@ -317,28 +317,51 @@ pub async fn scan_games(
     let mut seen_paths: HashSet<String> = HashSet::new();
 
     let registry_entries = scan_registry();
+    let mut seen_install_dirs: HashSet<String> = HashSet::new();
+
     for (name, install_path, _score) in &registry_entries {
         let launcher = detect_launcher(install_path);
         if let Some(ref l) = launcher {
             if exclude_set.contains(l) { continue; }
         }
-        // Pick only the largest non-blocked exe per install path
-        let exes = scan_directory(install_path, 2);
-        let best_exe = exes.into_iter()
-            .filter(|e| !is_blocked_exe(e))
-            .max_by_key(|e| std::fs::metadata(e).map(|m| m.len()).unwrap_or(0));
 
-        if let Some(exe) = best_exe {
-            let exe_str = exe.to_string_lossy().to_string();
-            if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
-            seen_paths.insert(exe_str.to_lowercase());
-            all_games.push(ScannedGame {
-                exe_path: exe_str,
-                suggested_title: name.clone(),
-                install_path: install_path.to_string_lossy().to_string(),
-                detected_launcher: launcher.clone(),
-            });
-        }
+        let dir_key = install_path.to_string_lossy().to_lowercase();
+        if seen_install_dirs.contains(&dir_key) { continue; }
+        seen_install_dirs.insert(dir_key);
+
+        let exes = scan_directory(install_path, 2);
+        let valid_exes: Vec<_> = exes.into_iter().filter(|e| !is_blocked_exe(e)).collect();
+        if valid_exes.is_empty() { continue; }
+
+        let available: Vec<super::models::ExeOption> = valid_exes.iter().map(|e| {
+            let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
+            super::models::ExeOption {
+                path: e.to_string_lossy().to_string(),
+                file_name: e.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+                size_bytes: size,
+            }
+        }).collect();
+
+        // Pick best default: prefer exe whose name matches game title, else largest
+        let name_lower = name.to_lowercase().replace(['\'', ':', '-', ' '], "");
+        let best = valid_exes.iter()
+            .max_by_key(|e| {
+                let fname = e.file_stem().map(|s| s.to_string_lossy().to_lowercase().replace(['_', '-', ' '], "")).unwrap_or_default();
+                let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
+                let name_match: u64 = if name_lower.contains(&fname) || fname.contains(&name_lower) { 1_000_000_000_000 } else { 0 };
+                name_match + size
+            })
+            .unwrap();
+
+        let exe_str = best.to_string_lossy().to_string();
+        seen_paths.insert(exe_str.to_lowercase());
+        all_games.push(ScannedGame {
+            exe_path: exe_str,
+            suggested_title: name.clone(),
+            install_path: install_path.to_string_lossy().to_string(),
+            detected_launcher: launcher.clone(),
+            available_exes: available,
+        });
     }
 
     let _ = app.emit("scan-progress", ScanProgress {
@@ -351,35 +374,58 @@ pub async fn scan_games(
         let dir = Path::new(path_str);
         if !dir.exists() || !dir.is_dir() { continue; }
         let exes = scan_directory(dir, 4);
-        // Group exes by parent directory, pick largest per group
+        // Group exes by parent directory
         let mut by_parent: std::collections::HashMap<String, Vec<PathBuf>> = std::collections::HashMap::new();
         for exe in exes {
             if is_blocked_exe(&exe) { continue; }
-            let parent = exe.parent().map(|p| p.to_string_lossy().to_lowercase()).unwrap_or_default();
-            by_parent.entry(parent).or_default().push(exe);
+            let parent = exe.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+            by_parent.entry(parent.clone()).or_default().push(exe);
         }
 
-        for (_parent, group) in &by_parent {
-            let best = group.iter()
-                .max_by_key(|e| std::fs::metadata(e).map(|m| m.len()).unwrap_or(0));
+        for (parent_str, group) in &by_parent {
+            if group.is_empty() { continue; }
+            let dir_key = parent_str.to_lowercase();
+            if seen_install_dirs.contains(&dir_key) { continue; }
+            seen_install_dirs.insert(dir_key);
 
-            if let Some(exe) = best {
-                let exe_str = exe.to_string_lossy().to_string();
-                if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
-                let launcher = detect_launcher(exe);
-                if let Some(ref l) = launcher {
-                    if exclude_set.contains(l) { continue; }
+            let available: Vec<super::models::ExeOption> = group.iter().map(|e| {
+                let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
+                super::models::ExeOption {
+                    path: e.to_string_lossy().to_string(),
+                    file_name: e.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+                    size_bytes: size,
                 }
-                let file_name = exe.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                let parent_str = exe.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-                seen_paths.insert(exe_str.to_lowercase());
-                all_games.push(ScannedGame {
-                    exe_path: exe_str,
-                    suggested_title: exe_to_title(&file_name),
-                    install_path: parent_str,
-                    detected_launcher: launcher,
-                });
+            }).collect();
+
+            // Folder name is our best guess for game title
+            let folder_name = Path::new(parent_str).file_name()
+                .map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let folder_lower = folder_name.to_lowercase().replace(['\'', ':', '-', ' ', '_'], "");
+
+            // Best exe: name closest to folder name, then largest
+            let best = group.iter()
+                .max_by_key(|e| {
+                    let fname = e.file_stem().map(|s| s.to_string_lossy().to_lowercase().replace(['_', '-', ' '], "")).unwrap_or_default();
+                    let size = std::fs::metadata(e).map(|m| m.len()).unwrap_or(0);
+                    let name_match: u64 = if folder_lower.contains(&fname) || fname.contains(&folder_lower) { 1_000_000_000_000 } else { 0 };
+                    name_match + size
+                })
+                .unwrap();
+
+            let exe_str = best.to_string_lossy().to_string();
+            if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
+            let launcher = detect_launcher(best);
+            if let Some(ref l) = launcher {
+                if exclude_set.contains(l) { continue; }
             }
+            seen_paths.insert(exe_str.to_lowercase());
+            all_games.push(ScannedGame {
+                exe_path: exe_str,
+                suggested_title: exe_to_title(&best.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()),
+                install_path: parent_str.clone(),
+                detected_launcher: launcher,
+                available_exes: available,
+            });
         }
         let _ = app.emit("scan-progress", ScanProgress {
             scanned_dirs: (i + 2) as u32,

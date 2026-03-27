@@ -16,11 +16,18 @@ export interface LocalGame {
   play_time: number;
 }
 
+export interface ExeOption {
+  path: string;
+  file_name: string;
+  size_bytes: number;
+}
+
 export interface ScannedGame {
   exe_path: string;
   suggested_title: string;
   install_path: string;
   detected_launcher: string | null;
+  available_exes: ExeOption[];
 }
 
 export interface ScanConfig {

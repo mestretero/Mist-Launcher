@@ -21,6 +21,8 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [includeLaunchers, setIncludeLaunchers] = useState(false);
   const [showOther, setShowOther] = useState(false);
+  // Track which exe is selected per game (keyed by install_path)
+  const [, setExeChoices] = useState<Record<string, string>>({});
 
   useEffect(() => {
     store.loadScanConfig();
@@ -71,6 +73,10 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
     // Only pre-select games that have a detected launcher (likely real games)
     const autoSelected = new Set(found.filter(g => g.detected_launcher).map(g => g.exe_path));
     setSelected(autoSelected);
+    // Init exe choices to the backend's default pick
+    const choices: Record<string, string> = {};
+    for (const g of found) { choices[g.install_path] = g.exe_path; }
+    setExeChoices(choices);
     setStep("results");
   };
 
@@ -97,6 +103,22 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
       games.forEach(g => next.delete(g.exe_path));
       return next;
     });
+  };
+
+  const changeExe = (game: ScannedGame, newExePath: string) => {
+    // Update the selected set: remove old, add new if was selected
+    const wasSelected = selected.has(game.exe_path);
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.delete(game.exe_path);
+      if (wasSelected) next.add(newExePath);
+      return next;
+    });
+    // Update results to reflect new exe_path
+    setResults(prev => prev.map(g =>
+      g.install_path === game.install_path ? { ...g, exe_path: newExePath } : g
+    ));
+    setExeChoices(prev => ({ ...prev, [game.install_path]: newExePath }));
   };
 
   const handleAddSelected = async () => {
@@ -184,7 +206,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
               </div>
               <div className="space-y-1 max-h-[35vh] overflow-y-auto">
                 {likelyGames.map((game) => (
-                  <GameResultRow key={game.exe_path} game={game} selected={selected.has(game.exe_path)} onToggle={() => toggleSelect(game.exe_path)} />
+                  <GameResultRow key={game.install_path} game={game} selected={selected.has(game.exe_path)} onToggle={() => toggleSelect(game.exe_path)} onChangeExe={(p) => changeExe(game, p)} />
                 ))}
               </div>
             </div>
@@ -210,7 +232,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
               {showOther && (
                 <div className="space-y-1 max-h-[35vh] overflow-y-auto">
                   {otherResults.map((game) => (
-                    <GameResultRow key={game.exe_path} game={game} selected={selected.has(game.exe_path)} onToggle={() => toggleSelect(game.exe_path)} />
+                    <GameResultRow key={game.install_path} game={game} selected={selected.has(game.exe_path)} onToggle={() => toggleSelect(game.exe_path)} onChangeExe={(p) => changeExe(game, p)} />
                   ))}
                 </div>
               )}
@@ -238,17 +260,49 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
   );
 }
 
-function GameResultRow({ game, selected, onToggle }: { game: ScannedGame; selected: boolean; onToggle: () => void }) {
+function formatSize(bytes: number): string {
+  if (bytes >= 1_000_000_000) return `${(bytes / 1_000_000_000).toFixed(1)} GB`;
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(0)} MB`;
+  return `${(bytes / 1_000).toFixed(0)} KB`;
+}
+
+function GameResultRow({ game, selected, onToggle, onChangeExe }: {
+  game: ScannedGame;
+  selected: boolean;
+  onToggle: () => void;
+  onChangeExe: (exePath: string) => void;
+}) {
+  const hasMultipleExes = game.available_exes.length > 1;
+
   return (
-    <label className={`flex items-center gap-3 rounded px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-brand-800" : "bg-brand-800/30 opacity-70 hover:opacity-100"}`}>
-      <input type="checkbox" checked={selected} onChange={onToggle} className="w-4 h-4 accent-yellow-400 shrink-0" />
-      <div className="flex-1 min-w-0">
-        <p className="text-brand-100 font-medium truncate">{game.suggested_title}</p>
-        <p className="text-brand-400 text-xs font-mono truncate">{game.exe_path}</p>
-      </div>
-      {game.detected_launcher && (
-        <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded capitalize shrink-0">{game.detected_launcher}</span>
+    <div className={`rounded px-4 py-3 transition-colors ${selected ? "bg-brand-800" : "bg-brand-800/30 opacity-70 hover:opacity-100"}`}>
+      <label className="flex items-center gap-3 cursor-pointer">
+        <input type="checkbox" checked={selected} onChange={onToggle} className="w-4 h-4 accent-yellow-400 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-brand-100 font-medium truncate">{game.suggested_title}</p>
+          {!hasMultipleExes && (
+            <p className="text-brand-400 text-xs font-mono truncate">{game.exe_path}</p>
+          )}
+        </div>
+        {game.detected_launcher && (
+          <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded capitalize shrink-0">{game.detected_launcher}</span>
+        )}
+      </label>
+      {hasMultipleExes && (
+        <div className="ml-7 mt-2">
+          <select
+            value={game.exe_path}
+            onChange={(e) => onChangeExe(e.target.value)}
+            className="w-full bg-brand-900 text-brand-200 text-xs font-mono rounded px-2 py-1.5 border border-brand-700 focus:border-yellow-400 outline-none"
+          >
+            {game.available_exes.map((exe) => (
+              <option key={exe.path} value={exe.path}>
+                {exe.file_name} ({formatSize(exe.size_bytes)})
+              </option>
+            ))}
+          </select>
+        </div>
       )}
-    </label>
+    </div>
   );
 }
