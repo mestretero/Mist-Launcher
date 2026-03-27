@@ -31,6 +31,13 @@ pub fn run() {
             commands::auth::delete_token,
             commands::scanner::scan::scan_games,
             commands::scanner::metadata::fetch_metadata,
+            commands::scanner::library::get_local_games,
+            commands::scanner::library::add_manual_game,
+            commands::scanner::library::add_scanned_games,
+            commands::scanner::library::update_game,
+            commands::scanner::library::delete_game,
+            commands::scanner::library::get_scan_config,
+            commands::scanner::library::update_scan_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
