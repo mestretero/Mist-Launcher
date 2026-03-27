@@ -204,11 +204,12 @@ fn update_game(game_id: String, metadata: GameMetadata) -> Result<Game, String>
 fn delete_game(game_id: String) -> Result<(), String>
 
 // Game launching — extends existing launcher.rs
-// Already exists: launch_game(app, game_id, exe_path) with play-time tracking
-// Change: after game exits, write accumulated play_time to SQLite games table
-// The existing event-based tracking (game-status events) remains for UI updates
+// Already exists: launch_game(app, game_id, exe_path) with play-time tracking via events
+// Change: add db: State<Mutex<Connection>> parameter, after game exits write
+// accumulated play_time to SQLite games table. Needs SQLite managed state access.
+// The existing event-based tracking (game-status events) remains for real-time UI updates.
 #[tauri::command]
-fn launch_game(app: AppHandle, game_id: String, exe_path: String) -> Result<u32, String>
+fn launch_game(app: AppHandle, db: State<Mutex<Connection>>, game_id: String, exe_path: String) -> Result<u32, String>
 
 // Metadata — uses RAWG API (https://rawg.io/apidocs, free tier: 20k req/month)
 // Fallback: IGDB API if RAWG returns no results
@@ -224,12 +225,50 @@ fn get_scan_config() -> Result<ScanConfig, String>
 fn update_scan_config(config: ScanConfig) -> Result<(), String>
 ```
 
-### 5.4 Tauri Capabilities
+### 5.4 SQLite State Management
+
+The SQLite connection is managed via Tauri's `manage()` API:
+
+```rust
+// In main/lib setup:
+let db = rusqlite::Connection::open(app.path().app_data_dir().join("stealike.db"))?;
+// Run migrations (CREATE TABLE IF NOT EXISTS)
+app.manage(Mutex::new(db));
+
+// In commands, access via State:
+#[tauri::command]
+fn get_local_games(db: State<'_, Mutex<Connection>>) -> Result<Vec<Game>, String> {
+    let conn = db.lock().unwrap();
+    // query...
+}
+```
+
+All commands that access SQLite receive `db: State<'_, Mutex<Connection>>` as a parameter.
+
+### 5.5 Tauri Plugin Dependencies & Capabilities
+
+New plugins required in `src-tauri/Cargo.toml`:
+- `tauri-plugin-fs` — for scanning game directories
+- `tauri-plugin-dialog` — for folder/file picker in manual game addition
+
+These must also be registered in the Tauri app builder (`plugin::init()`).
 
 `src-tauri/capabilities/default.json` needs additional permissions:
-- `fs:read` — for scanning game directories
-- `dialog:open` — for folder/file picker in manual game addition
-- `shell:open` — already present for launching games
+- `fs:default` + `fs:allow-read` — directory scanning
+- `dialog:default` + `dialog:allow-open` — file/folder picker dialogs
+- `opener:default` — already present for launching games
+
+### 5.6 API Key Management
+
+RAWG API key is embedded at build time via `RAWG_API_KEY` environment variable, read in Rust with `env!("RAWG_API_KEY")`. For development, use a `.env` file processed by `dotenvy` crate. IGDB requires Twitch OAuth — client ID/secret also build-time embedded.
+
+### 5.7 Offline Behavior
+
+When metadata fetch fails (no internet, API down), the UI shows a graceful fallback:
+- Game is still added with the title extracted from filename
+- Cover image shows a placeholder
+- User can retry metadata fetch later or fill in manually
+- All local library operations (scan, launch, play time tracking) work fully offline
 
 ---
 
@@ -254,7 +293,7 @@ fn update_scan_config(config: ScanConfig) -> Result<(), String>
 ```
 Frontend LibraryPage:
   localGames  ← invoke('get_local_games')   // Tauri
-  storeGames  ← fetch('/api/library')        // Fastify
+  storeGames  ← fetch('/api/library')        // Fastify (already exists in server/src/routes/library.ts)
   allGames    ← merge(localGames, storeGames)
   render with source badge per game
 ```
