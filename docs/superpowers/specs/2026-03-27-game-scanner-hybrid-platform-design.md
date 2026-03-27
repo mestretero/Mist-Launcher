@@ -65,11 +65,12 @@ Phase 2 (out of scope): Self-hosted multiplayer / PC hosting for online play.
    - **Registry scan** — `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall` + `HKCU\...` for installed programs
    - **File system scan** — Find `.exe` files in selected directories
    - **Launcher filter** — Detect and optionally exclude known launcher directories
-4. Results returned to frontend as a list of discovered executables
-5. User selects which games to add
-6. For each selected game: attempt metadata fetch from RAWG/IGDB API
-7. If metadata not found, user enters manually
-8. Save to local SQLite
+4. Scan emits progress events (`scan-progress`) so frontend shows real-time feedback (scanned dirs, found games count)
+5. Results returned to frontend as a list of discovered executables
+6. User selects which games to add
+7. For each selected game: attempt metadata fetch from RAWG API (free tier, 20k req/month), fallback to IGDB
+8. If metadata not found, user enters manually
+9. Save to local SQLite
 
 ### 3.2 Known Launcher Detection
 
@@ -114,13 +115,13 @@ CREATE TABLE games (
   launcher      TEXT,              -- 'steam', 'epic', 'ubisoft', 'gog', 'ea', 'none'
   cover_url     TEXT,
   description   TEXT,
-  genres        TEXT,              -- JSON array
+  genres        TEXT,              -- JSON array (queried via json_each for filtering)
   added_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_played   DATETIME,
-  play_time     INTEGER DEFAULT 0  -- seconds
+  play_time     INTEGER DEFAULT 0  -- seconds, updated by launch_game on exit
 );
 
--- Scan configuration
+-- Scan configuration (singleton row — always id=1)
 CREATE TABLE scan_config (
   id                INTEGER PRIMARY KEY DEFAULT 1,
   scan_paths        TEXT NOT NULL,     -- JSON array of directory paths
@@ -129,14 +130,65 @@ CREATE TABLE scan_config (
 );
 ```
 
+**Note:** SQLite accessed via `rusqlite` crate (bundled). DB file stored at Tauri app data dir (`app.path().app_data_dir()`). Play time is updated by the existing `launch_game` process tracker when the game process exits — it writes the accumulated seconds to the `games.play_time` column.
+
 ---
 
 ## 5. Tauri Rust Commands
 
+### 5.1 Dependencies
+
+New crate required: `rusqlite` with `bundled` feature for local SQLite storage. Added to `src-tauri/Cargo.toml`:
+```toml
+rusqlite = { version = "0.31", features = ["bundled"] }
+```
+
+### 5.2 Data Structures
+
 ```rust
-// Scanning
+struct GameMetadata {
+    title: String,
+    cover_url: Option<String>,
+    description: Option<String>,
+    genres: Option<Vec<String>>,  // stored as JSON in SQLite
+}
+
+struct ScannedGame {
+    exe_path: String,
+    suggested_title: String,      // extracted from filename
+    install_path: String,         // parent directory of exe
+    detected_launcher: Option<String>,  // 'steam', 'epic', etc.
+}
+
+struct Game {
+    id: String,
+    title: String,
+    exe_path: String,
+    install_path: Option<String>,
+    source: String,               // 'scan', 'manual', 'store'
+    launcher: Option<String>,
+    cover_url: Option<String>,
+    description: Option<String>,
+    genres: Option<Vec<String>>,
+    added_at: String,
+    last_played: Option<String>,
+    play_time: u64,               // seconds
+}
+
+struct ScanConfig {
+    scan_paths: Vec<String>,
+    exclude_launchers: Vec<String>,
+    last_scan_at: Option<String>,
+}
+```
+
+### 5.3 Commands
+
+```rust
+// Scanning — emits "scan-progress" events via AppHandle for UI feedback
 #[tauri::command]
-fn scan_games(paths: Vec<String>, exclude_launchers: Vec<String>) -> Result<Vec<ScannedGame>, String>
+fn scan_games(app: AppHandle, paths: Vec<String>, exclude_launchers: Vec<String>) -> Result<Vec<ScannedGame>, String>
+// Progress events: { scanned_dirs: u32, total_dirs: u32, found_games: u32 }
 
 // Library management
 #[tauri::command]
@@ -151,11 +203,16 @@ fn update_game(game_id: String, metadata: GameMetadata) -> Result<Game, String>
 #[tauri::command]
 fn delete_game(game_id: String) -> Result<(), String>
 
-// Game launching
+// Game launching — extends existing launcher.rs
+// Already exists: launch_game(app, game_id, exe_path) with play-time tracking
+// Change: after game exits, write accumulated play_time to SQLite games table
+// The existing event-based tracking (game-status events) remains for UI updates
 #[tauri::command]
-fn launch_game(game_id: String) -> Result<(), String>
+fn launch_game(app: AppHandle, game_id: String, exe_path: String) -> Result<u32, String>
 
-// Metadata
+// Metadata — uses RAWG API (https://rawg.io/apidocs, free tier: 20k req/month)
+// Fallback: IGDB API if RAWG returns no results
+// API key stored in app config, not hardcoded
 #[tauri::command]
 fn fetch_metadata(game_title: String) -> Result<Option<GameMetadata>, String>
 
@@ -166,6 +223,13 @@ fn get_scan_config() -> Result<ScanConfig, String>
 #[tauri::command]
 fn update_scan_config(config: ScanConfig) -> Result<(), String>
 ```
+
+### 5.4 Tauri Capabilities
+
+`src-tauri/capabilities/default.json` needs additional permissions:
+- `fs:read` — for scanning game directories
+- `dialog:open` — for folder/file picker in manual game addition
+- `shell:open` — already present for launching games
 
 ---
 
@@ -194,6 +258,12 @@ Frontend LibraryPage:
   allGames    ← merge(localGames, storeGames)
   render with source badge per game
 ```
+
+**Deduplication strategy:** Match by normalized title (lowercase, strip special chars). If a local game and a store game match:
+- Show as a single entry with **both** source badges ("Store + Installed")
+- Use store metadata (cover, description) as primary since it's curated
+- Use local exe_path for the "Launch" button
+- If titles don't match, show as separate entries — no automatic dedup by exe_path
 
 ---
 
