@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
+import { useLocalGameStore } from "../stores/localGameStore";
+import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../lib/api";
 import { TwoFactorSetup } from "../components/TwoFactorSetup";
 
@@ -21,7 +23,8 @@ export function SettingsPage() {
   const [studentStatus, setStudentStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [studentError, setStudentError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"account" | "payments" | "downloads">("account");
+  const [activeTab, setActiveTab] = useState<"account" | "payments" | "downloads" | "scanner">("account");
+  const { scanConfig, loadScanConfig, updateScanConfig } = useLocalGameStore();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [downloadPath, setDownloadPath] = useState("C:/Games/Stealike");
@@ -34,6 +37,12 @@ export function SettingsPage() {
       if (user.preferences.bandwidthLimit) setBandwidthLimit(user.preferences.bandwidthLimit);
     }
   }, [user?.preferences]);
+
+  useEffect(() => {
+    if (activeTab === "scanner" && !scanConfig) {
+      loadScanConfig();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === "payments" && payments.length === 0) {
@@ -71,7 +80,33 @@ export function SettingsPage() {
     { id: "account" as const, label: "Hesap" },
     { id: "payments" as const, label: "Ödeme Geçmişi" },
     { id: "downloads" as const, label: "İndirmeler" },
+    { id: "scanner" as const, label: "Tarayici" },
   ];
+
+  const handleScannerAddPath = async () => {
+    const dir = await open({ directory: true, multiple: false });
+    if (dir && scanConfig) {
+      const newPaths = [...scanConfig.scan_paths, dir as string];
+      await updateScanConfig({ ...scanConfig, scan_paths: newPaths });
+      addToast("Klasor eklendi", "success");
+    }
+  };
+
+  const handleScannerRemovePath = async (path: string) => {
+    if (scanConfig) {
+      const newPaths = scanConfig.scan_paths.filter(p => p !== path);
+      await updateScanConfig({ ...scanConfig, scan_paths: newPaths });
+    }
+  };
+
+  const handleToggleLauncher = async (launcher: string) => {
+    if (!scanConfig) return;
+    const excluded = scanConfig.exclude_launchers;
+    const newExcluded = excluded.includes(launcher)
+      ? excluded.filter(l => l !== launcher)
+      : [...excluded, launcher];
+    await updateScanConfig({ ...scanConfig, exclude_launchers: newExcluded });
+  };
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
@@ -347,6 +382,80 @@ export function SettingsPage() {
                 Temizle
               </button>
             </div>
+          </section>
+        </div>
+      )}
+
+      {/* Scanner Tab */}
+      {activeTab === "scanner" && (
+        <div className="space-y-6">
+          {/* Scan Paths */}
+          <section className="rounded bg-brand-900 border border-brand-800 p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-brand-500 mb-6 border-b border-brand-800 pb-2">Tarama Klasorleri</h2>
+            <p className="text-sm text-brand-400 font-medium mb-4 leading-relaxed">
+              Oyun tarayicisinin aramasini istediginiz klasorleri buraya ekleyin.
+            </p>
+            {!scanConfig ? (
+              <div className="flex items-center gap-2 text-brand-500 text-sm">
+                <div className="w-4 h-4 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+                Yukleniyor...
+              </div>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {scanConfig.scan_paths.length === 0 && (
+                  <p className="text-brand-600 text-sm italic">Henuz klasor eklenmedi.</p>
+                )}
+                {scanConfig.scan_paths.map((path) => (
+                  <div key={path} className="flex items-center justify-between bg-brand-950 border border-brand-800 rounded px-4 py-2.5">
+                    <span className="text-brand-200 text-sm font-mono truncate flex-1 mr-4">{path}</span>
+                    <button
+                      onClick={() => handleScannerRemovePath(path)}
+                      className="text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-widest flex-shrink-0"
+                    >
+                      Kaldir
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={handleScannerAddPath}
+              className="px-5 py-2.5 rounded bg-brand-800 border border-brand-700 text-xs font-bold text-brand-200 hover:bg-brand-700 transition-colors uppercase tracking-widest"
+            >
+              + Klasor Ekle
+            </button>
+          </section>
+
+          {/* Launcher Filters */}
+          <section className="rounded bg-brand-900 border border-brand-800 p-6">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-brand-500 mb-6 border-b border-brand-800 pb-2">Launcher Filtreleri</h2>
+            <p className="text-sm text-brand-400 font-medium mb-4 leading-relaxed">
+              Isaret ettiginiz launcherlar tarama sonuclarindan cikarilir.
+            </p>
+            {!scanConfig ? (
+              <div className="flex items-center gap-2 text-brand-500 text-sm">
+                <div className="w-4 h-4 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+                Yukleniyor...
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {["steam", "epic", "ubisoft", "ea", "gog", "battlenet"].map((launcher) => {
+                  const isExcluded = scanConfig.exclude_launchers.includes(launcher);
+                  return (
+                    <label key={launcher} className="flex items-center gap-3 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={isExcluded}
+                        onChange={() => handleToggleLauncher(launcher)}
+                        className="w-4 h-4 accent-yellow-400"
+                      />
+                      <span className="text-sm font-medium text-brand-200 capitalize group-hover:text-brand-100 transition-colors">{launcher}</span>
+                      {isExcluded && <span className="text-[10px] text-brand-500 font-bold uppercase tracking-widest">(Hariç Tutulacak)</span>}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </div>
       )}
