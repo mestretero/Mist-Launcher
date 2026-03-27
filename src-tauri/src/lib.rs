@@ -1,9 +1,21 @@
 mod commands;
 
+use commands::scanner::db;
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let app_data_dir = app.path().app_data_dir()
+                .expect("Failed to get app data dir");
+            let database = db::init_db(&app_data_dir)
+                .expect("Failed to initialize database");
+            app.manage(database);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::download::download_game,
             commands::download::pause_download,
