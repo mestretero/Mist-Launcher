@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
 import { api } from "../lib/api";
 import type { LibraryItem } from "../lib/types";
 
 const THEMES = [
-  { id: "default", name: "Karanlık Galaksi", url: "https://picsum.photos/seed/bg1/1920/1080" },
-  { id: "cyber", name: "Siber Neon", url: "https://picsum.photos/seed/bg2/1920/1080" },
-  { id: "nature", name: "Mistik Orman", url: "https://picsum.photos/seed/bg3/1920/1080" },
-  { id: "mech", name: "Metalik Savaş", url: "https://picsum.photos/seed/bg4/1920/1080" }
+  { id: "default", nameKey: "profile.themeDarkGalaxy", url: "https://picsum.photos/seed/bg1/1920/1080" },
+  { id: "cyber", nameKey: "profile.themeCyberNeon", url: "https://picsum.photos/seed/bg2/1920/1080" },
+  { id: "nature", nameKey: "profile.themeMysticForest", url: "https://picsum.photos/seed/bg3/1920/1080" },
+  { id: "mech", nameKey: "profile.themeMetallicWar", url: "https://picsum.photos/seed/bg4/1920/1080" }
 ];
 
 interface ProfilePageProps {
@@ -16,6 +17,7 @@ interface ProfilePageProps {
 }
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const [bgIndex, setBgIndex] = useState(() => {
@@ -59,26 +61,26 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     .slice(0, 4);
 
   const formatPlayTime = (mins: number) => {
-    if (mins < 60) return `${mins} dk`;
-    return `${Math.floor(mins / 60)} sa ${mins % 60} dk`;
+    if (mins < 60) return t("library.minutesShort", { count: mins });
+    return t("library.hoursMinutes", { hours: Math.floor(mins / 60), minutes: mins % 60 });
   };
 
   const formatRelativeDate = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return "Bugün";
-    if (days === 1) return "Dün";
-    if (days < 7) return `${days} gün önce`;
-    if (days < 30) return `${Math.floor(days / 7)} hafta önce`;
-    return `${Math.floor(days / 30)} ay önce`;
+    if (days === 0) return t("library.today");
+    if (days === 1) return t("library.yesterday");
+    if (days < 7) return t("library.daysAgo", { count: days });
+    if (days < 30) return t("library.weeksAgo", { count: Math.floor(days / 7) });
+    return t("library.monthsAgo", { count: Math.floor(days / 30) });
   };
 
   const handleSaveProfile = async () => {
     try {
       await api.auth.updateProfile({ bio: editBio });
-      addToast("Profil güncellendi", "success");
+      addToast(t("profile.updated"), "success");
       setIsEditing(false);
-    } catch { addToast("Profil güncellenemedi", "error"); }
+    } catch { addToast(t("profile.updateError"), "error"); }
   };
 
   return (
@@ -97,12 +99,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           className="flex items-center gap-2 px-4 py-2 bg-[#20232c]/80 hover:bg-[#2a2e38] backdrop-blur border border-[#3d4450] text-[#c6d4df] rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors shadow-lg"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Tema Seç
+          {t("profile.chooseTheme")}
         </button>
 
         {isEditingBg && (
           <div className="absolute top-12 right-0 w-64 bg-[#161920]/95 backdrop-blur-md border border-[#2a2e38] rounded shadow-2xl p-2">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#67707b] mb-2 px-2">Kütüphane Temaları</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-[#67707b] mb-2 px-2">{t("profile.libraryThemes")}</h4>
             <div className="flex flex-col gap-1">
               {THEMES.map((theme, idx) => (
                 <button
@@ -110,7 +112,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   onClick={() => { setBgIndex(idx); setIsEditingBg(false); api.auth.updatePreferences({ profileThemeIndex: idx }).catch(() => {}); }}
                   className={`text-left px-3 py-2 text-sm font-semibold rounded transition-colors ${bgIndex === idx ? "bg-[#3d4450] text-white" : "text-[#8f98a0] hover:bg-[#2a2e38] hover:text-[#c6d4df]"}`}
                 >
-                  {theme.name}
+                  {t(theme.nameKey)}
                 </button>
               ))}
             </div>
@@ -132,7 +134,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className="w-32 h-32 bg-[#2a2e38] border-2 border-[#47bfff] rounded-full shadow-[0_0_20px_rgba(71,191,255,0.2)] overflow-hidden flex items-center justify-center relative z-10">
                 <span className="text-4xl font-black text-[#8f98a0]">{user.username.slice(0, 2).toUpperCase()}</span>
               </div>
-              <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#47bfff] rounded-full border-4 border-[#1a1c23] z-20" title="Çevrimiçi" />
+              <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#47bfff] rounded-full border-4 border-[#1a1c23] z-20" title={t("profile.online")} />
             </div>
 
             <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">
@@ -142,7 +144,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
             {user.isStudent && (
               <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">
-                Öğrenci
+                {t("profile.student")}
               </span>
             )}
 
@@ -151,7 +153,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 <textarea
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
-                  placeholder="Biyografinizi yazın..."
+                  placeholder={t("profile.bioPlaceholder")}
                   className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors resize-none"
                   rows={3}
                 />
@@ -160,13 +162,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     onClick={handleSaveProfile}
                     className="flex-1 py-2 bg-[#47bfff] hover:bg-[#47bfff]/80 text-[#0f1115] text-[11px] font-black uppercase tracking-widest rounded transition-colors"
                   >
-                    Kaydet
+                    {t("common.save")}
                   </button>
                   <button
                     onClick={() => { setIsEditing(false); setEditBio(user?.bio || ""); }}
                     className="flex-1 py-2 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-colors"
                   >
-                    İptal
+                    {t("common.cancel")}
                   </button>
                 </div>
               </div>
@@ -175,7 +177,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 onClick={() => setIsEditing(true)}
                 className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-8 border-y border-[#2a2e38]/50 py-4 cursor-pointer hover:text-white transition-colors"
               >
-                {user.bio ? `"${user.bio}"` : "\"Oyunlar sadece bir kaçış değil, yeni evrenlere açılan kapılardır.\""}
+                {user.bio ? `"${user.bio}"` : `"${t("profile.defaultBio")}"`}
               </p>
             )}
 
@@ -183,41 +185,41 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               onClick={() => setIsEditing(!isEditing)}
               className="w-full py-2.5 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-all shadow-md"
             >
-              {isEditing ? "İptal" : "Profili Düzenle"}
+              {isEditing ? t("common.cancel") : t("profile.editProfile")}
             </button>
             <button
               onClick={() => onNavigate?.("settings")}
               className="w-full py-2 mt-2 text-[#67707b] hover:text-[#c6d4df] text-[10px] font-bold uppercase tracking-widest rounded transition-colors"
             >
-              Ayarlar
+              {t("nav.settings")}
             </button>
           </div>
 
           {/* Stats Widget */}
           <div className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl ring-1 ring-white/5">
-            <h3 className="text-[10px] font-black text-[#8f98a0] uppercase tracking-widest mb-4">Oyuncu İstatistikleri</h3>
+            <h3 className="text-[10px] font-black text-[#8f98a0] uppercase tracking-widest mb-4">{t("profile.playerStats")}</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
                 <div className="text-2xl font-black text-white">{totalGames}</div>
-                <div className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">Oyun</div>
+                <div className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("profile.games")}</div>
               </div>
               <div className="bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
                 <div className="text-2xl font-black text-white">{totalPlayTimeHours}</div>
-                <div className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">Saat</div>
+                <div className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("profile.hours")}</div>
               </div>
             </div>
           </div>
 
           {/* Referral Code Widget */}
           <div className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl ring-1 ring-white/5 mb-8">
-            <h3 className="text-[10px] font-black text-[#8f98a0] uppercase tracking-widest mb-4">Referans Kodu</h3>
+            <h3 className="text-[10px] font-black text-[#8f98a0] uppercase tracking-widest mb-4">{t("profile.referralCode")}</h3>
             <div className="flex items-center justify-between p-3 rounded bg-[#20232c]/50 border border-[#2a2e38]">
               <span className="text-sm font-black text-[#47bfff] tracking-widest">{user.referralCode}</span>
               <button
                 onClick={() => navigator.clipboard.writeText(user.referralCode)}
                 className="text-[10px] font-bold text-[#8f98a0] hover:text-white uppercase tracking-widest transition-colors"
               >
-                Kopyala
+                {t("profile.copy")}
               </button>
             </div>
           </div>
@@ -233,7 +235,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <section>
                 <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#47bfff]"></span>
-                  Spot Işığı: En Çok Oynanan
+                  {t("profile.spotlight")}
                 </h2>
 
                 <div className="relative rounded-xl overflow-hidden border border-[#2a2e38] shadow-2xl group h-[280px]">
@@ -249,7 +251,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     <div className="flex gap-10 mb-6">
                       <div>
                         <div className="text-3xl font-black text-white drop-shadow">{formatPlayTime(favoriteItem.playTimeMins)}</div>
-                        <div className="text-[10px] font-bold text-[#8f98a0] uppercase tracking-widest">Oynama Süresi</div>
+                        <div className="text-[10px] font-bold text-[#8f98a0] uppercase tracking-widest">{t("library.playTime")}</div>
                       </div>
                     </div>
                   </div>
@@ -262,7 +264,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <section>
                 <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest mb-4 flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-brand-400"></span>
-                  Son Oynanan Oyunlar
+                  {t("profile.recentlyPlayed")}
                 </h2>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -287,7 +289,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             <section>
               <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#c6d4df]"></span>
-                Zaman Çizelgesi
+                {t("profile.timeline")}
               </h2>
 
               <div className="bg-[#1a1c23]/60 backdrop-blur-md rounded-xl border border-[#2a2e38] p-6 shadow-xl relative overflow-hidden">
@@ -301,14 +303,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     <div className="bg-[#20232c]/80 p-4 rounded-lg border border-[#2a2e38] flex-1 hover:border-[#3d4450] transition-colors">
                       <div className="text-[10px] font-bold text-[#8f98a0] uppercase tracking-widest mb-1">{formatRelativeDate(item.lastPlayedAt!)}</div>
                       <p className="text-sm font-medium text-[#c6d4df]">
-                        <span className="text-white font-bold">{item.game.title}</span> oynadın — toplam {formatPlayTime(item.playTimeMins)}
+                        {t("profile.playedActivity", { title: item.game.title, time: formatPlayTime(item.playTimeMins) })}
                       </p>
                     </div>
                   </div>
                 ))}
 
                 {recentlyPlayed.length === 0 && (
-                  <p className="text-sm text-[#67707b] font-medium relative z-10">Henüz etkinlik yok.</p>
+                  <p className="text-sm text-[#67707b] font-medium relative z-10">{t("library.noActivity")}</p>
                 )}
               </div>
             </section>

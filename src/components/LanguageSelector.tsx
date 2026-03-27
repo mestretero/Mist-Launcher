@@ -2,14 +2,10 @@ import { useTranslation } from "react-i18next";
 import { LANGUAGES, changeLanguage } from "../i18n";
 
 export function LanguageSelector() {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold uppercase tracking-widest text-[#5e6673]">
-        {t("settings.language.title")}
-      </h3>
-      <p className="text-xs text-[#67707b]">{t("settings.language.hint")}</p>
       <div className="grid grid-cols-2 gap-2">
         {LANGUAGES.map((lang) => {
           const isActive = i18n.language === lang.code;

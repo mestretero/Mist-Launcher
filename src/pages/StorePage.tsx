@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { GameCard } from "../components/GameCard";
 import type { Game } from "../lib/types";
@@ -7,17 +8,33 @@ interface StorePageProps {
   onGameClick: (slug: string) => void;
 }
 
-const CATEGORIES = [
-  "Tümü", "Aksiyon", "RPG", "Strateji", "FPS", "Macera", "Indie",
-  "Yarış", "Spor", "Hayatta Kalma", "Korku", "Simülasyon", "Açık Dünya", "Çok Oyunculu", "Platform", "Bulmaca"
-];
-
 export function StorePage({ onGameClick }: StorePageProps) {
+  const { t } = useTranslation();
+
+  const CATEGORIES = [
+    { key: "all", label: t("store.categories.all") },
+    { key: "action", label: t("store.categories.action") },
+    { key: "rpg", label: t("store.categories.rpg") },
+    { key: "strategy", label: t("store.categories.strategy") },
+    { key: "fps", label: t("store.categories.fps") },
+    { key: "adventure", label: t("store.categories.adventure") },
+    { key: "indie", label: t("store.categories.indie") },
+    { key: "racing", label: t("store.categories.racing") },
+    { key: "sports", label: t("store.categories.sports") },
+    { key: "survival", label: t("store.categories.survival") },
+    { key: "horror", label: t("store.categories.horror") },
+    { key: "simulation", label: t("store.categories.simulation") },
+    { key: "openWorld", label: t("store.categories.openWorld") },
+    { key: "multiplayer", label: t("store.categories.multiplayer") },
+    { key: "platform", label: t("store.categories.platform") },
+    { key: "puzzle", label: t("store.categories.puzzle") },
+  ];
+
   const [featured, setFeatured] = useState<Game[]>([]);
   const [allGames, setAllGames] = useState<Game[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Game[] | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState("Tümü");
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
   // Carousel State
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -27,11 +44,12 @@ export function StorePage({ onGameClick }: StorePageProps) {
 
   useEffect(() => {
     api.games.featured().then(setFeatured);
-    api.games.list(1, selectedCategory).then(setAllGames);
-  }, [selectedCategory]);
+    // Pass undefined when "all" is selected so backend returns all games
+    api.games.list(1, selectedCategory === "all" ? undefined : CATEGORIES.find((c) => c.key === selectedCategory)?.label).then(setAllGames);
+  }, [selectedCategory, t]);
 
-  const handleCategoryClick = (category: string) => {
-    setSelectedCategory(category);
+  const handleCategoryClick = (key: string) => {
+    setSelectedCategory(key);
     setSearchQuery("");
     setSearchResults(null);
   };
@@ -56,7 +74,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
   };
 
   const discountedGames = allGames.filter((g) => g.discountPercent > 0);
-  
+
   // Sort by releaseDate DESC (allGames already comes sorted from API, but ensure it)
   const newReleases = [...allGames]
     .sort((a, b) => new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime())
@@ -87,7 +105,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
           </svg>
           <input
             type="text"
-            placeholder="Oyun, yayıncı veya kategori ara..."
+            placeholder={t("store.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             className="w-full pl-12 pr-4 py-3 rounded-full bg-brand-900 border border-brand-800 text-brand-100 text-sm font-bold tracking-widest uppercase focus:outline-none focus:border-brand-500 transition-colors placeholder-brand-600 shadow-inner"
@@ -98,8 +116,8 @@ export function StorePage({ onGameClick }: StorePageProps) {
       {searchResults ? (
         <div className={`${containerClass} py-10`}>
           <div className="flex items-center gap-3 mb-8 border-b border-brand-800 pb-2">
-            <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">Arama Sonuçları</h2>
-            <span className="text-sm font-bold bg-brand-800 px-3 py-1 rounded text-brand-300">{searchResults.length} YAZILIM</span>
+            <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">{t("store.searchResults")}</h2>
+            <span className="text-sm font-bold bg-brand-800 px-3 py-1 rounded text-brand-300">{searchResults.length} {t("store.software")}</span>
           </div>
           <div className="grid grid-cols-4 gap-6">
             {searchResults.map((game) => (
@@ -108,7 +126,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
           </div>
           {searchResults.length === 0 && (
             <div className="py-20 text-center bg-brand-900 border border-brand-800 rounded mt-4">
-              <p className="text-brand-500 font-bold uppercase tracking-widest">Eşleşen sonuç bulunamadı.</p>
+              <p className="text-brand-500 font-bold uppercase tracking-widest">{t("store.noResults")}</p>
             </div>
           )}
         </div>
@@ -119,7 +137,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
             <div className={`${containerClass} mb-12`}>
               <div className="relative w-full overflow-hidden bg-brand-900 rounded group border border-brand-800 shadow-2xl" style={{ height: "450px" }}>
                 {featured.map((game, idx) => (
-                  <div 
+                  <div
                     key={game.id}
                     className={`absolute inset-0 transition-opacity duration-1000 ${idx === currentSlide ? "opacity-100 z-10" : "opacity-0 z-0"}`}
                   >
@@ -127,9 +145,9 @@ export function StorePage({ onGameClick }: StorePageProps) {
                       src={game.coverImageUrl}
                       alt={game.title}
                       className="absolute inset-0 w-full h-full object-cover transition-transform duration-[10000ms] ease-out"
-                      style={{ 
+                      style={{
                         filter: "brightness(0.6) contrast(1.1)",
-                        transform: idx === currentSlide ? "scale(1.05)" : "scale(1)" 
+                        transform: idx === currentSlide ? "scale(1.05)" : "scale(1)"
                       }}
                     />
                     <div className="absolute inset-0 bg-gradient-to-r from-brand-950 via-brand-950/70 to-transparent" />
@@ -137,7 +155,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
 
                     <div className="absolute inset-0 flex flex-col justify-center px-16 max-w-4xl">
                       <span className="text-[10px] font-black uppercase tracking-[0.3em] px-3 py-1.5 rounded bg-brand-200 text-brand-950 mb-4 self-start">
-                        Öne Çıkan
+                        {t("store.featured")}
                       </span>
                       <h1 className="text-6xl font-black text-white mb-4 tracking-tighter cursor-pointer hover:text-brand-200 transition-colors" onClick={() => onGameClick(game.slug)}>
                         {game.title}
@@ -146,11 +164,11 @@ export function StorePage({ onGameClick }: StorePageProps) {
                         {game.shortDescription || game.description?.slice(0, 150)}
                       </p>
                       <div className="flex items-center gap-6">
-                        <button 
+                        <button
                           onClick={() => onGameClick(game.slug)}
                           className="px-8 py-3 rounded text-sm font-black bg-brand-100 text-brand-950 hover:bg-white transition-colors uppercase tracking-widest border-2 border-transparent"
                         >
-                          Mağaza Sayfası
+                          {t("store.storePage")}
                         </button>
                         <div className="flex flex-col">
                           <span className="text-3xl font-black text-brand-100">
@@ -193,8 +211,8 @@ export function StorePage({ onGameClick }: StorePageProps) {
             <div className={`mt-8 ${containerClass}`}>
               <div className="flex items-center justify-between mb-6 border-b border-brand-800 pb-2">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">Sizin İçin Önerilenler</h2>
-                  <span className="text-[10px] font-black px-2 py-1 rounded bg-brand-800 text-brand-400 uppercase tracking-widest">Oynananlara Göre</span>
+                  <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">{t("store.recommended")}</h2>
+                  <span className="text-[10px] font-black px-2 py-1 rounded bg-brand-800 text-brand-400 uppercase tracking-widest">{t("store.byPlayers")}</span>
                 </div>
               </div>
               <div className="flex gap-6 overflow-x-auto pb-6 scrollbar-hide snap-x">
@@ -212,11 +230,11 @@ export function StorePage({ onGameClick }: StorePageProps) {
             <div className={`mt-8 ${containerClass}`}>
               <div className="flex items-center justify-between mb-6 border-b border-brand-800 pb-2">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">Özel Fırsatlar</h2>
-                  <span className="text-[10px] font-black px-2 py-1 rounded bg-brand-200 text-brand-950 uppercase tracking-widest">İndirim</span>
+                  <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">{t("store.deals")}</h2>
+                  <span className="text-[10px] font-black px-2 py-1 rounded bg-brand-200 text-brand-950 uppercase tracking-widest">{t("store.discount")}</span>
                 </div>
                 <button onClick={() => toggleSection("deals")} className="text-xs font-bold text-brand-500 hover:text-brand-200 transition-colors uppercase tracking-widest">
-                  {expandedSections.deals ? "Daralt" : "Tümüne Göz At"}
+                  {expandedSections.deals ? t("store.collapse") : t("store.browseAll")}
                 </button>
               </div>
               {expandedSections.deals ? (
@@ -241,9 +259,9 @@ export function StorePage({ onGameClick }: StorePageProps) {
           {newReleases.length > 0 && (
             <div className={`mt-8 ${containerClass}`}>
               <div className="flex items-center justify-between mb-6 border-b border-brand-800 pb-2">
-                <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">Yeni Çıkanlar</h2>
+                <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">{t("store.newReleases")}</h2>
                 <button onClick={() => toggleSection("new")} className="text-xs font-bold text-brand-500 hover:text-brand-200 transition-colors uppercase tracking-widest">
-                  {expandedSections.new ? "Daralt" : "Tümüne Göz At"}
+                  {expandedSections.new ? t("store.collapse") : t("store.browseAll")}
                 </button>
               </div>
               {expandedSections.new ? (
@@ -268,9 +286,9 @@ export function StorePage({ onGameClick }: StorePageProps) {
           {bestSellers.length > 0 && (
             <div className={`mt-8 ${containerClass}`}>
               <div className="flex items-center justify-between mb-6 border-b border-brand-800 pb-2">
-                <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">Çok Satanlar</h2>
+                <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">{t("store.bestSellers")}</h2>
                 <button onClick={() => toggleSection("best")} className="text-xs font-bold text-brand-500 hover:text-brand-200 transition-colors uppercase tracking-widest">
-                  {expandedSections.best ? "Daralt" : "Tümüne Göz At"}
+                  {expandedSections.best ? t("store.collapse") : t("store.browseAll")}
                 </button>
               </div>
               {expandedSections.best ? (
@@ -293,21 +311,21 @@ export function StorePage({ onGameClick }: StorePageProps) {
 
           {/* Browse Categories */}
           <div className={`mt-12 mb-10 ${containerClass}`}>
-             <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest mb-6 border-b border-brand-800 pb-2">Kategorilere Göz At</h2>
+             <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest mb-6 border-b border-brand-800 pb-2">{t("store.browseCategories")}</h2>
              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {CATEGORIES.map((category) => (
                   <div
-                    key={category}
-                    onClick={() => handleCategoryClick(category)}
+                    key={category.key}
+                    onClick={() => handleCategoryClick(category.key)}
                     className={`h-20 rounded border flex items-center justify-center cursor-pointer transition-all hover:-translate-y-1 shadow-sm px-4 text-center ${
-                      selectedCategory === category
+                      selectedCategory === category.key
                         ? "bg-brand-200 border-brand-200"
                         : "bg-brand-900 border-brand-800 hover:bg-brand-800 hover:border-brand-600"
                     }`}
                   >
                     <span className={`text-sm font-black uppercase tracking-widest ${
-                      selectedCategory === category ? "text-brand-950" : "text-brand-200"
-                    }`}>{category}</span>
+                      selectedCategory === category.key ? "text-brand-950" : "text-brand-200"
+                    }`}>{category.label}</span>
                   </div>
                 ))}
              </div>

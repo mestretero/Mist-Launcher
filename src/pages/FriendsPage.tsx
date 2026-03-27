@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
 import type { Friend } from "../lib/types";
@@ -6,6 +7,7 @@ import type { Friend } from "../lib/types";
 type Tab = "friends" | "pending" | "search";
 
 export function FriendsPage() {
+  const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const [activeTab, setActiveTab] = useState<Tab>("friends");
 
@@ -62,9 +64,9 @@ export function FriendsPage() {
     try {
       await api.friends.remove(id);
       setFriends((prev) => prev.filter((f) => f.friendshipId !== id));
-      addToast("Arkadas kaldirildi", "success");
+      addToast(t("friends.removed"), "success");
     } catch {
-      addToast("Arkadas kaldirilamadi", "error");
+      addToast(t("friends.removeError"), "error");
     } finally {
       setRemovingId(null);
     }
@@ -75,10 +77,10 @@ export function FriendsPage() {
     try {
       await api.friends.accept(id);
       setPending((prev) => prev.filter((f) => f.friendshipId !== id));
-      addToast("Arkadaslik istegi kabul edildi", "success");
+      addToast(t("friends.requestAccepted"), "success");
       loadFriends();
     } catch {
-      addToast("Istek kabul edilemedi", "error");
+      addToast(t("friends.acceptError"), "error");
     } finally {
       setProcessingId(null);
     }
@@ -89,9 +91,9 @@ export function FriendsPage() {
     try {
       await api.friends.reject(id);
       setPending((prev) => prev.filter((f) => f.friendshipId !== id));
-      addToast("Arkadaslik istegi reddedildi", "info");
+      addToast(t("friends.requestRejected"), "info");
     } catch {
-      addToast("Istek reddedilemedi", "error");
+      addToast(t("friends.rejectError"), "error");
     } finally {
       setProcessingId(null);
     }
@@ -105,7 +107,7 @@ export function FriendsPage() {
       setSearchResults(Array.isArray(data) ? data : []);
     } catch {
       setSearchResults([]);
-      addToast("Arama basarisiz", "error");
+      addToast(t("friends.searchError"), "error");
     } finally {
       setSearchLoading(false);
     }
@@ -115,9 +117,9 @@ export function FriendsPage() {
     setSendingTo(username);
     try {
       await api.friends.request(username);
-      addToast(`${username} kullanicisina arkadaslik istegi gonderildi`, "success");
+      addToast(t("friends.requestSent", { username }), "success");
     } catch {
-      addToast("Arkadaslik istegi gonderilemedi", "error");
+      addToast(t("friends.requestSendError"), "error");
     } finally {
       setSendingTo(null);
     }
@@ -130,9 +132,9 @@ export function FriendsPage() {
   const containerClass = "max-w-[1400px] mx-auto px-10";
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: "friends", label: "Arkadaslar" },
-    { id: "pending", label: "Bekleyen" },
-    { id: "search", label: "Ara" },
+    { id: "friends", label: t("friends.tabFriends") },
+    { id: "pending", label: t("friends.tabPending") },
+    { id: "search", label: t("friends.tabSearch") },
   ];
 
   return (
@@ -141,7 +143,7 @@ export function FriendsPage() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-6 border-b border-brand-800 pb-2">
           <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">
-            Arkadaslar
+            {t("friends.title")}
           </h2>
         </div>
 
@@ -205,10 +207,10 @@ export function FriendsPage() {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
                 <h3 className="text-lg font-black text-brand-400 uppercase tracking-widest mb-2">
-                  Henuz arkadasiniz yok
+                  {t("friends.noFriends")}
                 </h3>
                 <p className="text-sm text-brand-500 font-medium max-w-sm">
-                  Ara sekmesinden kullanici arayarak arkadaslik istegi gonderebilirsiniz.
+                  {t("friends.noFriendsHint")}
                 </p>
               </div>
             ) : (
@@ -249,7 +251,7 @@ export function FriendsPage() {
                       disabled={removingId === friend.friendshipId}
                       className="px-4 py-2 text-xs font-bold text-brand-500 hover:text-red-400 bg-brand-800 hover:bg-brand-800/80 rounded transition-colors uppercase tracking-widest disabled:opacity-50"
                     >
-                      Kaldir
+                      {t("friends.remove")}
                     </button>
                   </div>
                 ))}
@@ -294,10 +296,10 @@ export function FriendsPage() {
                   <polyline points="12 6 12 12 16 14" />
                 </svg>
                 <h3 className="text-lg font-black text-brand-400 uppercase tracking-widest mb-2">
-                  Bekleyen istek yok
+                  {t("friends.noPending")}
                 </h3>
                 <p className="text-sm text-brand-500 font-medium max-w-sm">
-                  Su anda bekleyen arkadaslik isteginiz bulunmuyor.
+                  {t("friends.noPendingHint")}
                 </p>
               </div>
             ) : (
@@ -326,7 +328,7 @@ export function FriendsPage() {
                         {req.username}
                       </h4>
                       <p className="text-[10px] text-brand-500 font-medium uppercase tracking-widest mt-0.5">
-                        Arkadaslik istegi
+                        {t("friends.friendRequest")}
                       </p>
                     </div>
 
@@ -337,14 +339,14 @@ export function FriendsPage() {
                         disabled={processingId === req.friendshipId}
                         className="px-4 py-2 text-xs font-bold bg-brand-200 text-brand-950 hover:bg-white rounded transition-colors uppercase tracking-widest disabled:opacity-50"
                       >
-                        Kabul Et
+                        {t("friends.accept")}
                       </button>
                       <button
                         onClick={() => handleReject(req.friendshipId)}
                         disabled={processingId === req.friendshipId}
                         className="px-4 py-2 text-xs font-bold text-brand-500 hover:text-red-400 bg-brand-800 hover:bg-brand-800/80 rounded transition-colors uppercase tracking-widest disabled:opacity-50"
                       >
-                        Reddet
+                        {t("friends.reject")}
                       </button>
                     </div>
                   </div>
@@ -375,7 +377,7 @@ export function FriendsPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Kullanici adi ara..."
+                  placeholder={t("friends.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
@@ -387,7 +389,7 @@ export function FriendsPage() {
                 disabled={searchLoading || !searchQuery.trim()}
                 className="px-6 py-3 rounded text-sm font-bold bg-brand-200 text-brand-950 hover:bg-white transition-colors uppercase tracking-widest disabled:opacity-50"
               >
-                {searchLoading ? "Araniyor..." : "Ara"}
+                {searchLoading ? t("friends.searching") : t("friends.search")}
               </button>
             </div>
 
@@ -430,8 +432,8 @@ export function FriendsPage() {
                       className="px-4 py-2 text-xs font-bold bg-brand-200 text-brand-950 hover:bg-white rounded transition-colors uppercase tracking-widest disabled:opacity-50"
                     >
                       {sendingTo === user.username
-                        ? "Gonderiliyor..."
-                        : "Arkadas Ekle"}
+                        ? t("friends.sending")
+                        : t("friends.addFriend")}
                     </button>
                   </div>
                 ))}
@@ -439,7 +441,7 @@ export function FriendsPage() {
             ) : searchQuery && !searchLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <p className="text-sm text-brand-500 font-bold uppercase tracking-widest">
-                  Eslesen kullanici bulunamadi
+                  {t("friends.noSearchResults")}
                 </p>
               </div>
             ) : null}

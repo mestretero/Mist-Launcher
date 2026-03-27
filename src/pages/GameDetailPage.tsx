@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
   const { addItem: addToCart } = useCartStore();
@@ -71,7 +73,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
   if (!game) {
     return (
       <div className="flex items-center justify-center h-64 bg-brand-950 font-sans">
-        <div className="text-brand-500 text-sm font-medium tracking-widest uppercase">Yükleniyor...</div>
+        <div className="text-brand-500 text-sm font-medium tracking-widest uppercase">{t("common.loading")}</div>
       </div>
     );
   }
@@ -107,20 +109,20 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
               clearInterval(checkClosed);
               setPaymentPending(false);
               setPaymentSuccess(true);
-              addToast(`${game.title} kütüphaneye eklendi!`, "success");
+              addToast(t("gameDetail.addedToLibrary", { title: game.title }), "success");
             }
           }, 500);
         } else {
-          setError("Popup engellenmiş olabilir. Lütfen tarayıcı ayarlarınızı kontrol edin.");
+          setError(t("gameDetail.popupBlocked"));
           setPaymentPending(false);
         }
       } else {
         setPaymentSuccess(true);
-        addToast(`${game.title} kütüphaneye eklendi!`, "success");
+        addToast(t("gameDetail.addedToLibrary", { title: game.title }), "success");
       }
     } catch (err: any) {
-      setError(err.message || "Ödeme başarısız");
-      addToast(err.message || "Ödeme başarısız", "error");
+      setError(err.message || t("gameDetail.paymentFailed"));
+      addToast(err.message || t("gameDetail.paymentFailed"), "error");
       setPaymentPending(false);
     }
   };
@@ -150,7 +152,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
-          Geri
+          {t("gameDetail.back")}
         </button>
 
         {/* Title overlay */}
@@ -203,14 +205,14 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
 
             {/* Description */}
             <div className="mb-10 bg-brand-900 border border-brand-800 rounded p-6">
-              <h2 className="text-base font-bold text-brand-100 mb-4 uppercase tracking-widest border-b border-brand-800 pb-2">Hakkında</h2>
+              <h2 className="text-base font-bold text-brand-100 mb-4 uppercase tracking-widest border-b border-brand-800 pb-2">{t("gameDetail.about")}</h2>
               <p className="text-sm text-brand-300 leading-relaxed font-medium">{game.description}</p>
             </div>
 
             {/* System requirements */}
             {requirements && Object.keys(requirements).length > 0 && (
               <div className="bg-brand-900 border border-brand-800 rounded p-6">
-                <h2 className="text-base font-bold text-brand-100 mb-4 uppercase tracking-widest border-b border-brand-800 pb-2">Minimum Sistem Gereksinimleri</h2>
+                <h2 className="text-base font-bold text-brand-100 mb-4 uppercase tracking-widest border-b border-brand-800 pb-2">{t("gameDetail.minRequirements")}</h2>
                 <div className="grid grid-cols-2 gap-4">
                   {Object.entries(requirements).map(([key, val]) => (
                     <div key={key} className="flex flex-col gap-1">
@@ -226,7 +228,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
             <div className="mt-10 bg-brand-900 border border-brand-800 rounded p-6">
               <div className="flex items-center justify-between mb-4 border-b border-brand-800 pb-2">
                 <div className="flex items-center gap-3">
-                  <h2 className="text-base font-bold text-brand-100 uppercase tracking-widest">Kullanici Degerlendirmeleri</h2>
+                  <h2 className="text-base font-bold text-brand-100 uppercase tracking-widest">{t("gameDetail.userReviews")}</h2>
                   {reviews && reviews.totalReviews > 0 && (
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-0.5">
@@ -237,7 +239,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                         ))}
                       </div>
                       <span className="text-xs font-bold text-brand-300">{reviews.averageRating?.toFixed(1)}</span>
-                      <span className="text-xs text-brand-500">({reviews.totalReviews} degerlendirme)</span>
+                      <span className="text-xs text-brand-500">({reviews.totalReviews} {t("gameDetail.reviewCount")})</span>
                     </div>
                   )}
                 </div>
@@ -246,7 +248,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                     onClick={() => setShowReviewForm(!showReviewForm)}
                     className="px-4 py-2 rounded bg-brand-800 border border-brand-700 text-xs font-bold text-brand-200 uppercase tracking-widest hover:bg-brand-700 transition-colors"
                   >
-                    Degerlendirme Yaz
+                    {t("gameDetail.writeReview")}
                   </button>
                 )}
               </div>
@@ -255,7 +257,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
               {showReviewForm && (
                 <div className="mb-6 p-4 bg-brand-950 border border-brand-800 rounded">
                   <div className="flex items-center gap-1 mb-3">
-                    <span className="text-xs font-bold text-brand-400 uppercase tracking-widest mr-2">Puan:</span>
+                    <span className="text-xs font-bold text-brand-400 uppercase tracking-widest mr-2">{t("gameDetail.rating")}:</span>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
@@ -271,7 +273,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                   <textarea
                     value={reviewContent}
                     onChange={(e) => setReviewContent(e.target.value)}
-                    placeholder="Degerlendirmenizi yazin..."
+                    placeholder={t("gameDetail.reviewPlaceholder")}
                     className="w-full px-4 py-3 rounded bg-brand-900 border border-brand-800 text-brand-100 text-sm focus:outline-none focus:border-brand-600 transition-colors placeholder-brand-600 font-medium resize-none"
                     rows={4}
                   />
@@ -284,14 +286,14 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                         setShowReviewForm(false);
                         setReviewContent("");
                         setReviewRating(5);
-                        addToast("Degerlendirmeniz eklendi", "success");
+                        addToast(t("gameDetail.reviewAdded"), "success");
                       } catch (err: any) {
-                        addToast(err.message || "Degerlendirme gonderilemedi", "error");
+                        addToast(err.message || t("gameDetail.reviewError"), "error");
                       }
                     }}
                     className="mt-3 px-6 py-2 rounded bg-brand-200 text-brand-950 font-black text-xs uppercase tracking-widest hover:bg-white transition-colors"
                   >
-                    Gonder
+                    {t("gameDetail.submit")}
                   </button>
                 </div>
               )}
@@ -307,7 +309,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-brand-200">{review.user?.username || "Anonim"}</span>
+                            <span className="text-sm font-bold text-brand-200">{review.user?.username || t("gameDetail.anonymous")}</span>
                             <div className="flex items-center gap-0.5">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <svg key={star} width="12" height="12" viewBox="0 0 24 24" fill={star <= review.rating ? "#facc15" : "none"} stroke="#facc15" strokeWidth="2">
@@ -326,7 +328,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-brand-500 font-medium">Henuz degerlendirme yapilmamis.</p>
+                <p className="text-sm text-brand-500 font-medium">{t("gameDetail.noReviews")}</p>
               )}
             </div>
 
@@ -334,7 +336,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
             {achievements.length > 0 && (
               <div className="mt-10 bg-brand-900 border border-brand-800 rounded p-6">
                 <div className="flex items-center justify-between mb-4 border-b border-brand-800 pb-2">
-                  <h2 className="text-base font-bold text-brand-100 uppercase tracking-widest">Basarimlar</h2>
+                  <h2 className="text-base font-bold text-brand-100 uppercase tracking-widest">{t("library.achievements")}</h2>
                   <span className="text-xs font-bold text-brand-500">
                     {achievements.filter((a: any) => a.unlocked).length} / {achievements.length}
                   </span>
@@ -360,14 +362,14 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
                   </div>
-                  <div className="text-brand-200 font-black text-sm mb-2 uppercase tracking-widest">Kütüphanenizde</div>
-                  <p className="text-xs text-brand-500 font-medium mb-6">Bu oyun zaten satın alınmış.</p>
+                  <div className="text-brand-200 font-black text-sm mb-2 uppercase tracking-widest">{t("gameDetail.inLibrary")}</div>
+                  <p className="text-xs text-brand-500 font-medium mb-6">{t("gameDetail.alreadyPurchased")}</p>
                   <button
                     onClick={() => onNavigate("library")}
                     className="w-full py-3 rounded text-sm font-black uppercase tracking-widest transition-colors text-white hover:brightness-110"
                     style={{ background: "linear-gradient(to right, #47bfff, #1a70cb)" }}
                   >
-                    Kütüphaneye Git
+                    {t("gameDetail.goToLibrary")}
                   </button>
                 </div>
               ) : (
@@ -390,19 +392,19 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                     <div className="space-y-2 mb-6 text-xs font-medium border-t border-brand-800 pt-4">
                       {gameDiscount > 0 && (
                         <div className="flex justify-between text-brand-400">
-                          <span>Oyun İndirimi</span>
+                          <span>{t("gameDetail.gameDiscount")}</span>
                           <span className="text-brand-200">-{gameDiscount}%</span>
                         </div>
                       )}
                       {studentDiscount > 0 && (
                         <div className="flex justify-between text-brand-400">
-                          <span>Öğrenci İndirimi</span>
+                          <span>{t("gameDetail.studentDiscount")}</span>
                           <span className="text-brand-200">-{studentDiscount}%</span>
                         </div>
                       )}
                       {referralDiscount > 0 && (
                         <div className="flex justify-between text-brand-400">
-                          <span>Referans İndirimi</span>
+                          <span>{t("gameDetail.referralDiscount")}</span>
                           <span className="text-brand-200">-{referralDiscount}%</span>
                         </div>
                       )}
@@ -413,12 +415,12 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                   <div className="mb-6">
                     <input
                       type="text"
-                      placeholder="Referans Kodu (Opsiyonel)"
+                      placeholder={t("gameDetail.referralPlaceholder")}
                       value={referralCode}
                       onChange={(e) => setReferralCode(e.target.value)}
                       className="w-full px-4 py-3 rounded bg-brand-950 border border-brand-800 text-brand-100 text-xs focus:outline-none focus:border-brand-600 transition-colors uppercase placeholder-brand-600 font-bold tracking-wider"
                     />
-                    {referralCode && <div className="text-xs font-bold text-brand-300 mt-2 ml-1">-5% referans uygulandı</div>}
+                    {referralCode && <div className="text-xs font-bold text-brand-300 mt-2 ml-1">{t("gameDetail.referralApplied")}</div>}
                   </div>
 
                   {/* Wishlist toggle */}
@@ -430,14 +432,14 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                             if (inWishlist) {
                               await api.wishlist.remove(game.id);
                               setInWishlist(false);
-                              addToast("İstek listesinden çıkarıldı", "success");
+                              addToast(t("gameDetail.removedFromWishlist"), "success");
                             } else {
                               await api.wishlist.add(game.id);
                               setInWishlist(true);
-                              addToast("İstek listesine eklendi", "success");
+                              addToast(t("gameDetail.addedToWishlist"), "success");
                             }
                           } catch (err: any) {
-                            addToast(err.message || "İşlem başarısız", "error");
+                            addToast(err.message || t("common.operationFailed"), "error");
                           }
                         }}
                         className="w-full flex items-center justify-center gap-2 py-3 rounded bg-brand-950 border border-brand-800 text-sm font-bold uppercase tracking-widest transition-colors hover:bg-brand-800 text-brand-300 hover:text-brand-100"
@@ -445,7 +447,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                         <svg width="18" height="18" viewBox="0 0 24 24" fill={inWishlist ? "#ef4444" : "none"} stroke={inWishlist ? "#ef4444" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                         </svg>
-                        {inWishlist ? "İstek Listesinden Çıkar" : "İstek Listesine Ekle"}
+                        {inWishlist ? t("gameDetail.removeFromWishlist") : t("gameDetail.addToWishlist")}
                       </button>
                       <AddToCollectionDropdown gameId={game.id} />
                     </div>
@@ -458,21 +460,21 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                           <polyline points="20 6 9 17 4 12"/>
                         </svg>
                       </div>
-                      <div className="text-brand-100 font-black text-lg mb-1 uppercase tracking-widest">Satın Alındı!</div>
-                      <p className="text-xs font-medium text-brand-500 uppercase tracking-widest mb-4">Kütüphaneye Eklendi</p>
+                      <div className="text-brand-100 font-black text-lg mb-1 uppercase tracking-widest">{t("gameDetail.purchased")}</div>
+                      <p className="text-xs font-medium text-brand-500 uppercase tracking-widest mb-4">{t("gameDetail.addedToLibraryConfirm")}</p>
                       <button
                         onClick={() => onNavigate("library")}
                         className="w-full py-3 rounded text-sm font-black uppercase tracking-widest transition-colors text-white hover:brightness-110"
                         style={{ background: "linear-gradient(to right, #47bfff, #1a70cb)" }}
                       >
-                        Kütüphaneye Git
+                        {t("gameDetail.goToLibrary")}
                       </button>
                     </div>
                   ) : paymentPending ? (
                     <div className="text-center py-6 border-t border-brand-800 mt-4">
                       <div className="w-12 h-12 rounded-full mx-auto mb-4 border-4 border-brand-800 border-t-brand-200 animate-spin" />
-                      <div className="text-brand-300 font-bold text-sm uppercase tracking-widest">3D Secure Doğrulanıyor...</div>
-                      <p className="text-xs font-medium text-brand-500 mt-1">Açılan pencerede işleminizi tamamlayın</p>
+                      <div className="text-brand-300 font-bold text-sm uppercase tracking-widest">{t("gameDetail.verifying3D")}</div>
+                      <p className="text-xs font-medium text-brand-500 mt-1">{t("gameDetail.completeInWindow")}</p>
                     </div>
                   ) : (
                     <>
@@ -480,16 +482,16 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                         onClick={() => setShowPayment(!showPayment)}
                         className="w-full py-4 rounded bg-brand-200 text-brand-950 font-black text-sm transition-colors hover:bg-white uppercase tracking-widest"
                       >
-                        SATIN AL
+                        {t("gameDetail.buyButton")}
                       </button>
                       <button
                         onClick={() => {
                           addToCart(game.id);
-                          addToast("Sepete eklendi", "success");
+                          addToast(t("gameDetail.addedToCart"), "success");
                         }}
                         className="w-full mt-3 py-3 rounded bg-transparent border border-brand-800 text-brand-300 hover:text-brand-100 font-black text-sm transition-colors uppercase tracking-widest hover:bg-brand-800"
                       >
-                        SEPETE EKLE
+                        {t("gameDetail.addToCart")}
                       </button>
                       {error && (
                         <div className="mt-3 p-3 bg-red-900/20 border border-red-900/50 rounded">
@@ -508,11 +510,11 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                     </div>
                   )}
 
-                  {/* Taksit highlight */}
+                  {/* Installment highlight */}
                   {!paymentSuccess && !paymentPending && (
                     <div className="mt-6 rounded bg-brand-950 border border-brand-800 p-3 text-center">
                       <p className="text-xs text-brand-300 font-bold uppercase tracking-wider">
-                        12 taksit ile aylık {(finalPrice / 12).toFixed(2)} TL
+                        {t("gameDetail.installmentInfo", { count: 12, price: (finalPrice / 12).toFixed(2) })}
                       </p>
                     </div>
                   )}

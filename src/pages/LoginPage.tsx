@@ -1,200 +1,182 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { useAuthStore } from "../stores/authStore";
+import { api, setAccessToken } from "../lib/api";
+import { WindowControls } from "../components/WindowControls";
 
-const EmailIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-    <polyline points="22,6 12,13 2,6"/>
-  </svg>
-);
-
-const LockIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
-export function LoginPage({ onSwitch }: { onSwitch: () => void }) {
-  const { login } = useAuthStore();
+export function LoginPage({ onSwitch, onForgotPassword }: { onSwitch: () => void; onForgotPassword?: () => void }) {
+  const { t } = useTranslation();
+  // Auth state updated directly via useAuthStore.setState after login
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // 2FA state
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [twoFAUserId, setTwoFAUserId] = useState("");
+  const [twoFACode, setTwoFACode] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      // Call login API directly to check for 2FA
+      const result = await api.auth.login({ email, password });
+      if (result.requires2FA) {
+        setRequires2FA(true);
+        setTwoFAUserId(result.userId || "");
+        setLoading(false);
+        return;
+      }
+      // Normal login - store tokens and set auth state directly
+      const { tokens, user } = result;
+      try { await invoke("store_token", { key: "access_token", value: tokens!.accessToken }); } catch {}
+      try { await invoke("store_token", { key: "refresh_token", value: tokens!.refreshToken }); } catch {}
+      setAccessToken(tokens!.accessToken);
+      useAuthStore.setState({ user, isAuthenticated: true, isLoading: false });
     } catch (err: any) {
-      setError(err.message || "Giriş başarısız");
+      setError(err.message || t("auth.loginFailed"));
     } finally {
       setLoading(false);
     }
   };
 
+  const handle2FASubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const result = await api.auth.twoFactor.login(twoFAUserId, twoFACode);
+      try { await invoke("store_token", { key: "access_token", value: result.tokens.accessToken }); } catch {}
+      try { await invoke("store_token", { key: "refresh_token", value: result.tokens.refreshToken }); } catch {}
+      setAccessToken(result.tokens.accessToken);
+      useAuthStore.setState({ user: result.user, isAuthenticated: true, isLoading: false });
+    } catch (err: any) {
+      setError(err.message || t("auth.invalidCode"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass = "w-full px-4 py-3 bg-brand-900 border border-brand-800 rounded text-brand-100 text-sm focus:outline-none focus:border-brand-500 transition-colors placeholder-brand-600";
+
   return (
-    <div
-      className="flex items-center justify-center h-screen relative overflow-hidden"
-      style={{ background: "radial-gradient(ellipse at 60% 50%, #1a1040 0%, #0a0a14 50%, #050508 100%)" }}
-    >
-      {/* Subtle background texture dots */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: "radial-gradient(circle, rgba(99,102,241,0.15) 1px, transparent 1px)",
-          backgroundSize: "32px 32px",
-        }}
-      />
+    <div className="flex items-center justify-center h-screen bg-brand-950 font-sans" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
+      <WindowControls />
+      <div className="w-full max-w-[400px] p-10 bg-brand-900/50 border border-brand-800 rounded flex flex-col items-center" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
 
-      {/* Glow blob */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          width: "600px",
-          height: "600px",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-        }}
-      />
-
-      {/* Card */}
-      <div
-        className="relative w-full max-w-sm mx-4 rounded-2xl overflow-hidden"
-        style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          backdropFilter: "blur(24px)",
-          boxShadow: "0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset",
-        }}
-      >
-        {/* Top gradient accent */}
-        <div className="h-0.5 w-full" style={{ background: "linear-gradient(90deg, transparent, #6366f1, #818cf8, transparent)" }} />
-
-        <div className="p-8">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <div className="flex items-center justify-center gap-2.5 mb-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, #6366f1, #4f46e5)", boxShadow: "0 8px 24px rgba(99,102,241,0.4)" }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-              </div>
-              <span
-                className="text-3xl font-black tracking-tight"
-                style={{
-                  background: "linear-gradient(90deg, #c7d2fe, #818cf8, #6366f1)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                Stealike
-              </span>
-            </div>
-            <p className="text-gray-500 text-sm">Oyun Dünyasına Hoş Geldin</p>
-            <p className="text-gray-700 text-xs mt-1">Hesabına giriş yap</p>
+        <div className="flex items-center gap-3 mb-2 w-full justify-center">
+          <div className="w-10 h-10 rounded bg-brand-800 flex items-center justify-center">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
           </div>
+          <span className="text-2xl font-bold text-white tracking-widest uppercase">
+            Stealike
+          </span>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Email input */}
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <EmailIcon />
-              </div>
+        {!requires2FA ? (
+          <>
+            <p className="text-brand-400 text-sm mb-8 font-medium">{t("auth.loginTitle")}</p>
+
+            <form onSubmit={handleSubmit} className="w-full space-y-4">
               <input
                 type="email"
-                placeholder="Email adresi"
+                placeholder={t("auth.emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3 rounded-xl text-white text-sm focus:outline-none transition-all placeholder-gray-600"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.border = "1px solid rgba(99,102,241,0.6)";
-                  e.currentTarget.style.background = "rgba(99,102,241,0.08)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                }}
+                className={inputClass}
               />
-            </div>
 
-            {/* Password input */}
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <LockIcon />
-              </div>
               <input
                 type="password"
-                placeholder="Şifre"
+                placeholder={t("auth.passwordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-10 pr-4 py-3 rounded-xl text-white text-sm focus:outline-none transition-all placeholder-gray-600"
-                style={{
-                  background: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.border = "1px solid rgba(99,102,241,0.6)";
-                  e.currentTarget.style.background = "rgba(99,102,241,0.08)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)";
-                }}
+                className={inputClass}
               />
-            </div>
 
-            {error && (
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
-                <span className="text-red-400 text-xs">⚠</span>
-                <p className="text-red-400 text-xs">{error}</p>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={onForgotPassword}
+                  className="text-xs text-brand-400 hover:text-white transition-colors"
+                >
+                  {t("auth.forgotPassword")}
+                </button>
               </div>
-            )}
+
+              {error && (
+                <div className="p-3 bg-red-900/20 border border-red-900/50 rounded">
+                  <p className="text-red-400 text-xs font-medium text-center">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 mt-4 bg-brand-200 hover:bg-white text-brand-950 font-bold text-sm rounded transition-colors disabled:opacity-50"
+              >
+                {loading ? t("auth.loggingIn") : t("auth.loginButton")}
+              </button>
+            </form>
+
+            <div className="mt-8 text-xs font-medium text-brand-500">
+              {t("auth.noAccount")}{" "}
+              <button onClick={onSwitch} className="text-white hover:text-brand-300 transition-colors uppercase ml-1">
+                {t("auth.registerLink")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-brand-400 text-sm mb-2 font-medium">{t("auth.twoFATitle")}</p>
+            <p className="text-brand-500 text-xs mb-6 text-center leading-relaxed">
+              {t("auth.twoFAHint")}
+            </p>
+
+            <form onSubmit={handle2FASubmit} className="w-full space-y-4">
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="000000"
+                value={twoFACode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setTwoFACode(val);
+                }}
+                className="w-full px-4 py-3 bg-brand-900 border border-brand-800 rounded text-brand-100 text-lg text-center tracking-[0.5em] font-mono focus:outline-none focus:border-brand-500 transition-colors placeholder-brand-700"
+              />
+
+              {error && (
+                <div className="p-3 bg-red-900/20 border border-red-900/50 rounded">
+                  <p className="text-red-400 text-xs font-medium text-center">{error}</p>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || twoFACode.length !== 6}
+                className="w-full py-3 bg-brand-200 hover:bg-white text-brand-950 font-bold text-sm rounded transition-colors disabled:opacity-50"
+              >
+                {loading ? t("auth.verifying") : t("auth.verifyButton")}
+              </button>
+            </form>
 
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 rounded-xl text-white font-semibold text-sm disabled:opacity-50 transition-all duration-150 hover:opacity-90 active:scale-[0.98] mt-2"
-              style={{
-                background: "linear-gradient(90deg, #6366f1, #4f46e5)",
-                boxShadow: "0 4px 20px rgba(99,102,241,0.35)",
-              }}
+              onClick={() => { setRequires2FA(false); setTwoFACode(""); setError(""); }}
+              className="mt-4 text-xs text-brand-400 hover:text-white transition-colors"
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-                  </svg>
-                  Giriş yapılıyor...
-                </span>
-              ) : (
-                "Giriş Yap"
-              )}
+              {t("auth.goBack")}
             </button>
-          </form>
-
-          <p className="mt-6 text-center text-xs text-gray-600">
-            Hesabın yok mu?{" "}
-            <button onClick={onSwitch} className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
-              Kayıt ol
-            </button>
-          </p>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
