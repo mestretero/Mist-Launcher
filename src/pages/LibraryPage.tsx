@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { useDownloadStore } from "../stores/downloadStore";
 import { useToastStore } from "../stores/toastStore";
 import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
+import { listen } from "@tauri-apps/api/event";
 import { DownloadProgress } from "../components/DownloadProgress";
 import { AddToCollectionDropdown } from "../components/AddToCollectionDropdown";
 import { AchievementCard } from "../components/AchievementCard";
@@ -18,7 +19,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   const [searchQuery, setSearchQuery] = useState("");
   const { downloads, startDownload } = useDownloadStore();
   const addToast = useToastStore((s) => s.addToast);
-  const { games: localGames, loadGames: loadLocalGames, addManualGame, fetchMetadata } = useLocalGameStore();
+  const { games: localGames, loadGames: loadLocalGames, addManualGame, fetchMetadata, deleteGame } = useLocalGameStore();
+  const [selectedLocalGame, setSelectedLocalGame] = useState<LocalGame | null>(null);
+  const [localGameRunning, setLocalGameRunning] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "recent" | "playtime">("name");
   const [activeTab, setActiveTab] = useState<LibTab>("overview");
   const [uninstallConfirm, setUninstallConfirm] = useState<string | null>(null);
@@ -147,6 +150,37 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     }
   };
 
+  // Listen for game-status events (running/stopped)
+  useEffect(() => {
+    const unlisten = listen<{ game_id: string; status: string; play_time_secs: number }>("game-status", (event) => {
+      if (event.payload.status === "stopped") {
+        setLocalGameRunning(null);
+        loadLocalGames(); // Refresh play time
+      }
+    });
+    return () => { unlisten.then(fn => fn()); };
+  }, []);
+
+  const handleLaunchLocal = async (game: LocalGame) => {
+    try {
+      setLocalGameRunning(game.id);
+      await invoke("launch_game", { gameId: game.id, exePath: game.exe_path });
+    } catch (err: any) {
+      setLocalGameRunning(null);
+      addToast("Oyun baslatilamadi: " + (err?.message || err), "error");
+    }
+  };
+
+  const handleDeleteLocal = async (game: LocalGame) => {
+    try {
+      await deleteGame(game.id);
+      if (selectedLocalGame?.id === game.id) setSelectedLocalGame(null);
+      addToast(`${game.title} kaldirild`, "success");
+    } catch (err: any) {
+      addToast("Kaldirilamadi: " + (err?.message || err), "error");
+    }
+  };
+
   const handleAddManual = async () => {
     const file = await open({ multiple: false, filters: [{ name: "Executable", extensions: ["exe"] }] });
     if (!file) return;
@@ -272,7 +306,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
               return (
                 <div
                   key={item.id}
-                  onClick={() => setSelectedItem(item)}
+                  onClick={() => { setSelectedItem(item); setSelectedLocalGame(null); }}
                   className={`flex items-center gap-3 px-3 py-1.5 cursor-pointer select-none
                     ${isSelected ? "bg-[#3d4450] text-white shadow-inner" : "hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white"}`}
                 >
@@ -293,22 +327,27 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
             {filteredLocalGames.length > 0 && (
               <>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-5 pt-3 pb-1">Yerel Oyunlar</div>
-                {filteredLocalGames.map((game: LocalGame) => (
-                  <div
-                    key={game.id}
-                    className="flex items-center gap-3 px-3 py-1.5 cursor-default select-none hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white"
-                  >
-                    <div className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center overflow-hidden bg-[#2a2e38]">
-                      {game.cover_url
-                        ? <img src={game.cover_url} className="w-full h-full object-cover" />
-                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                      }
+                {filteredLocalGames.map((game: LocalGame) => {
+                  const isLocalSelected = selectedLocalGame?.id === game.id;
+                  return (
+                    <div
+                      key={game.id}
+                      onClick={() => { setSelectedLocalGame(game); setSelectedItem(null); }}
+                      className={`flex items-center gap-3 px-3 py-1.5 cursor-pointer select-none
+                        ${isLocalSelected ? "bg-[#3d4450] text-white shadow-inner" : "hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white"}`}
+                    >
+                      <div className="w-6 h-6 rounded flex-shrink-0 flex items-center justify-center overflow-hidden bg-[#2a2e38]">
+                        {game.cover_url
+                          ? <img src={game.cover_url} className="w-full h-full object-cover" />
+                          : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        }
+                      </div>
+                      <span className={`text-sm truncate font-medium flex-1 ${isLocalSelected ? "text-white font-bold" : ""}`}>{game.title}</span>
+                      {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Tarandi</span>}
+                      {game.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded">Manuel</span>}
                     </div>
-                    <span className="text-sm truncate font-medium flex-1">{game.title}</span>
-                    {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Tarandi</span>}
-                    {game.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded">Manuel</span>}
-                  </div>
-                ))}
+                  );
+                })}
               </>
             )}
           </div>
@@ -317,11 +356,110 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
 
       {/* Main Area */}
       <div className="flex-1 relative flex flex-col bg-[#1a1c23] overflow-y-auto">
-        {items.length === 0 ? (
+        {selectedLocalGame ? (
+          /* Local Game Detail Panel */
+          <div className="flex flex-col h-full">
+            {/* Hero area with cover or placeholder */}
+            <div className="relative w-full h-[300px] flex-shrink-0 overflow-hidden">
+              {selectedLocalGame.cover_url ? (
+                <>
+                  <img src={selectedLocalGame.cover_url} className="absolute inset-0 w-full h-full object-cover opacity-80" style={{ filter: "blur(4px) brightness(0.5)" }} />
+                  <img src={selectedLocalGame.cover_url} className="absolute left-1/2 -translate-x-1/2 top-0 h-full object-cover shadow-2xl z-10 aspect-video ring-1 ring-black/50" />
+                </>
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-b from-[#2a2e38] to-[#1a1c23] flex items-center justify-center">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+              )}
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#1a1c23] to-transparent z-10" />
+              <div className="absolute bottom-16 left-10 z-30">
+                <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg" style={{ textShadow: "0px 4px 12px rgba(0,0,0,0.8)" }}>
+                  {selectedLocalGame.title}
+                </h1>
+                <div className="flex gap-2 mt-2">
+                  {selectedLocalGame.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">Tarandi</span>}
+                  {selectedLocalGame.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded">Manuel</span>}
+                  {selectedLocalGame.launcher && selectedLocalGame.launcher !== "none" && (
+                    <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded capitalize">{selectedLocalGame.launcher}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="px-10 pb-10 -mt-4 z-20 relative">
+              {/* Action Bar */}
+              <div className="w-full bg-[#161a20]/80 backdrop-blur border border-[#2a2e38] rounded shadow-lg mb-8 flex items-center h-20 px-6 gap-4">
+                <button
+                  onClick={() => handleLaunchLocal(selectedLocalGame)}
+                  disabled={localGameRunning === selectedLocalGame.id}
+                  className="px-8 py-3 bg-[#4ade80] hover:bg-[#22c55e] disabled:bg-[#4ade80]/50 text-[#0a0e13] font-black uppercase tracking-widest text-sm rounded transition-colors"
+                >
+                  {localGameRunning === selectedLocalGame.id ? "Calisiyor..." : "Baslat"}
+                </button>
+                <div className="flex-1" />
+                <button
+                  onClick={() => handleDeleteLocal(selectedLocalGame)}
+                  className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded text-xs font-bold uppercase tracking-widest transition-colors"
+                >
+                  Kutuphanden Kaldir
+                </button>
+              </div>
+
+              {/* Game Info */}
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Oyun Bilgileri</h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-[#67707b]">Oynama Suresi</span>
+                      <span className="text-[#c6d4df] font-medium">{selectedLocalGame.play_time > 0 ? formatPlayTime(Math.floor(selectedLocalGame.play_time / 60)) : "Henuz oynanmadi"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#67707b]">Son Oynama</span>
+                      <span className="text-[#c6d4df] font-medium">{formatRelativeDate(selectedLocalGame.last_played)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#67707b]">Ekleme Tarihi</span>
+                      <span className="text-[#c6d4df] font-medium">{new Date(selectedLocalGame.added_at).toLocaleDateString("tr-TR")}</span>
+                    </div>
+                    {selectedLocalGame.genres && selectedLocalGame.genres.length > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-[#67707b]">Turler</span>
+                        <span className="text-[#c6d4df] font-medium">{selectedLocalGame.genres.join(", ")}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Dosya Bilgileri</h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <span className="text-[#67707b] block mb-1">Calistirilabilir Dosya</span>
+                      <span className="text-[#c6d4df] font-mono text-xs break-all">{selectedLocalGame.exe_path}</span>
+                    </div>
+                    {selectedLocalGame.install_path && (
+                      <div>
+                        <span className="text-[#67707b] block mb-1">Kurulum Klasoru</span>
+                        <span className="text-[#c6d4df] font-mono text-xs break-all">{selectedLocalGame.install_path}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {selectedLocalGame.description && (
+                <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5 mt-6">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Aciklama</h3>
+                  <p className="text-sm text-[#8f98a0] leading-relaxed">{selectedLocalGame.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : items.length === 0 && localGames.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <svg className="mb-6 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-            <h2 className="text-2xl font-black text-[#8f98a0] tracking-widest uppercase mb-2">Henüz Oyun Yok</h2>
-            <p className="text-[#67707b] text-sm font-medium max-w-sm">Mağazadan yeni bir oyun bularak kütüphanenizi oluşturmaya başlayabilirsiniz.</p>
+            <h2 className="text-2xl font-black text-[#8f98a0] tracking-widest uppercase mb-2">Henuz Oyun Yok</h2>
+            <p className="text-[#67707b] text-sm font-medium max-w-sm">Oyun tarayiciyi kullanarak veya magzadan oyun alarak kutuphanenizi olusturmaya baslayabilirsiniz.</p>
           </div>
         ) : selectedItem ? (
           <>
