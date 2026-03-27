@@ -97,7 +97,96 @@ fn is_blocked_exe(exe_path: &Path) -> bool {
         }
     }
 
+    // Block small exes (< 1MB) — real games are larger
+    if let Ok(meta) = std::fs::metadata(exe_path) {
+        if meta.len() < 1_000_000 {
+            return true;
+        }
+    }
+
+    // Block if exe name contains utility keywords
+    let utility_keywords = [
+        "uninstall", "uninst", "setup", "install", "update", "patch",
+        "redist", "vcredist", "dxsetup", "dotnet",
+        "crash", "report", "helper", "tool", "util",
+        "config", "settings", "preference", "diagnostic",
+        "repair", "fix", "clean", "remove",
+        "loader", "injector", "trainer", "cheat",
+        "server", "dedicated", "service", "daemon", "host",
+        "editor", "sdk", "debug", "test", "benchmark",
+        "tutorial", "sample", "demo_tool",
+        "steamwebhelper", "cefsubprocess", "subprocess",
+    ];
+    for kw in utility_keywords {
+        if file_name.contains(kw) {
+            return true;
+        }
+    }
+
     false
+}
+
+/// Score how likely a registry entry is to be a game (0-100)
+/// High score = likely a game, low score = likely not
+fn game_likelihood_score(display_name: &str, install_path: &Path, subkey: &RegKey) -> u32 {
+    let name_lower = display_name.to_lowercase();
+    let path_lower = install_path.to_string_lossy().to_lowercase();
+    let mut score: u32 = 50; // start neutral
+
+    // Strong positive: installed in a known game directory
+    let game_path_indicators = ["games", "steamapps", "epic games", "gog galaxy",
+        "origin games", "ea games", "playnite", "game"];
+    for ind in game_path_indicators {
+        if path_lower.contains(ind) { score += 30; break; }
+    }
+
+    // Positive: has game-like name patterns
+    let game_name_words = ["game", "edition", "remastered", "definitive",
+        "deluxe", "goty", "chapter", "episode", "saga",
+        "simulator", "tycoon", "craft", "quest", "legends",
+        "warfare", "combat", "battle", "arena", "rpg"];
+    for word in game_name_words {
+        if name_lower.contains(word) { score += 15; break; }
+    }
+
+    // Negative: has utility/tool name patterns
+    let tool_words = ["driver", "runtime", "redistribut", "sdk", "framework",
+        "update", "hotfix", "service pack", "tool", "utility",
+        "manager", "monitor", "viewer", "reader", "converter",
+        "security", "antivirus", "firewall", "backup",
+        "engine", "development", "studio", "ide",
+        "office", "document", "spreadsheet",
+        "cheat", "trainer", "hack", "inject", "mod menu"];
+    for word in tool_words {
+        if name_lower.contains(word) { score = score.saturating_sub(25); }
+    }
+
+    // Check registry for "game" or related URLInfoAbout hints
+    if let Ok(url) = subkey.get_value::<String, _>("URLInfoAbout") {
+        let url_lower = url.to_lowercase();
+        if url_lower.contains("store.steampowered") || url_lower.contains("epicgames")
+            || url_lower.contains("gog.com") || url_lower.contains("ea.com/games") {
+            score += 30;
+        }
+    }
+
+    // Negative: very short display name (likely a tool, e.g. "7-Zip")
+    if display_name.len() < 4 { score = score.saturating_sub(20); }
+
+    // Negative: publisher is a known non-game entity (already filtered, but double-check)
+    if let Ok(pub_name) = subkey.get_value::<String, _>("Publisher") {
+        let pub_lower = pub_name.to_lowercase();
+        let game_publishers = ["electronic arts", "ea ", "ubisoft", "activision",
+            "blizzard", "bethesda", "valve", "rockstar", "2k games",
+            "square enix", "capcom", "sega", "bandai namco", "cd projekt",
+            "warner bros", "thq", "deep silver", "devolver", "team17",
+            "paradox", "focus entertainment", "505 games", "nacon"];
+        for gp in game_publishers {
+            if pub_lower.contains(gp) { score += 20; break; }
+        }
+    }
+
+    score.min(100)
 }
 
 pub fn exe_to_title(exe_name: &str) -> String {
@@ -154,7 +243,7 @@ const BLOCKED_PUBLISHERS: &[&str] = &[
 ];
 
 #[cfg(target_os = "windows")]
-fn scan_registry() -> Vec<(String, PathBuf)> {
+fn scan_registry() -> Vec<(String, PathBuf, u32)> {
     let mut results = Vec::new();
     let keys = [
         (HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
@@ -170,6 +259,8 @@ fn scan_registry() -> Vec<(String, PathBuf)> {
                     if let (Ok(name), Ok(loc)) = (display_name, install_loc) {
                         if loc.is_empty() { continue; }
 
+                        let loc_path = PathBuf::from(&loc);
+
                         // Filter by publisher — skip known non-game publishers
                         let publisher: Result<String, _> = subkey.get_value("Publisher");
                         if let Ok(pub_name) = &publisher {
@@ -179,13 +270,11 @@ fn scan_registry() -> Vec<(String, PathBuf)> {
                             }
                         }
 
-                        // Skip if install path is in a blocked directory
-                        let loc_path = PathBuf::from(&loc);
-                        if is_blocked_exe(&loc_path) {
-                            continue;
-                        }
+                        // Score-based filtering: skip if score < 35
+                        let score = game_likelihood_score(&name, &loc_path, &subkey);
+                        if score < 35 { continue; }
 
-                        results.push((name, loc_path));
+                        results.push((name, loc_path, score));
                     }
                 }
             }
@@ -195,7 +284,7 @@ fn scan_registry() -> Vec<(String, PathBuf)> {
 }
 
 #[cfg(not(target_os = "windows"))]
-fn scan_registry() -> Vec<(String, PathBuf)> {
+fn scan_registry() -> Vec<(String, PathBuf, u32)> {
     Vec::new()
 }
 
@@ -228,7 +317,7 @@ pub async fn scan_games(
     let mut seen_paths: HashSet<String> = HashSet::new();
 
     let registry_entries = scan_registry();
-    for (name, install_path) in &registry_entries {
+    for (name, install_path, _score) in &registry_entries {
         let launcher = detect_launcher(install_path);
         if let Some(ref l) = launcher {
             if exclude_set.contains(l) { continue; }
