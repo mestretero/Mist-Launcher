@@ -76,7 +76,7 @@ export default function GameScannerPage({ onNavigate }: { onNavigate: (page: str
       }
     }
     await store.addScannedGames(selectedGames, metadataMap);
-    toast.addToast("success", `${selectedGames.length} oyun eklendi!`);
+    toast.addToast(`${selectedGames.length} oyun eklendi!`, "success");
     setStep("done");
   };
 

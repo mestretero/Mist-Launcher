@@ -74,7 +74,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     const destPath = `${destDir}/${item.game.slug}.zip`;
     try {
       const space = await invoke<{ free_bytes: number; total_bytes: number }>("get_disk_space", { path: destDir });
-      const needed = item.game.downloadSize || 0;
+      const needed = Number(item.game.downloadSize) || 0;
       if (needed > 0 && space.free_bytes < needed) {
         const freeGB = (space.free_bytes / (1024 ** 3)).toFixed(1);
         const needGB = (needed / (1024 ** 3)).toFixed(1);
