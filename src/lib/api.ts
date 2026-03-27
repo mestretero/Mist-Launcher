@@ -171,4 +171,24 @@ export const api = {
     remove: (gameId: string) => request<any>(`/cart/${gameId}`, { method: "DELETE" }),
     clear: () => request<any>("/cart", { method: "DELETE" }),
   },
+  profiles: {
+    get: (username: string) =>
+      request<any>(`/profiles/${username}`),
+    getMe: () =>
+      request<any>("/profiles/me"),
+    updateMe: (data: { visibility?: string; allowComments?: boolean; bannerTheme?: string; customStatus?: string }) =>
+      request<any>("/profiles/me", { method: "PATCH", body: JSON.stringify(data) }),
+    saveBlocks: (blocks: any[]) =>
+      request<any>("/profiles/me/blocks", { method: "PUT", body: JSON.stringify(blocks) }),
+    addBlock: (type: string, config?: any) =>
+      request<any>("/profiles/me/blocks", { method: "POST", body: JSON.stringify({ type, config }) }),
+    deleteBlock: (id: string) =>
+      request<any>(`/profiles/me/blocks/${id}`, { method: "DELETE" }),
+    getComments: (username: string, page = 1) =>
+      request<any>(`/profiles/${username}/comments?page=${page}&limit=20`),
+    addComment: (username: string, content: string) =>
+      request<any>(`/profiles/${username}/comments`, { method: "POST", body: JSON.stringify({ content }) }),
+    deleteComment: (username: string, commentId: string) =>
+      request<any>(`/profiles/${username}/comments/${commentId}`, { method: "DELETE" }),
+  },
 };
