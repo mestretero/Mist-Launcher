@@ -322,9 +322,13 @@ pub async fn scan_games(
         if let Some(ref l) = launcher {
             if exclude_set.contains(l) { continue; }
         }
+        // Pick only the largest non-blocked exe per install path
         let exes = scan_directory(install_path, 2);
-        for exe in exes {
-            if is_blocked_exe(&exe) { continue; }
+        let best_exe = exes.into_iter()
+            .filter(|e| !is_blocked_exe(e))
+            .max_by_key(|e| std::fs::metadata(e).map(|m| m.len()).unwrap_or(0));
+
+        if let Some(exe) = best_exe {
             let exe_str = exe.to_string_lossy().to_string();
             if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
             seen_paths.insert(exe_str.to_lowercase());
@@ -347,23 +351,35 @@ pub async fn scan_games(
         let dir = Path::new(path_str);
         if !dir.exists() || !dir.is_dir() { continue; }
         let exes = scan_directory(dir, 4);
+        // Group exes by parent directory, pick largest per group
+        let mut by_parent: std::collections::HashMap<String, Vec<PathBuf>> = std::collections::HashMap::new();
         for exe in exes {
             if is_blocked_exe(&exe) { continue; }
-            let exe_str = exe.to_string_lossy().to_string();
-            if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
-            let launcher = detect_launcher(&exe);
-            if let Some(ref l) = launcher {
-                if exclude_set.contains(l) { continue; }
+            let parent = exe.parent().map(|p| p.to_string_lossy().to_lowercase()).unwrap_or_default();
+            by_parent.entry(parent).or_default().push(exe);
+        }
+
+        for (_parent, group) in &by_parent {
+            let best = group.iter()
+                .max_by_key(|e| std::fs::metadata(e).map(|m| m.len()).unwrap_or(0));
+
+            if let Some(exe) = best {
+                let exe_str = exe.to_string_lossy().to_string();
+                if seen_paths.contains(&exe_str.to_lowercase()) { continue; }
+                let launcher = detect_launcher(exe);
+                if let Some(ref l) = launcher {
+                    if exclude_set.contains(l) { continue; }
+                }
+                let file_name = exe.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                let parent_str = exe.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+                seen_paths.insert(exe_str.to_lowercase());
+                all_games.push(ScannedGame {
+                    exe_path: exe_str,
+                    suggested_title: exe_to_title(&file_name),
+                    install_path: parent_str,
+                    detected_launcher: launcher,
+                });
             }
-            let file_name = exe.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-            let parent = exe.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
-            seen_paths.insert(exe_str.to_lowercase());
-            all_games.push(ScannedGame {
-                exe_path: exe_str,
-                suggested_title: exe_to_title(&file_name),
-                install_path: parent,
-                detected_launcher: launcher,
-            });
         }
         let _ = app.emit("scan-progress", ScanProgress {
             scanned_dirs: (i + 2) as u32,
