@@ -81,8 +81,9 @@ async fn fetch_from_igdb(title: &str) -> Option<GameMetadata> {
     let token = get_igdb_token().await?;
 
     let client = reqwest::Client::new();
+    // Search without category filter (it breaks IGDB search), get top 5 and pick best match
     let body = format!(
-        "search \"{}\"; fields name,cover.image_id,summary,genres.name; where category = 0; limit 1;",
+        "search \"{}\"; fields name,cover.image_id,summary,genres.name; limit 5;",
         title.replace('"', "\\\"")
     );
 
@@ -98,7 +99,17 @@ async fn fetch_from_igdb(title: &str) -> Option<GameMetadata> {
 
     let text = resp.text().await.ok()?;
     let games: Vec<serde_json::Value> = serde_json::from_str(&text).ok()?;
-    let game = games.first()?;
+    if games.is_empty() { return None; }
+
+    // Pick best match: exact title match > contains match > first result
+    let title_lower = title.to_lowercase();
+    let game = games.iter()
+        .max_by_key(|g| {
+            let name = g["name"].as_str().unwrap_or("").to_lowercase();
+            if name == title_lower { 100 }
+            else if name.contains(&title_lower) || title_lower.contains(&name) { 50 }
+            else { 0 }
+        })?;
 
     let cover_url = game["cover"]["image_id"].as_str().map(|id| {
         format!("https://images.igdb.com/igdb/image/upload/t_cover_big/{}.jpg", id)

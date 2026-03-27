@@ -67,6 +67,8 @@ interface LocalGameState {
   updateGame: (gameId: string, metadata: GameMetadata) => Promise<void>;
   deleteGame: (gameId: string) => Promise<void>;
   fetchMetadata: (title: string) => Promise<GameMetadata | null>;
+  clearMetadataCache: () => Promise<void>;
+  refreshCovers: () => Promise<number>;
 }
 
 export const useLocalGameStore = create<LocalGameState>((set, get) => ({
@@ -132,5 +134,26 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
 
   fetchMetadata: async (title) => {
     return await invoke<GameMetadata | null>("fetch_metadata", { gameTitle: title });
+  },
+
+  clearMetadataCache: async () => {
+    await invoke("clear_metadata_cache");
+  },
+
+  refreshCovers: async () => {
+    const { games, fetchMetadata, updateGame } = get();
+    let updated = 0;
+    await invoke("clear_metadata_cache");
+    for (const game of games) {
+      if (!game.cover_url) {
+        const meta = await fetchMetadata(game.title);
+        if (meta && meta.cover_url) {
+          await updateGame(game.id, { ...meta, title: game.title });
+          updated++;
+        }
+      }
+    }
+    await get().loadGames();
+    return updated;
   },
 }));

@@ -39,6 +39,7 @@ pub fn run() {
             commands::scanner::library::add_scanned_games,
             commands::scanner::library::update_game,
             commands::scanner::library::delete_game,
+            commands::scanner::library::clear_metadata_cache,
             commands::scanner::library::get_scan_config,
             commands::scanner::library::update_scan_config,
         ])

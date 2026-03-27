@@ -19,7 +19,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   const [searchQuery, setSearchQuery] = useState("");
   const { downloads, startDownload } = useDownloadStore();
   const addToast = useToastStore((s) => s.addToast);
-  const { games: localGames, loadGames: loadLocalGames, addManualGame, fetchMetadata, deleteGame } = useLocalGameStore();
+  const { games: localGames, loadGames: loadLocalGames, addManualGame, fetchMetadata, deleteGame, refreshCovers } = useLocalGameStore();
+  const [refreshingCovers, setRefreshingCovers] = useState(false);
   const [selectedLocalGame, setSelectedLocalGame] = useState<LocalGame | null>(null);
   const [localGameRunning, setLocalGameRunning] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "recent" | "playtime">("name");
@@ -181,6 +182,18 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     }
   };
 
+  const handleRefreshCovers = async () => {
+    setRefreshingCovers(true);
+    try {
+      const count = await refreshCovers();
+      addToast(`${count} oyunun gorseli guncellendi`, "success");
+    } catch (err: any) {
+      addToast("Gorsel guncelleme hatasi: " + (err?.message || err), "error");
+    } finally {
+      setRefreshingCovers(false);
+    }
+  };
+
   const handleAddManual = async () => {
     const file = await open({ multiple: false, filters: [{ name: "Executable", extensions: ["exe"] }] });
     if (!file) return;
@@ -264,6 +277,15 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
               Oyun Ekle
             </button>
           </div>
+          {localGames.some(g => !g.cover_url) && (
+            <button
+              onClick={handleRefreshCovers}
+              disabled={refreshingCovers}
+              className="w-full text-[10px] font-bold uppercase tracking-widest py-1 rounded transition-colors text-blue-400 bg-blue-400/10 hover:bg-blue-400/20 disabled:opacity-50"
+            >
+              {refreshingCovers ? "Gorseller Yukleniyor..." : "Gorselleri Yukle"}
+            </button>
+          )}
           <div className="flex gap-1">
             {([["name", "A-Z"], ["recent", "Son"], ["playtime", "Süre"]] as const).map(([key, label]) => (
               <button

@@ -97,6 +97,13 @@ const LAUNCHER_PATTERNS: &[(&str, &str)] = &[
     ("gog", "GOG Galaxy"),
     ("ea", "Origin Games"),
     ("ea", "EA Games"),
+    ("xbox", "Xbox Oyun"),
+    ("xbox", "XboxGames"),
+    ("xbox", "Xbox Games"),
+    ("xbox", "WindowsApps"),
+    ("xbox", "Minecraft Launcher"),
+    ("battlenet", "Battle.net"),
+    ("riot", "Riot Games"),
 ];
 
 const STRIP_SUFFIXES: &[&str] = &[

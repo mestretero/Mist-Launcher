@@ -145,6 +145,14 @@ pub fn update_game(
     }).map_err(|e| e.to_string())
 }
 
+/// Clear all metadata cache (forces re-fetch from IGDB)
+#[tauri::command]
+pub fn clear_metadata_cache(db: State<'_, Db>) -> Result<(), String> {
+    let conn = db.lock().unwrap();
+    conn.execute("DELETE FROM metadata_cache", []).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn delete_game(db: State<'_, Db>, game_id: String) -> Result<(), String> {
     let conn = db.lock().unwrap();
