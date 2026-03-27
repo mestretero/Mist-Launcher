@@ -88,7 +88,7 @@ Detection uses both registry entries and known directory patterns. When a user c
 
 1. User clicks "Add Game Manually"
 2. File picker dialog opens → select `.exe`
-3. Game title extracted from filename (e.g., `Cyberpunk2077.exe` → "Cyberpunk 2077")
+3. Game title extracted from filename using heuristics: split on CamelCase transitions, separate numbers from letters, strip common suffixes ("Launcher", "Setup", "x64", "Win64"), remove file extension (e.g., `Cyberpunk2077.exe` → "Cyberpunk 2077")
 4. Automatic metadata search via RAWG/IGDB API using extracted title
 5. If found: pre-fill cover image, description, genres
 6. If not found: user fills in manually (title required, rest optional)
@@ -128,6 +128,17 @@ CREATE TABLE scan_config (
   exclude_launchers TEXT NOT NULL,     -- JSON array e.g. ['steam','epic','ubisoft']
   last_scan_at      DATETIME
 );
+
+-- Metadata API cache (avoids redundant RAWG/IGDB calls)
+CREATE TABLE metadata_cache (
+  normalized_title  TEXT PRIMARY KEY,
+  raw_response      TEXT NOT NULL,     -- JSON from API
+  fetched_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes (small DB, but helps with library filtering and dedup)
+CREATE INDEX idx_games_source ON games(source);
+CREATE INDEX idx_games_title_normalized ON games(title COLLATE NOCASE);
 ```
 
 **Note:** SQLite accessed via `rusqlite` crate (bundled). DB file stored at Tauri app data dir (`app.path().app_data_dir()`). Play time is updated by the existing `launch_game` process tracker when the game process exits — it writes the accumulated seconds to the `games.play_time` column.
@@ -138,9 +149,11 @@ CREATE TABLE scan_config (
 
 ### 5.1 Dependencies
 
-New crate required: `rusqlite` with `bundled` feature for local SQLite storage. Added to `src-tauri/Cargo.toml`:
+New crates required in `src-tauri/Cargo.toml`:
 ```toml
 rusqlite = { version = "0.31", features = ["bundled"] }
+winreg = "0.52"       # Windows registry access for launcher detection
+dotenvy = "0.15"      # .env file loading for dev-time API keys
 ```
 
 ### 5.2 Data Structures
@@ -184,45 +197,50 @@ struct ScanConfig {
 
 ### 5.3 Commands
 
+All commands that access SQLite receive `db: State<'_, Mutex<Connection>>` as a parameter (omitted from signatures below for brevity — see Section 5.4 for the pattern).
+
 ```rust
 // Scanning — emits "scan-progress" events via AppHandle for UI feedback
+// Uses std::fs (walkdir) for disk scanning, winreg crate for registry reads
 #[tauri::command]
-fn scan_games(app: AppHandle, paths: Vec<String>, exclude_launchers: Vec<String>) -> Result<Vec<ScannedGame>, String>
+fn scan_games(app: AppHandle, db: State<Mutex<Connection>>, paths: Vec<String>, exclude_launchers: Vec<String>) -> Result<Vec<ScannedGame>, String>
 // Progress events: { scanned_dirs: u32, total_dirs: u32, found_games: u32 }
 
 // Library management
 #[tauri::command]
-fn add_manual_game(exe_path: String, metadata: GameMetadata) -> Result<Game, String>
+fn add_manual_game(db: State<Mutex<Connection>>, exe_path: String, metadata: GameMetadata) -> Result<Game, String>
 
 #[tauri::command]
-fn get_local_games() -> Result<Vec<Game>, String>
+fn get_local_games(db: State<Mutex<Connection>>) -> Result<Vec<Game>, String>
 
 #[tauri::command]
-fn update_game(game_id: String, metadata: GameMetadata) -> Result<Game, String>
+fn update_game(db: State<Mutex<Connection>>, game_id: String, metadata: GameMetadata) -> Result<Game, String>
 
 #[tauri::command]
-fn delete_game(game_id: String) -> Result<(), String>
+fn delete_game(db: State<Mutex<Connection>>, game_id: String) -> Result<(), String>
 
 // Game launching — extends existing launcher.rs
 // Already exists: launch_game(app, game_id, exe_path) with play-time tracking via events
-// Change: add db: State<Mutex<Connection>> parameter, after game exits write
-// accumulated play_time to SQLite games table. Needs SQLite managed state access.
+// Change: extract Connection from State BEFORE tokio::spawn, clone the Arc<Mutex<Connection>>
+// and move it into the async closure. After game exits, lock and write play_time to SQLite.
 // The existing event-based tracking (game-status events) remains for real-time UI updates.
 #[tauri::command]
 fn launch_game(app: AppHandle, db: State<Mutex<Connection>>, game_id: String, exe_path: String) -> Result<u32, String>
+// Implementation note: let db_clone = db.inner().clone(); before tokio::spawn
 
 // Metadata — uses RAWG API (https://rawg.io/apidocs, free tier: 20k req/month)
 // Fallback: IGDB API if RAWG returns no results
-// API key stored in app config, not hardcoded
+// Caches results in SQLite to avoid redundant API calls for same title
+// Rate limited: max 5 concurrent requests, 1s delay between batches
 #[tauri::command]
-fn fetch_metadata(game_title: String) -> Result<Option<GameMetadata>, String>
+fn fetch_metadata(db: State<Mutex<Connection>>, game_title: String) -> Result<Option<GameMetadata>, String>
 
 // Scan config
 #[tauri::command]
-fn get_scan_config() -> Result<ScanConfig, String>
+fn get_scan_config(db: State<Mutex<Connection>>) -> Result<ScanConfig, String>
 
 #[tauri::command]
-fn update_scan_config(config: ScanConfig) -> Result<(), String>
+fn update_scan_config(db: State<Mutex<Connection>>, config: ScanConfig) -> Result<(), String>
 ```
 
 ### 5.4 SQLite State Management
@@ -230,31 +248,42 @@ fn update_scan_config(config: ScanConfig) -> Result<(), String>
 The SQLite connection is managed via Tauri's `manage()` API:
 
 ```rust
-// In main/lib setup:
-let db = rusqlite::Connection::open(app.path().app_data_dir().join("stealike.db"))?;
+// In main/lib setup — use Arc<Mutex<Connection>> so it can be cloned into async tasks:
+let db = Arc::new(Mutex::new(
+    rusqlite::Connection::open(app.path().app_data_dir().join("stealike.db"))?
+));
 // Run migrations (CREATE TABLE IF NOT EXISTS)
-app.manage(Mutex::new(db));
+app.manage(db);
 
-// In commands, access via State:
+// In synchronous commands, access via State:
 #[tauri::command]
-fn get_local_games(db: State<'_, Mutex<Connection>>) -> Result<Vec<Game>, String> {
+fn get_local_games(db: State<'_, Arc<Mutex<Connection>>>) -> Result<Vec<Game>, String> {
     let conn = db.lock().unwrap();
     // query...
 }
-```
 
-All commands that access SQLite receive `db: State<'_, Mutex<Connection>>` as a parameter.
+// In async commands that need db inside tokio::spawn:
+#[tauri::command]
+async fn launch_game(app: AppHandle, db: State<'_, Arc<Mutex<Connection>>>, ...) -> Result<u32, String> {
+    let db_clone = db.inner().clone(); // Arc clone — cheap
+    tokio::spawn(async move {
+        // ... after game exits:
+        let conn = db_clone.lock().unwrap();
+        // write play_time to SQLite
+    });
+}
+```
 
 ### 5.5 Tauri Plugin Dependencies & Capabilities
 
-New plugins required in `src-tauri/Cargo.toml`:
-- `tauri-plugin-fs` — for scanning game directories
-- `tauri-plugin-dialog` — for folder/file picker in manual game addition
+New plugin required in `src-tauri/Cargo.toml`:
+- `tauri-plugin-dialog` — for folder/file picker in manual game addition (frontend-side)
+
+**Note:** `tauri-plugin-fs` is NOT needed — disk scanning happens in Rust commands using native `std::fs` / `walkdir`, not the JS-side FS plugin.
 
 These must also be registered in the Tauri app builder (`plugin::init()`).
 
 `src-tauri/capabilities/default.json` needs additional permissions:
-- `fs:default` + `fs:allow-read` — directory scanning
 - `dialog:default` + `dialog:allow-open` — file/folder picker dialogs
 - `opener:default` — already present for launching games
 
@@ -293,12 +322,12 @@ When metadata fetch fails (no internet, API down), the UI shows a graceful fallb
 ```
 Frontend LibraryPage:
   localGames  ← invoke('get_local_games')   // Tauri
-  storeGames  ← fetch('/api/library')        // Fastify (already exists in server/src/routes/library.ts)
+  storeGames  ← fetch('/library')             // Fastify (already exists in server/src/routes/library.ts, no /api prefix)
   allGames    ← merge(localGames, storeGames)
   render with source badge per game
 ```
 
-**Deduplication strategy:** Match by normalized title (lowercase, strip special chars). If a local game and a store game match:
+**Deduplication strategy:** Match by **exact** normalized title (lowercase, strip special chars, trim whitespace). Exact match only — "Doom" does NOT match "Doom Eternal". If a local game and a store game match:
 - Show as a single entry with **both** source badges ("Store + Installed")
 - Use store metadata (cover, description) as primary since it's curated
 - Use local exe_path for the "Launch" button
