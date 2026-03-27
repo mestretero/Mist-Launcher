@@ -161,7 +161,7 @@ GET /profiles/:username
 - `PUBLIC` → return full profile to anyone (except blocked users — see below)
 - `FRIENDS` → check if `request.user` has friendship with status `ACCEPTED` with profile owner. If yes, return full. If no, return `{ restricted: "friends_only" }`. Blocked users get 404.
 
-**Blocking is mutual:** If either user has a `BLOCKED` friendship record with the other (regardless of sender/receiver direction), both users get 404 when trying to view each other's profile. Query: `WHERE (senderId = A AND receiverId = B) OR (senderId = B AND receiverId = A) AND status = 'BLOCKED'`.
+**Blocking is mutual:** If either user has a `BLOCKED` friendship record with the other (regardless of sender/receiver direction), both users get 404 when trying to view each other's profile. Query: `WHERE ((senderId = A AND receiverId = B) OR (senderId = B AND receiverId = A)) AND status = 'BLOCKED'`.
 - `PRIVATE` → only `request.user.id === profile.userId` returns full. Others get `{ restricted: "private" }`
 - Unauthenticated requests: only see `PUBLIC` profiles
 
