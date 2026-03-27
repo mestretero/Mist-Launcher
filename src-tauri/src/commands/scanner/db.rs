@@ -43,6 +43,14 @@ fn run_migrations(conn: &Connection) -> Result<(), String> {
             fetched_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS local_collection_items (
+            collection_id TEXT NOT NULL,
+            game_id       TEXT NOT NULL,
+            added_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (collection_id, game_id),
+            FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_games_source ON games(source);
         CREATE INDEX IF NOT EXISTS idx_games_title_normalized ON games(title COLLATE NOCASE);
 

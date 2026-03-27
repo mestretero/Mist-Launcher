@@ -40,6 +40,10 @@ pub fn run() {
             commands::scanner::library::update_game,
             commands::scanner::library::delete_game,
             commands::scanner::library::clear_metadata_cache,
+            commands::scanner::library::add_local_game_to_collection,
+            commands::scanner::library::remove_local_game_from_collection,
+            commands::scanner::library::get_local_collection_games,
+            commands::scanner::library::get_collections_for_local_game,
             commands::scanner::library::get_scan_config,
             commands::scanner::library::update_scan_config,
         ])

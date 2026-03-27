@@ -145,6 +145,56 @@ pub fn update_game(
     }).map_err(|e| e.to_string())
 }
 
+/// Add a local game to a server collection (stores link in local SQLite)
+#[tauri::command]
+pub fn add_local_game_to_collection(db: State<'_, Db>, collection_id: String, game_id: String) -> Result<(), String> {
+    let conn = db.lock().unwrap();
+    conn.execute(
+        "INSERT OR IGNORE INTO local_collection_items (collection_id, game_id) VALUES (?1, ?2)",
+        rusqlite::params![collection_id, game_id],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Remove a local game from a collection
+#[tauri::command]
+pub fn remove_local_game_from_collection(db: State<'_, Db>, collection_id: String, game_id: String) -> Result<(), String> {
+    let conn = db.lock().unwrap();
+    conn.execute(
+        "DELETE FROM local_collection_items WHERE collection_id = ?1 AND game_id = ?2",
+        rusqlite::params![collection_id, game_id],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Get local game IDs for a collection
+#[tauri::command]
+pub fn get_local_collection_games(db: State<'_, Db>, collection_id: String) -> Result<Vec<String>, String> {
+    let conn = db.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT game_id FROM local_collection_items WHERE collection_id = ?1"
+    ).map_err(|e| e.to_string())?;
+    let ids = stmt.query_map([&collection_id], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(ids)
+}
+
+/// Get all collection IDs that contain a specific local game
+#[tauri::command]
+pub fn get_collections_for_local_game(db: State<'_, Db>, game_id: String) -> Result<Vec<String>, String> {
+    let conn = db.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT collection_id FROM local_collection_items WHERE game_id = ?1"
+    ).map_err(|e| e.to_string())?;
+    let ids = stmt.query_map([&game_id], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+    Ok(ids)
+}
+
 /// Clear all metadata cache (forces re-fetch from IGDB)
 #[tauri::command]
 pub fn clear_metadata_cache(db: State<'_, Db>) -> Result<(), String> {

@@ -427,7 +427,11 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                 </button>
               </div>
 
-              {/* Game Info */}
+              {/* Collection + Info */}
+              <div className="mb-6">
+                <AddToCollectionDropdown localGameId={selectedLocalGame.id} />
+              </div>
+
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">Oyun Bilgileri</h3>
