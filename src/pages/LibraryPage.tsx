@@ -382,19 +382,21 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
           /* Local Game Detail Panel */
           <div className="flex flex-col h-full">
             {/* Hero area with cover or placeholder */}
-            <div className="relative w-full h-[300px] flex-shrink-0 overflow-hidden">
+            <div className="relative w-full h-[340px] flex-shrink-0 overflow-hidden">
               {selectedLocalGame.cover_url ? (
                 <>
-                  <img src={selectedLocalGame.cover_url} className="absolute inset-0 w-full h-full object-cover opacity-80" style={{ filter: "blur(4px) brightness(0.5)" }} />
-                  <img src={selectedLocalGame.cover_url} className="absolute left-1/2 -translate-x-1/2 top-0 h-full object-cover shadow-2xl z-10 aspect-video ring-1 ring-black/50" />
+                  <img src={selectedLocalGame.cover_url} className="absolute inset-0 w-full h-full object-cover" style={{ filter: "blur(20px) brightness(0.3) saturate(1.5)" }} />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <img src={selectedLocalGame.cover_url} className="h-[90%] rounded-lg shadow-2xl object-contain ring-1 ring-white/10" />
+                  </div>
                 </>
               ) : (
-                <div className="absolute inset-0 bg-gradient-to-b from-[#2a2e38] to-[#1a1c23] flex items-center justify-center">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#1a1c23] via-[#2a2e38] to-[#1a1c23] flex items-center justify-center">
+                  <div className="text-6xl font-black text-[#2a2e38] tracking-widest select-none">{selectedLocalGame.title.slice(0, 2).toUpperCase()}</div>
                 </div>
               )}
-              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#1a1c23] to-transparent z-10" />
-              <div className="absolute bottom-16 left-10 z-30">
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#1a1c23] to-transparent z-10" />
+              <div className="absolute bottom-10 left-10 z-30">
                 <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg" style={{ textShadow: "0px 4px 12px rgba(0,0,0,0.8)" }}>
                   {selectedLocalGame.title}
                 </h1>
@@ -414,7 +416,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                 <button
                   onClick={() => handleLaunchLocal(selectedLocalGame)}
                   disabled={localGameRunning === selectedLocalGame.id}
-                  className="px-8 py-3 bg-[#4ade80] hover:bg-[#22c55e] disabled:bg-[#4ade80]/50 text-[#0a0e13] font-black uppercase tracking-widest text-sm rounded transition-colors"
+                  className="px-8 py-3 bg-[#1a9fff] hover:bg-[#47bfff] disabled:bg-[#1a9fff]/50 text-white font-black uppercase tracking-widest text-sm rounded transition-colors"
                 >
                   {localGameRunning === selectedLocalGame.id ? "Calisiyor..." : "Baslat"}
                 </button>

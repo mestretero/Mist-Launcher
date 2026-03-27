@@ -6,7 +6,7 @@ import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
 
 const PlayOverlay = () => (
   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10">
-    <div className="w-14 h-14 rounded-full bg-green-500/90 flex items-center justify-center shadow-lg">
+    <div className="w-14 h-14 rounded-full bg-[#1a9fff]/90 flex items-center justify-center shadow-lg">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="8,5 20,12 8,19"/></svg>
     </div>
   </div>
