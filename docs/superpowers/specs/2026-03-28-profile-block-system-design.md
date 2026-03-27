@@ -115,7 +115,6 @@ model ProfileComment {
 **Note:** `bannerUrl` replaced with `bannerTheme` (preset key). Banner image upload is out of scope — frontend maps theme key to predefined background images.
 
 **Note:** Comments are immutable once posted (no edit, only delete). Max 1000 characters, empty strings rejected by API validation.
-```
 
 **Note:** The `User` model needs two new relations: `profile UserProfile?` and `profileCommentsWritten ProfileComment[] @relation("ProfileCommentsWritten")`.
 
@@ -159,8 +158,10 @@ GET /profiles/:username
 **Response:** `{ profile: UserProfile, blocks: ProfileBlock[], comments: ProfileComment[] }`
 
 **Visibility logic (server-side):**
-- `PUBLIC` → return full profile to anyone (except `BLOCKED` users — check friendship status, if BLOCKED return 404)
-- `FRIENDS` → check if `request.user` has friendship with status `ACCEPTED` with profile owner. If yes, return full. If no, return `{ restricted: "friends_only" }`. `BLOCKED` users get 404.
+- `PUBLIC` → return full profile to anyone (except blocked users — see below)
+- `FRIENDS` → check if `request.user` has friendship with status `ACCEPTED` with profile owner. If yes, return full. If no, return `{ restricted: "friends_only" }`. Blocked users get 404.
+
+**Blocking is mutual:** If either user has a `BLOCKED` friendship record with the other (regardless of sender/receiver direction), both users get 404 when trying to view each other's profile. Query: `WHERE (senderId = A AND receiverId = B) OR (senderId = B AND receiverId = A) AND status = 'BLOCKED'`.
 - `PRIVATE` → only `request.user.id === profile.userId` returns full. Others get `{ restricted: "private" }`
 - Unauthenticated requests: only see `PUBLIC` profiles
 
@@ -190,7 +191,7 @@ Body: { type, config? }
 DELETE /profiles/me/blocks/:id
 ```
 
-**PUT semantics:** Client sends the full ordered list of blocks (max 20). Server deletes blocks not in the list, updates existing ones, creates new ones. This makes drag-and-drop reordering a single API call. Server validates block count limit and config constraints.
+**PUT semantics:** Client sends the full ordered list of blocks (max 20). Server logic: blocks with an `id` field → update existing; blocks without `id` → create new; existing blocks whose `id` is absent from the list → delete. This makes drag-and-drop reordering a single API call. Server validates block count limit and config constraints.
 
 ### 5.4 Comments
 
@@ -266,8 +267,8 @@ The existing App.tsx uses `navigate(page: string, slug?: string)` pattern with c
 
 - `App.tsx`: add route `page === "user-profile"` → `<UserProfilePage username={gameSlug} onNavigate={navigate} />`
   - `gameSlug` is reused as the username parameter (already the slug mechanism)
-- `FriendsPage`: clicking a friend's name → `onNavigate("user-profile", friend.username)`
-- `ProfilePage` (own): existing `page === "profile"` stays for own profile
+- `FriendsPage`: **must be updated** to accept `onNavigate` prop (currently takes no props). `App.tsx` must pass `onNavigate={navigate}` to it. Clicking a friend's name → `onNavigate("user-profile", friend.username)`
+- `ProfilePage` (own): existing `page === "profile"` stays. **Update prop type** from `(page: string) => void` to `(page: string, slug?: string) => void` to support user-profile navigation.
 - `CommentWallBlock`: clicking commenter's name → `onNavigate("user-profile", author.username)`
 
 ### 6.5 Default Blocks
