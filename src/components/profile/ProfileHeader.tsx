@@ -82,7 +82,7 @@ export function ProfileHeader({
             <div className="w-28 h-28 rounded-full border-4 border-[#0f1115] bg-[#1a1c23] shadow-[0_0_24px_rgba(71,191,255,0.25)] overflow-hidden flex items-center justify-center ring-2 ring-[#47bfff]/40">
               {user.avatarUrl ? (
                 <img
-                  src={user.avatarUrl}
+                  src={user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`}
                   alt={user.username}
                   className="w-full h-full object-cover"
                 />

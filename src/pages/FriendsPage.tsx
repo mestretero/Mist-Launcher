@@ -223,7 +223,7 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                     {/* Avatar */}
                     {friend.avatarUrl ? (
                       <img
-                        src={friend.avatarUrl}
+                        src={friend.avatarUrl.startsWith("http") ? friend.avatarUrl : `http://localhost:3001${friend.avatarUrl}`}
                         alt={friend.username}
                         className="w-10 h-10 rounded-full object-cover"
                       />

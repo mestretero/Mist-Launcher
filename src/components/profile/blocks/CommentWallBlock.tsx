@@ -37,9 +37,10 @@ function formatRelativeTime(dateStr: string, t: (key: string, opts?: any) => str
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
   const initials = (name || "??").slice(0, 2).toUpperCase();
   if (avatarUrl) {
+    const src = avatarUrl.startsWith("http") ? avatarUrl : `http://localhost:3001${avatarUrl}`;
     return (
       <img
-        src={avatarUrl}
+        src={src}
         alt={name}
         className="w-9 h-9 rounded-full object-cover border border-[#2a2e38] flex-shrink-0"
       />
