@@ -1,86 +1,96 @@
-# Stealike Gelistirme Kurallari
+# Stealike Geliştirme Kuralları
 
-Bu dosya yapay zeka asistanlarinin ve gelistiricilerin uymas gereken kurallari icerir.
+Bu dosya yapay zeka asistanlarının ve geliştiricilerin uyması gereken kuralları içerir.
 
 ---
 
-## 1. Coklu Dil (i18n) Zorunlulugu
+## 1. Çoklu Dil (i18n) Zorunluluğu
 
-- Eklenen **her yeni sayfa, component ve ozellik** 4 dilde (TR/EN/DE/ES) olmak **zorundadir**.
-- Hardcoded metin **kesinlikle yasaktir**. Tum UI string'leri `t("key")` ile cekilmelidir.
-- Yeni key'ler `src/i18n/locales/` altindaki **4 dosyanin hepsine** ayni anda eklenmelidir.
-- Tarih, saat ve sayi formatlari da i18n uyumlu olmalidir.
+- Eklenen **her yeni sayfa, component ve özellik** 4 dilde (TR/EN/DE/ES) olmak **zorundadır**.
+- Hardcoded metin **kesinlikle yasaktır**. Tüm UI string'leri `t("key")` ile çekilmelidir.
+- Yeni key'ler `src/i18n/locales/` altındaki **4 dosyanın hepsine** aynı anda eklenmelidir.
+- Tarih, saat ve sayı formatları da i18n uyumlu olmalıdır.
 
-## 2. UI/UX Tutarliligi
+## 2. UTF-8 Karakter Kodlama
 
-- Yeni sayfa veya ozellik mevcut **karanlik tema** ile uyumlu olmak zorundadir.
+- Tüm dosyalar **UTF-8** kodlamasında olmalıdır.
+- Türkçe karakterler (ç, ğ, ı, ö, ş, ü, İ, Ş, Ğ, Ö, Ü, Ç) translation dosyalarında **doğru yazılmalıdır**.
+- Almanca (ä, ö, ü, ß), İspanyolca (ñ, á, é, í, ó, ú, ¿, ¡) özel karakterler korunmalıdır.
+- JSON dosyalarında Unicode escape kullanılmamalı, doğrudan UTF-8 karakter yazılmalıdır.
+- Her yeni sayfa ve özellikte özel karakter gösterimi **test edilmelidir**.
+- Bu dosya dahil tüm dokümanlar UTF-8 Türkçe karakterlerle yazılmalıdır.
+
+## 3. UI/UX Tutarlılığı
+
+- Yeni sayfa veya özellik mevcut **karanlık tema** ile uyumlu olmak zorundadır.
 - Renk paleti: `#0a0c10`, `#1a1c23`, `#2a2e38`, `#1a9fff` (accent), `#c6d4df` (text).
-- Font boyutlari, spacing, border radius mevcut component'larla tutarli olmalidir.
-- Mevcut bir sayfanin **tasarimi degistirilmeden** yeni ozellik eklenmelidir — kullanici aksini belirtmedikce.
-- Responsive tasarim zorunludur: `lg:` breakpoint'i ile mobil/desktop uyumu saglanmalidir.
+- Font boyutları, spacing, border radius mevcut component'larla tutarlı olmalıdır.
+- Mevcut bir sayfanın **tasarımı değiştirilmeden** yeni özellik eklenmelidir — kullanıcı aksini belirtmedikçe.
+- **Küçük görsel iyileştirmeler** (spacing, renk tonu, ikon değişikliği) yapılabilir, ancak sayfanın genel layout'u ve yapısı korunmalıdır.
+- Responsive tasarım zorunludur: `lg:` breakpoint'i ile mobil/desktop uyumu sağlanmalıdır.
 
-## 3. Baglanti ve Routing Kontrolu
+## 4. Bağlantı ve Routing Kontrolü
 
-- Eklenen her sayfa `App.tsx`'te route olarak tanimlanmis olmalidir.
-- Her navigasyon linki (`onNavigate`) test edilmeli, tiklanabilir ve dogru sayfaya yonlendirmeli.
-- `onNavigate` prop'u gecilmeyen component'lar olup olmadigi kontrol edilmelidir.
-- Yeni sayfa eklendiginde TopBar veya ilgili navigasyondan erisilebilir olmalidir.
+- Eklenen her sayfa `App.tsx`'te route olarak tanımlanmış olmalıdır.
+- Her navigasyon linki (`onNavigate`) test edilmeli, tıklanabilir ve doğru sayfaya yönlendirmeli.
+- `onNavigate` prop'u geçilmeyen component'lar olup olmadığı kontrol edilmelidir.
+- Yeni sayfa eklendiğinde TopBar veya ilgili navigasyondan erişilebilir olmalıdır.
 
-## 4. Avatar ve Gorsel URL'leri
+## 5. Avatar ve Görsel URL'leri
 
-- Server'dan gelen gorsel URL'leri **relative path** olarak gelir (`/public/avatars/...`).
-- Frontend'de gosterirken **mutlaka** `http://localhost:3001` prefix'i eklenmelidir.
-- Bu kural tum component'lar icin gecerlidir: ProfilePage, FriendsPage, TopBar, CommentWall, UserProfilePage vb.
-- Gorseller `object-cover` ile gosterilmeli, alt text saglanmalidir.
+- Server'dan gelen görsel URL'leri **relative path** olarak gelir (`/public/avatars/...`).
+- Frontend'de gösterirken **mutlaka** `http://localhost:3001` prefix'i eklenmelidir.
+- Bu kural tüm component'lar için geçerlidir: ProfilePage, FriendsPage, TopBar, CommentWall, UserProfilePage vb.
+- Görseller `object-cover` ile gösterilmeli, alt text sağlanmalıdır.
 
-## 5. API Response Mapping
+## 6. API Response Mapping
 
-- Server API'den gelen veri formati ile frontend'in bekledigu format **her zaman** kontrol edilmelidir.
-- Nested objeler (orn. `friend.sender.username` vs `friend.username`) dogru map'lenmelidir.
-- `undefined` ve `null` degerlere karsi guard konulmalidir — `?.` ve `|| fallback` kullanilmalidir.
+- Server API'den gelen veri formatı ile frontend'in beklediği format **her zaman** kontrol edilmelidir.
+- Nested objeler (örn. `friend.sender.username` vs `friend.username`) doğru map'lenmelidir.
+- `undefined` ve `null` değerlere karşı guard konulmalıdır — `?.` ve `|| fallback` kullanılmalıdır.
 
-## 6. Tauri Uyumlulugu
+## 7. Tauri Uyumluluğu
 
-- Bu bir **desktop uygulamasidir**, web degil. `invoke()` ve `listen()` sadece Tauri runtime'da calisir.
-- Tarayicida test **yapilamaz** — sadece `npm run tauri dev` ile test edilir.
-- Yeni Tauri komutu eklendiginde `src-tauri/src/lib.rs`'deki `invoke_handler`'a kayit edilmelidir.
-- Yeni plugin eklendiginde `capabilities/default.json`'a izin eklenmelidir.
+- Bu bir **desktop uygulamasıdır**, web değil. `invoke()` ve `listen()` sadece Tauri runtime'da çalışır.
+- Tarayıcıda test **yapılamaz** — sadece `npm run tauri dev` ile test edilir.
+- Yeni Tauri komutu eklendiğinde `src-tauri/src/lib.rs`'deki `invoke_handler`'a kayıt edilmelidir.
+- Yeni plugin eklendiğinde `capabilities/default.json`'a izin eklenmelidir.
 
-## 7. CORS ve HTTP Header'lar
+## 8. CORS ve HTTP Header'lar
 
-- `DELETE` isteklerinde `Content-Type: application/json` **gonderilmemelidir** (body yoksa Fastify 500 verir).
-- Yeni HTTP method kullanildiginda `server/src/app.ts`'teki CORS `methods` listesi kontrol edilmelidir.
-- `@fastify/helmet` CSP ayarlari cross-origin kaynaklari engelleyebilir — yeni static resource eklendiginde kontrol edilmelidir.
+- `DELETE` isteklerinde `Content-Type: application/json` **gönderilmemelidir** (body yoksa Fastify 500 verir).
+- Yeni HTTP method kullanıldığında `server/src/app.ts`'teki CORS `methods` listesi kontrol edilmelidir.
+- `@fastify/helmet` CSP ayarları cross-origin kaynakları engelleyebilir — yeni static resource eklendiğinde kontrol edilmelidir.
 
-## 8. Veritabani Kurallari
+## 9. Veritabanı Kuralları
 
-- Prisma schema'da `@db.Uuid`, `@map()`, `@@map()` convention'lari **tutarli** kullanilmalidir.
-- Yeni model eklendiginde `User` modeline gerekli relation'lar eklenmelidir.
-- Migration sonrasi `npx prisma migrate dev` basarili calistigindan emin olunmalidir.
-- Soft delete kullanilan tablolarda `deletedAt` filtresi **her sorguda** kontrol edilmelidir.
+- Prisma schema'da `@db.Uuid`, `@map()`, `@@map()` convention'ları **tutarlı** kullanılmalıdır.
+- Yeni model eklendiğinde `User` modeline gerekli relation'lar eklenmelidir.
+- Migration sonrası `npx prisma migrate dev` başarılı çalıştığından emin olunmalıdır.
+- Soft delete kullanılan tablolarda `deletedAt` filtresi **her sorguda** kontrol edilmelidir.
 
-## 9. Yerel Oyun Sistemi (SQLite)
+## 10. Yerel Oyun Sistemi (SQLite)
 
-- Yerel oyun verileri **asla** server'a gonderilmez — gizlilik kritiktir.
-- SQLite islemleri `Arc<Mutex<Connection>>` pattern'i ile thread-safe olmalidir.
-- `tokio::spawn` icinde SQLite kullanilacaksa `Arc::clone()` ile connection tasinmalidir.
-- Yeni Rust komutu eklendiginde `scanner/mod.rs`'de modul tanimlanmali ve `lib.rs`'de kayit edilmelidir.
+- Yerel oyun verileri **asla** server'a gönderilmez — gizlilik kritiktir.
+- SQLite işlemleri `Arc<Mutex<Connection>>` pattern'i ile thread-safe olmalıdır.
+- `tokio::spawn` içinde SQLite kullanılacaksa `Arc::clone()` ile connection taşınmalıdır.
+- Yeni Rust komutu eklendiğinde `scanner/mod.rs`'de modül tanımlanmalı ve `lib.rs`'de kayıt edilmelidir.
 
-## 10. Test ve Dogrulama
+## 11. Test ve Doğrulama
 
-- Her degisiklik sonrasi `npx tsc --noEmit` ile TypeScript kontrolu yapilmalidir.
-- Rust degisiklikleri icin `cd src-tauri && cargo check` calistirilmalidir.
-- `npm run build` basarili olmalidir — commit oncesi kontrol edilmelidir.
-- Server degisiklikleri icin server yeniden baslatilmali ve `/health` endpoint'i kontrol edilmelidir.
+- Her değişiklik sonrası `npx tsc --noEmit` ile TypeScript kontrolü yapılmalıdır.
+- Rust değişiklikleri için `cd src-tauri && cargo check` çalıştırılmalıdır.
+- `npm run build` başarılı olmalıdır — commit öncesi kontrol edilmelidir.
+- Server değişiklikleri için server yeniden başlatılmalı ve `/health` endpoint'i kontrol edilmelidir.
 
-## 11. Commit Kurallari
+## 12. Commit Kuralları
 
-- Her commit tek bir is birimi icermelidir.
-- Commit mesajlari `feat:`, `fix:`, `docs:` prefix'leri ile baslamalidir.
-- Buyuk degisiklikler icin plan + spec dokumani olusturulmalidir (`docs/superpowers/`).
+- Her commit tek bir iş birimi içermelidir.
+- Commit mesajları `feat:`, `fix:`, `docs:` prefix'leri ile başlamalıdır.
+- Büyük değişiklikler için plan + spec dokümanı oluşturulmalıdır (`docs/superpowers/`).
 
-## 12. Performans
+## 13. Performans
 
-- Buyuk listeler icin pagination kullanilmalidir (orn. yorumlar, bildirimler).
-- Gorsel yuklemelerinde `loading="lazy"` kullanilmalidir.
-- Gereksiz re-render onlemek icin `useMemo` ve `useCallback` uygun yerlerde kullanilmalidir.
+- Büyük listeler için pagination kullanılmalıdır (örn. yorumlar, bildirimler).
+- Görsel yüklemelerinde `loading="lazy"` kullanılmalıdır.
+- Gereksiz re-render önlemek için `useMemo` ve `useCallback` uygun yerlerde kullanılmalıdır.
