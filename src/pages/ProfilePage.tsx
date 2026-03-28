@@ -240,7 +240,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   if (!file) return;
                   if (file.size > 2 * 1024 * 1024) { addToast(t("profile.avatarTooLarge"), "error"); return; }
                   try {
-                    await api.auth.uploadAvatar(file);
+                    const updatedUser = await api.auth.uploadAvatar(file);
+                    // Directly update user state with returned data
+                    if (updatedUser?.avatarUrl) {
+                      useAuthStore.setState((s) => ({ user: s.user ? { ...s.user, avatarUrl: updatedUser.avatarUrl } : s.user }));
+                    }
                     await useAuthStore.getState().loadSession();
                     addToast(t("profile.avatarUpdated"), "success");
                   } catch (err: any) {
