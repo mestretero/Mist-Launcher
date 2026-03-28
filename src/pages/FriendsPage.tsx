@@ -244,7 +244,8 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                 {friends.map((friend) => (
                   <div
                     key={friend.friendshipId}
-                    className="flex items-center gap-4 bg-brand-900 border border-brand-800 rounded p-4 hover:border-brand-600 transition-colors"
+                    onClick={() => onNavigate?.("user-profile", friend.username)}
+                    className="flex items-center gap-4 bg-brand-900 border border-brand-800 rounded p-4 hover:border-brand-600 transition-colors cursor-pointer"
                   >
                     {/* Avatar */}
                     {friend.avatarUrl ? (
@@ -261,12 +262,9 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <button
-                        onClick={() => onNavigate?.("user-profile", friend.username)}
-                        className="text-sm font-bold text-brand-100 truncate hover:text-brand-300 transition-colors text-left"
-                      >
+                      <span className="text-sm font-bold text-brand-100 truncate block">
                         {friend.username}
-                      </button>
+                      </span>
                       {friend.bio && (
                         <p className="text-xs text-brand-500 truncate mt-0.5">
                           {friend.bio}
@@ -276,7 +274,7 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
 
                     {/* Remove */}
                     <button
-                      onClick={() => handleRemoveFriend(friend.friendshipId)}
+                      onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.friendshipId); }}
                       disabled={removingId === friend.friendshipId}
                       className="px-4 py-2 text-xs font-bold text-brand-500 hover:text-red-400 bg-brand-800 hover:bg-brand-800/80 rounded transition-colors uppercase tracking-widest disabled:opacity-50"
                     >

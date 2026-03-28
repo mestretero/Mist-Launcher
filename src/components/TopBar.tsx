@@ -4,6 +4,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useCartStore } from "../stores/cartStore";
 import { useNotificationStore } from "../stores/notificationStore";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { api } from "../lib/api";
 
 interface TopBarProps {
   currentPage: string;
@@ -21,6 +22,7 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const [profileOpen, setProfileOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const profileRef = useRef<HTMLDivElement>(null);
   const appWindow = getCurrentWindow();
 
@@ -110,7 +112,15 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </button>
             {/* Notifications */}
-            <button onClick={() => setShowNotifications(!showNotifications)}
+            <button onClick={() => {
+                const next = !showNotifications;
+                setShowNotifications(next);
+                if (next) {
+                  api.notifications.list().then((data: any) => {
+                    setNotifications(Array.isArray(data?.notifications) ? data.notifications : Array.isArray(data) ? data : []);
+                  }).catch(() => {});
+                }
+              }}
               className="relative p-1.5 rounded text-brand-400 hover:text-white hover:bg-brand-800 transition-colors"
               title={t("notifications.title")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -206,14 +216,26 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
 
       {/* Notifications dropdown */}
       {showNotifications && (
-        <div className="fixed top-11 right-40 z-50 w-72 bg-brand-900 border border-brand-700 rounded-lg shadow-2xl p-3" style={noDrag}>
+        <div className="fixed top-11 right-40 z-50 w-80 bg-brand-900 border border-brand-700 rounded-lg shadow-2xl p-3 max-h-96 overflow-y-auto" style={noDrag}>
           <div className="flex items-center justify-between mb-2 pb-2 border-b border-brand-800">
             <h3 className="text-xs font-bold text-brand-200 uppercase tracking-widest">{t("notifications.title")}</h3>
             <button onClick={() => setShowNotifications(false)} className="text-brand-500 hover:text-white text-xs">X</button>
           </div>
-          {unreadCount === 0
+          {notifications.length === 0 && unreadCount === 0
             ? <p className="text-xs text-brand-500 text-center py-3">{t("notifications.empty")}</p>
-            : <p className="text-xs text-brand-400 text-center py-3">{t("notifications.unread", { count: unreadCount })}</p>
+            : (
+              <div className="space-y-2">
+                {notifications.map((n: any) => (
+                  <div key={n.id} className={`p-2.5 rounded-lg text-xs ${n.isRead ? "bg-brand-800/30 text-brand-500" : "bg-[#1a9fff]/5 border border-[#1a9fff]/20 text-brand-200"}`}>
+                    <p className="font-medium">{n.message || n.content || n.type}</p>
+                    <p className="text-[10px] text-brand-600 mt-1">{new Date(n.createdAt).toLocaleDateString()}</p>
+                  </div>
+                ))}
+                {notifications.length === 0 && unreadCount > 0 && (
+                  <p className="text-xs text-brand-400 text-center py-2">{t("notifications.unread", { count: unreadCount })}</p>
+                )}
+              </div>
+            )
           }
         </div>
       )}
