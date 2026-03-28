@@ -371,6 +371,10 @@
     "defaultBio": "Games are not just an escape, they are gateways to new universes.",
     "updated": "Profile updated",
     "updateError": "Could not update profile",
+    "showEmail": "Show my email address",
+    "customStatus": "Custom Status",
+    "customStatusPlaceholder": "What are you up to?",
+    "bio": "About Me",
     "blocks": {
       "gameShowcase": "Game Showcase",
       "gameShowcaseDesc": "Display 1-4 games",

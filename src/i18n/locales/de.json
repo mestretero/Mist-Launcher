@@ -371,6 +371,10 @@
     "defaultBio": "Spiele sind nicht nur Flucht, sie sind Tore zu neuen Universen.",
     "updated": "Profil aktualisiert",
     "updateError": "Profil konnte nicht aktualisiert werden",
+    "showEmail": "E-Mail-Adresse anzeigen",
+    "customStatus": "Benutzerdefinierter Status",
+    "customStatusPlaceholder": "Was machst du gerade?",
+    "bio": "Über mich",
     "blocks": {
       "gameShowcase": "Spiele-Vitrine",
       "gameShowcaseDesc": "1-4 Spiele auswählen und präsentieren",

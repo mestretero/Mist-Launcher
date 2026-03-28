@@ -371,6 +371,10 @@
     "defaultBio": "Oyunlar sadece bir kaçış değil, yeni evrenlere açılan kapılardır.",
     "updated": "Profil güncellendi",
     "updateError": "Profil güncellenemedi",
+    "showEmail": "E-posta adresimi goster",
+    "customStatus": "Ozel Durum",
+    "customStatusPlaceholder": "Ne yapiyorsun?",
+    "bio": "Hakkimda",
     "blocks": {
       "gameShowcase": "Oyun Vitrini",
       "gameShowcaseDesc": "1-4 oyun secip sergile",

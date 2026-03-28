@@ -371,6 +371,10 @@
     "defaultBio": "Los juegos no son solo una escapada, son puertas a nuevos universos.",
     "updated": "Perfil actualizado",
     "updateError": "No se pudo actualizar el perfil",
+    "showEmail": "Mostrar mi correo electrónico",
+    "customStatus": "Estado personalizado",
+    "customStatusPlaceholder": "¿Qué estás haciendo?",
+    "bio": "Sobre mí",
     "blocks": {
       "gameShowcase": "Vitrina de juegos",
       "gameShowcaseDesc": "Muestra entre 1 y 4 juegos",
