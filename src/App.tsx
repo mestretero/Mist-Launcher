@@ -17,6 +17,7 @@ import { FriendsPage } from "./pages/FriendsPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import GameScannerPage from "./pages/GameScannerPage";
+import UserProfilePage from "./pages/UserProfilePage";
 import { ToastContainer } from "./components/ToastContainer";
 
 function App() {
@@ -112,6 +113,9 @@ function App() {
       {page === "friends" && <FriendsPage />}
       {page === "settings" && <SettingsPage />}
       {page === "profile" && <ProfilePage onNavigate={navigate} />}
+      {page === "user-profile" && gameSlug && (
+        <UserProfilePage username={gameSlug} onNavigate={navigate} />
+      )}
       <ToastContainer />
     </Layout>
   );
