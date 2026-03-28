@@ -34,6 +34,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [isEditingBg, setIsEditingBg] = useState(false);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [editBio, setEditBio] = useState(user?.bio || "");
+  const [savedBio, setSavedBio] = useState(user?.bio || "");
   const [editUsername, setEditUsername] = useState(user?.username || "");
   const [editCustomStatus, setEditCustomStatus] = useState("");
 
@@ -253,9 +254,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 {user.isStudent && (
                   <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">{t("profile.student")}</span>
                 )}
-                <p className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-4 w-full">
-                  {user.bio ? `"${user.bio}"` : `"${t("profile.defaultBio")}"`}
-                </p>
+                {(user.bio || savedBio) ? (
+                  <p className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-4 w-full">
+                    "{user.bio || savedBio}"
+                  </p>
+                ) : null}
               </>
             )}
 
@@ -422,7 +425,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     setProfileData(fresh);
                     setBlocks(fresh.blocks || []);
                     setIsEditingBlocks(false);
-                    setIsEditingBlocks(false);
+                    setSavedBio(editBio);
                     await useAuthStore.getState().loadSession();
                     addToast(t("profile.updated"), "success");
                   } catch (err: any) {
