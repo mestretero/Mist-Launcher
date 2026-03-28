@@ -3,32 +3,14 @@ import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
 import { api } from "../lib/api";
-import { ProfileHeader } from "../components/profile/ProfileHeader";
 import { BlockRenderer } from "../components/profile/BlockRenderer";
 
-interface ProfileBlock {
-  id: string;
-  type: string;
-  config: any;
-  visible: boolean;
-  order: number;
-}
-
-interface RemoteProfile {
-  user: {
-    username: string;
-    email?: string;
-    avatarUrl?: string;
-    bio?: string;
-    isStudent?: boolean;
-    createdAt?: string;
-  };
-  visibility: string;
-  bannerTheme: string;
-  allowComments: boolean;
-  customStatus?: string;
-  blocks: ProfileBlock[];
-}
+const THEMES = [
+  { id: "default", url: "https://picsum.photos/seed/bg1/1920/1080" },
+  { id: "cyber", url: "https://picsum.photos/seed/bg2/1920/1080" },
+  { id: "nature", url: "https://picsum.photos/seed/bg3/1920/1080" },
+  { id: "mech", url: "https://picsum.photos/seed/bg4/1920/1080" },
+];
 
 interface UserProfilePageProps {
   username: string;
@@ -40,200 +22,71 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
   const { user: currentUser } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
 
-  const [profile, setProfile] = useState<RemoteProfile | null>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [restricted, setRestricted] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Load the other user's profile
   useEffect(() => {
     setLoading(true);
     setProfile(null);
     setRestricted(null);
-
-    api.profiles
-      .get(username)
-      .then((data) => {
-        if (data?.restricted) {
-          setRestricted(data.restricted);
-        } else {
-          setProfile(data);
-        }
+    api.profiles.get(username)
+      .then((data: any) => {
+        if (data?.restricted) setRestricted(data.restricted);
+        else if (data?.profile) setProfile(data.profile);
+        else setProfile(data);
       })
-      .catch(() => {
-        addToast(t("profile.loadError", "Failed to load profile"), "error");
-      })
+      .catch(() => addToast(t("common.error"), "error"))
       .finally(() => setLoading(false));
   }, [username]);
 
-  // Fetch comments when profile is loaded and allows comments
   const fetchComments = useCallback(async () => {
     if (!profile?.allowComments) return;
-    const hasCommentWall = profile.blocks.some(
-      (b) => b.type === "COMMENT_WALL" && b.visible
-    );
-    if (!hasCommentWall) return;
     try {
       const data = await api.profiles.getComments(username);
       setComments(Array.isArray(data?.comments) ? data.comments : []);
-    } catch {
-      // ignore silently
-    }
-  }, [username, profile?.allowComments, profile?.blocks]);
+    } catch {}
+  }, [username, profile]);
 
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
+  useEffect(() => { fetchComments(); }, [fetchComments]);
 
   const handleAddComment = async (content: string) => {
     try {
       await api.profiles.addComment(username, content);
       await fetchComments();
-    } catch {
-      addToast(t("profile.commentError", "Failed to add comment"), "error");
-    }
+    } catch { addToast(t("common.error"), "error"); }
   };
 
   const handleDeleteComment = async (commentId: string) => {
     try {
       await api.profiles.deleteComment(username, commentId);
       await fetchComments();
-    } catch {
-      addToast(t("profile.commentDeleteError", "Failed to delete comment"), "error");
-    }
+    } catch { addToast(t("common.error"), "error"); }
   };
 
-  // Build extra props per block type (no library items for other users)
-  const getExtraProps = (blockType: string): Record<string, any> => {
-    switch (blockType) {
-      case "COMMENT_WALL":
-        return {
-          username,
-          comments,
-          allowComments: profile?.allowComments ?? false,
-          currentUserId: currentUser?.id,
-          onAddComment: handleAddComment,
-          onDeleteComment: handleDeleteComment,
-          onNavigateToUser: (authorUsername: string) =>
-            onNavigate("user-profile", authorUsername),
-        };
-      default:
-        return {};
-    }
-  };
-
-  // --- Render ---
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full bg-[#0f1115]">
-        <div className="flex flex-col items-center gap-4">
-          <svg
-            className="animate-spin text-[#1a9fff]"
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          <span className="text-[#8f98a0] text-sm font-semibold">
-            {t("common.loading", "Loading...")}
-          </span>
-        </div>
+        <svg className="animate-spin text-[#1a9fff]" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
       </div>
     );
   }
 
-  // Restriction states
   if (restricted) {
-    const isFriendsOnly = restricted === "friends_only";
-
     return (
       <div className="flex items-center justify-center h-full bg-[#0f1115]">
         <div className="flex flex-col items-center gap-6 text-center max-w-sm px-6">
-          {/* Lock icon */}
           <div className="w-16 h-16 rounded-full bg-[#1a1c23] border border-[#2a2e38] flex items-center justify-center">
-            <svg
-              width="28"
-              height="28"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#67707b"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#67707b" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-
-          <div>
-            <h2 className="text-lg font-black text-white uppercase tracking-widest mb-2">
-              {isFriendsOnly
-                ? t("profile.blocks.restrictedFriends", "Friends Only")
-                : t("profile.blocks.restrictedPrivate", "Private Profile")}
-            </h2>
-            <p className="text-sm text-[#67707b] leading-relaxed">
-              {isFriendsOnly
-                ? t(
-                    "profile.blocks.restrictedFriendsDesc",
-                    "This profile is only visible to friends."
-                  )
-                : t(
-                    "profile.blocks.restrictedPrivateDesc",
-                    "This profile is set to private."
-                  )}
-            </p>
-          </div>
-
-          {isFriendsOnly ? (
-            <button
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white text-[11px] font-black uppercase tracking-widest transition-all shadow-md shadow-[#1a9fff]/20 active:scale-95"
-              onClick={() => {
-                // TODO: wire up add-friend action when friends API is available
-                addToast(t("friends.requestSent", "Friend request sent"), "success");
-              }}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <line x1="19" y1="8" x2="19" y2="14" />
-                <line x1="22" y1="11" x2="16" y2="11" />
-              </svg>
-              {t("friends.addFriend", "Add Friend")}
-            </button>
-          ) : (
-            <button
-              className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#20232c] hover:bg-[#2a2e38] border border-[#3d4450] text-[#c6d4df] hover:text-white text-[11px] font-black uppercase tracking-widest transition-all active:scale-95"
-              onClick={() => onNavigate("store")}
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M19 12H5M12 5l-7 7 7 7" />
-              </svg>
-              {t("common.goBack", "Go Back")}
-            </button>
-          )}
+          <h2 className="text-lg font-black text-white uppercase tracking-widest">
+            {restricted === "friends_only" ? t("profile.blocks.restrictedFriends") : t("profile.blocks.restrictedPrivate")}
+          </h2>
+          <button onClick={() => onNavigate("friends")}
+            className="px-6 py-2.5 rounded-lg bg-[#1a9fff] text-white text-[11px] font-black uppercase tracking-widest">
+            {t("friends.addFriend")}
+          </button>
         </div>
       </div>
     );
@@ -241,55 +94,92 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
 
   if (!profile) return null;
 
-  const visibleBlocks = (profile.blocks || []).filter((b: any) => b.visible);
+  const user = profile.user || profile;
+  const blocks = (profile.blocks || []).filter((b: any) => b.visible);
+  const bgTheme = THEMES.find(t => t.id === profile.bannerTheme) || THEMES[0];
+  const avatarUrl = user.avatarUrl ? (user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`) : null;
+
+  const getExtraProps = (block: any) => {
+    if (block.type === "COMMENT_WALL") {
+      return {
+        username,
+        comments: comments.map((c: any) => ({
+          id: c.id,
+          authorName: c.author?.username || "?",
+          authorAvatar: c.author?.avatarUrl,
+          content: c.content,
+          createdAt: c.createdAt,
+        })),
+        allowComments: profile.allowComments ?? false,
+        currentUserId: currentUser?.id,
+        onAddComment: handleAddComment,
+        onDeleteComment: handleDeleteComment,
+      };
+    }
+    return {};
+  };
 
   return (
-    <div className="flex flex-col h-full bg-[#0f1115] overflow-hidden">
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* Profile header — read-only */}
-        <ProfileHeader
-          user={profile.user}
-          profile={{
-            visibility: profile.visibility,
-            bannerTheme: profile.bannerTheme,
-            allowComments: profile.allowComments,
-            customStatus: profile.customStatus,
-          }}
-          isOwnProfile={false}
-          isEditing={false}
-          onNavigate={onNavigate}
-        />
+    <div className="relative h-full font-sans bg-[#0f1115] overflow-hidden flex flex-col">
+      {/* Background */}
+      <div className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
+        style={{ backgroundImage: `url(${bgTheme.url})`, filter: "brightness(0.3) saturate(1.2)" }} />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0f1115] via-[#0f1115]/80 to-transparent z-0" />
 
-        {/* Blocks — view only, no edit, no DnD */}
-        <div className="max-w-4xl mx-auto w-full px-6 py-6 flex flex-col gap-4">
-          {visibleBlocks.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <svg
-                width="36"
-                height="36"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#3d4450"
-                strokeWidth="1.5"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 9h6M9 12h6M9 15h4" />
-              </svg>
-              <p className="text-sm text-[#5e6673] font-semibold">
-                {t("profile.blocks.noBlocks", "No profile blocks yet.")}
-              </p>
+      {/* Content */}
+      <div className="relative z-10 flex-1 flex flex-col lg:flex-row h-full max-w-[1400px] mx-auto w-full p-4 lg:p-8 gap-6 lg:gap-10 overflow-y-auto lg:overflow-hidden">
+
+        {/* Left Sidebar */}
+        <div className="w-full lg:w-[340px] flex-shrink-0 flex flex-col gap-6 lg:overflow-y-auto lg:pr-2">
+
+          {/* Identity Card */}
+          <div className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 flex flex-col items-center shadow-2xl ring-1 ring-white/5 relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#47bfff]/20 to-transparent" />
+            <div className="relative mb-6">
+              <div className="w-32 h-32 bg-[#2a2e38] border-2 border-[#47bfff] rounded-full shadow-[0_0_20px_rgba(71,191,255,0.2)] overflow-hidden flex items-center justify-center relative z-10">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={user.username} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-4xl font-black text-[#8f98a0]">{(user.username || "??").slice(0, 2).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#47bfff] rounded-full border-4 border-[#1a1c23] z-20" />
             </div>
-          ) : (
-            visibleBlocks.map((block) => (
-              <BlockRenderer
-                key={block.id}
-                block={block}
-                isEditing={false}
-                onConfigChange={() => {}}
-                extraProps={getExtraProps(block.type)}
-              />
-            ))
-          )}
+
+            <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">{user.username}</h1>
+            {profile.customStatus && <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profile.customStatus}</p>}
+            {user.isStudent && (
+              <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">{t("profile.student")}</span>
+            )}
+            {user.bio && (
+              <p className="text-xs font-medium text-[#c6d4df] text-center leading-relaxed italic mb-4 border-y border-[#2a2e38]/50 py-3 w-full break-words overflow-hidden">
+                "{user.bio}"
+              </p>
+            )}
+            {user.createdAt && (
+              <p className="text-[10px] text-[#5e6673] font-medium uppercase tracking-widest">
+                {new Date(user.createdAt).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel — Blocks */}
+        <div className="flex-1 lg:overflow-y-auto lg:pr-4 pb-20 min-w-0">
+          <div className="flex flex-col gap-6">
+            {blocks.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-16 text-center">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                <p className="text-sm text-[#5e6673]">{t("profile.blocks.noBlocks", "No profile blocks yet.")}</p>
+              </div>
+            ) : (
+              blocks.map((block: any) => (
+                <div key={block.id} className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl">
+                  <BlockRenderer block={block} isEditing={false} onConfigChange={() => {}} extraProps={getExtraProps(block)} />
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

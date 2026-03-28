@@ -226,10 +226,18 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
             : (
               <div className="space-y-2">
                 {notifications.map((n: any) => (
-                  <div key={n.id} className={`p-2.5 rounded-lg text-xs ${n.isRead ? "bg-brand-800/30 text-brand-500" : "bg-[#1a9fff]/5 border border-[#1a9fff]/20 text-brand-200"}`}>
+                  <button key={n.id} onClick={() => {
+                    setShowNotifications(false);
+                    // Navigate based on notification type
+                    if (n.type === "FRIEND_REQUEST" || n.type === "FRIEND_ACCEPTED") onNavigate("friends");
+                    else if (n.type === "PAYMENT" || n.type === "WALLET") onNavigate("settings");
+                    else onNavigate("profile");
+                    // Mark as read
+                    if (!n.isRead) api.notifications.markRead(n.id).catch(() => {});
+                  }} className={`w-full text-left p-2.5 rounded-lg text-xs cursor-pointer transition-colors hover:bg-brand-700/50 ${n.isRead ? "bg-brand-800/30 text-brand-500" : "bg-[#1a9fff]/5 border border-[#1a9fff]/20 text-brand-200"}`}>
                     <p className="font-medium">{n.message || n.content || n.type}</p>
                     <p className="text-[10px] text-brand-600 mt-1">{new Date(n.createdAt).toLocaleDateString()}</p>
-                  </div>
+                  </button>
                 ))}
                 {notifications.length === 0 && unreadCount > 0 && (
                   <p className="text-xs text-brand-400 text-center py-2">{t("notifications.unread", { count: unreadCount })}</p>
