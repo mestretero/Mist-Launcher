@@ -52,6 +52,12 @@ export async function buildApp() {
         error: { code: "VALIDATION_ERROR", message: error.issues[0]?.message || "Invalid input" },
       });
     }
+    // Fastify empty JSON body error — treat as 400
+    if ((error as any).code === "FST_ERR_CTP_EMPTY_JSON_BODY") {
+      return reply.status(400).send({
+        error: { code: "BAD_REQUEST", message: "Empty body" },
+      });
+    }
     request.log.error(error);
     return reply.status(500).send({
       error: { code: "INTERNAL_ERROR", message: "Internal server error" },
