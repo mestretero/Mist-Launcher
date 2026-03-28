@@ -241,11 +241,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 </div>
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.bio")}</label>
-                  <textarea value={editBio} onChange={(e) => setEditBio(e.target.value.slice(0, 300))}
+                  <textarea value={editBio} onChange={(e) => setEditBio(e.target.value.slice(0, 80))}
                     placeholder={t("profile.bioPlaceholder")}
                     className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors resize-none"
-                    rows={3} maxLength={300} />
-                  <p className={`text-[9px] mt-1 text-right ${editBio.length > 280 ? "text-yellow-400" : "text-[#3d4450]"}`}>{editBio.length}/300</p>
+                    rows={2} maxLength={80} />
+                  <p className={`text-[9px] mt-1 text-right ${editBio.length > 65 ? "text-yellow-400" : "text-[#3d4450]"}`}>{editBio.length}/80</p>
                 </div>
               </div>
             ) : (
@@ -256,7 +256,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">{t("profile.student")}</span>
                 )}
                 {(user.bio || savedBio) ? (
-                  <p className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-4 w-full">
+                  <p className="text-xs font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-3 w-full break-words overflow-hidden">
                     "{user.bio || savedBio}"
                   </p>
                 ) : null}
