@@ -4,6 +4,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
 import { api } from "../lib/api";
 import type { LibraryItem } from "../lib/types";
+import { useLocalGameStore } from "../stores/localGameStore";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { BlockRenderer } from "../components/profile/BlockRenderer";
@@ -26,6 +27,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
+  const { games: localGames, loadGames: loadLocalGames } = useLocalGameStore();
   const [bgIndex, setBgIndex] = useState(() => {
     return user?.preferences?.profileThemeIndex ?? 0;
   });
@@ -49,6 +51,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     api.library.list().then((data) => {
       if (Array.isArray(data)) setLibraryItems(data);
     }).catch(() => {});
+    loadLocalGames();
 
     // Fetch profile blocks
     api.profiles.getMe().then((data: any) => {
@@ -156,15 +159,25 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
   const getExtraProps = (block: any) => {
     const extras: any = {};
-    if (block.type === "STATS") extras.stats = { games: totalGames, hours: totalPlayTimeHours, achievements: 0 };
+    if (block.type === "STATS") {
+      const localHours = Math.floor(localGames.reduce((sum, g) => sum + g.play_time, 0) / 3600);
+      extras.stats = { games: totalGames + localGames.length, hours: totalPlayTimeHours + localHours, achievements: 0 };
+    }
     if (block.type === "ACTIVITY") extras.recentlyPlayed = recentlyPlayed.map((i) => ({ title: i.game.title, coverUrl: i.game.coverImageUrl, playTime: i.playTimeMins, lastPlayed: i.lastPlayedAt }));
     if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") {
-      extras.libraryItems = libraryItems.map((i) => ({
+      const storeItems = libraryItems.map((i) => ({
         id: i.gameId || i.id,
         title: i.game.title,
         coverUrl: i.game.coverImageUrl,
         playTime: i.playTimeMins,
       }));
+      const localItems = localGames.map((g) => ({
+        id: g.id,
+        title: g.title,
+        coverUrl: g.cover_url || undefined,
+        playTime: Math.floor(g.play_time / 60),
+      }));
+      extras.libraryItems = [...storeItems, ...localItems];
     }
     if (block.type === "ACHIEVEMENTS") extras.achievements = [];
     if (block.type === "COMMENT_WALL") {
