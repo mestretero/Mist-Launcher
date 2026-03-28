@@ -10,6 +10,8 @@ const preferencesSchema = z.object({
   bandwidthLimit: z.string().optional(),
   profileThemeIndex: z.number().int().min(0).max(10).optional(),
   language: z.string().optional(),
+  showEmail: z.boolean().optional(),
+  customStatus: z.string().max(100).nullable().optional(),
 }).strict();
 
 export default async function authRoutes(app: FastifyInstance) {
