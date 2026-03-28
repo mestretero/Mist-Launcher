@@ -33,7 +33,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   });
   const [isEditingBg, setIsEditingBg] = useState(false);
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
   const [editBio, setEditBio] = useState(user?.bio || "");
   const [editUsername, setEditUsername] = useState(user?.username || "");
   const [showEmail, setShowEmail] = useState(user?.preferences?.showEmail !== false);
@@ -46,7 +45,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [isEditingBlocks, setIsEditingBlocks] = useState(false);
   const [editVisibility, setEditVisibility] = useState("PUBLIC");
   const [editAllowComments, setEditAllowComments] = useState(true);
-  const [editBannerTheme, setEditBannerTheme] = useState("default");
   const [savingBlocks, setSavingBlocks] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
 
@@ -62,7 +60,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       setBlocks(data.blocks || []);
       setEditVisibility(data.visibility || "PUBLIC");
       setEditAllowComments(data.allowComments ?? true);
-      setEditBannerTheme(data.bannerTheme || "default");
       setEditCustomStatus(data.customStatus || "");
     }).catch(() => {});
 
@@ -95,30 +92,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     .sort((a, b) => new Date(b.lastPlayedAt!).getTime() - new Date(a.lastPlayedAt!).getTime())
     .slice(0, 4);
 
-  const cancelEditingBlocks = () => {
-    setEditBlocks([]);
-    setIsEditingBlocks(false);
-  };
-
-  const saveBlocks = async () => {
-    setSavingBlocks(true);
-    try {
-      const blockData = editBlocks.map((b, i) => ({ id: b.id, type: b.type, position: i, config: b.config, visible: b.visible }));
-      await Promise.all([
-        api.profiles.saveBlocks(blockData),
-        api.profiles.updateMe({ visibility: editVisibility as any, allowComments: editAllowComments, bannerTheme: editBannerTheme }),
-      ]);
-      const fresh = await api.profiles.getMe();
-      setProfileData(fresh);
-      setBlocks(fresh.blocks || []);
-      setIsEditingBlocks(false);
-      addToast(t("profile.blocks.saveChanges"), "success");
-    } catch (err: any) {
-      addToast(err?.message || t("common.error"), "error");
-    } finally {
-      setSavingBlocks(false);
-    }
-  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -195,25 +168,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     return extras;
   };
 
-  const handleSaveProfile = async () => {
-    try {
-      await api.auth.updateProfile({ bio: editBio });
-      // Save username if changed
-      if (editUsername !== user?.username && editUsername.trim().length >= 3) {
-        await api.auth.updateProfile({ username: editUsername.trim() } as any);
-      }
-      // Save preferences (showEmail, customStatus)
-      await api.auth.updatePreferences({ showEmail, customStatus: editCustomStatus || null });
-      // Update profile custom status
-      if (profileData) {
-        await api.profiles.updateMe({ customStatus: editCustomStatus || undefined });
-      }
-      addToast(t("profile.updated"), "success");
-      setIsEditing(false);
-      // Reload user data
-      useAuthStore.getState().loadSession();
-    } catch (err: any) { addToast(err?.message || t("profile.updateError"), "error"); }
-  };
 
   return (
     <div className="relative h-full font-sans bg-[#0f1115] overflow-hidden flex flex-col">
@@ -269,99 +223,67 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#47bfff] rounded-full border-4 border-[#1a1c23] z-20" title={t("profile.online")} />
             </div>
 
-            {isEditing ? (
-              /* Edit mode — full identity editing */
-              <div className="w-full space-y-3 mb-6">
-                {/* Username */}
+            {isEditingBlocks ? (
+              /* Edit mode — identity fields */
+              <div className="w-full space-y-3 mb-4">
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("auth.usernamePlaceholder")}</label>
-                  <input
-                    type="text" value={editUsername} onChange={(e) => setEditUsername(e.target.value)}
+                  <input type="text" value={editUsername} onChange={(e) => setEditUsername(e.target.value)}
                     className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-white text-center focus:outline-none focus:border-[#47bfff] transition-colors"
-                    minLength={3} maxLength={30}
-                  />
+                    minLength={3} maxLength={30} />
                 </div>
-
-                {/* Email visibility toggle */}
-                <button onClick={() => setShowEmail(!showEmail)} className="flex items-center gap-2 cursor-pointer w-full text-left">
+                <button onClick={() => setShowEmail(!showEmail)} className="flex items-center gap-2 w-full text-left">
                   <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 ${showEmail ? "bg-[#1a9fff] border-[#1a9fff]" : "border-[#3d4450]"}`}>
                     {showEmail && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
                   <span className="text-[10px] text-[#8f98a0]">{t("profile.showEmail")}</span>
                 </button>
-
-                {/* Custom Status */}
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.customStatus")}</label>
-                  <input
-                    type="text" value={editCustomStatus} onChange={(e) => setEditCustomStatus(e.target.value)}
+                  <input type="text" value={editCustomStatus} onChange={(e) => setEditCustomStatus(e.target.value)}
                     placeholder={t("profile.customStatusPlaceholder")}
                     className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-xs text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors"
-                    maxLength={100}
-                  />
+                    maxLength={100} />
                 </div>
-
-                {/* Bio */}
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.bio")}</label>
-                  <textarea
-                    value={editBio} onChange={(e) => setEditBio(e.target.value)}
+                  <textarea value={editBio} onChange={(e) => setEditBio(e.target.value)}
                     placeholder={t("profile.bioPlaceholder")}
                     className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors resize-none"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button onClick={handleSaveProfile}
-                    className="flex-1 py-2 bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white text-[11px] font-black uppercase tracking-widest rounded transition-colors">
-                    {t("common.save")}
-                  </button>
-                  <button onClick={() => { setIsEditing(false); setEditBio(user?.bio || ""); setEditUsername(user?.username || ""); }}
-                    className="flex-1 py-2 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-colors">
-                    {t("common.cancel")}
-                  </button>
+                    rows={3} />
                 </div>
               </div>
             ) : (
-              /* View mode */
               <>
-                <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">
-                  {user.username}
-                </h1>
-                {(user.preferences?.showEmail !== false) && (
-                  <p className="text-xs text-[#67707b] font-medium mb-1">{user.email}</p>
-                )}
-                {profileData?.customStatus && (
-                  <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profileData.customStatus}</p>
-                )}
-
+                <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">{user.username}</h1>
+                {(user.preferences?.showEmail !== false) && <p className="text-xs text-[#67707b] font-medium mb-1">{user.email}</p>}
+                {profileData?.customStatus && <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profileData.customStatus}</p>}
                 {user.isStudent && (
-                  <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">
-                    {t("profile.student")}
-                  </span>
+                  <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">{t("profile.student")}</span>
                 )}
-
-                <p
-                  onClick={() => setIsEditing(true)}
-                  className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-4 cursor-pointer hover:text-white transition-colors w-full"
-                >
+                <p className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-4 w-full">
                   {user.bio ? `"${user.bio}"` : `"${t("profile.defaultBio")}"`}
                 </p>
               </>
             )}
 
-            <button
-              onClick={() => {
-                const next = !isEditingBlocks;
-                setIsEditingBlocks(next);
-                if (next) { setEditBlocks([...blocks]); }
-                else { setEditBlocks([]); }
-              }}
-              className="w-full py-2.5 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-all shadow-md"
-            >
-              {isEditingBlocks ? t("profile.blocks.cancelEdit") : t("profile.editProfile")}
-            </button>
+            {/* Single edit button — toggles everything */}
+            {!isEditingBlocks && (
+              <button
+                onClick={() => {
+                  setIsEditingBlocks(true);
+                  setIsEditingBlocks(true);
+                  setEditBlocks([...blocks]);
+                  setEditUsername(user?.username || "");
+                  setEditBio(user?.bio || "");
+                  setEditCustomStatus(profileData?.customStatus || "");
+                  setShowEmail(user?.preferences?.showEmail !== false);
+                }}
+                className="w-full py-2.5 bg-[#1a9fff]/10 hover:bg-[#1a9fff]/20 text-[#1a9fff] text-[11px] font-black uppercase tracking-widest rounded transition-all border border-[#1a9fff]/30"
+              >
+                {t("profile.editProfile")}
+              </button>
+            )}
             <button
               onClick={() => onNavigate?.("settings")}
               className="w-full py-2 mt-2 text-[#67707b] hover:text-[#c6d4df] text-[10px] font-bold uppercase tracking-widest rounded transition-colors"
@@ -414,9 +336,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     allowComments={editAllowComments}
                     onVisibilityChange={setEditVisibility}
                     onAllowCommentsChange={setEditAllowComments}
-                    onSave={saveBlocks}
-                    onCancel={cancelEditingBlocks}
-                    saving={savingBlocks}
                   />
                 )}
 
@@ -467,6 +386,71 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         </div>
 
       </div>
+
+      {/* Floating Save/Cancel bar */}
+      {isEditingBlocks && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#161920]/95 backdrop-blur-md border-t border-[#2a2e38] shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between px-8 py-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#1a9fff] animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-[#1a9fff]">{t("profile.blocks.editProfile")}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  setIsEditingBlocks(false);
+                  setIsEditingBlocks(false);
+                  setEditBlocks([]);
+                  setEditBio(user?.bio || "");
+                  setEditUsername(user?.username || "");
+                }}
+                className="px-5 py-2 rounded border border-[#3d4450] text-[#8f98a0] hover:text-white text-[11px] font-bold uppercase tracking-widest transition-colors"
+              >
+                {t("profile.blocks.cancelEdit")}
+              </button>
+              <button
+                onClick={async () => {
+                  setSavingBlocks(true);
+                  try {
+                    // Save everything in parallel
+                    const blockData = editBlocks.map((b, i) => ({ id: b.id, type: b.type, position: i, config: b.config, visible: b.visible }));
+                    await Promise.all([
+                      api.profiles.saveBlocks(blockData),
+                      api.profiles.updateMe({ visibility: editVisibility as any, allowComments: editAllowComments }),
+                      api.auth.updateProfile({ bio: editBio }),
+                      api.auth.updatePreferences({ showEmail, customStatus: editCustomStatus || null }),
+                      (editUsername !== user?.username && editUsername.trim().length >= 3)
+                        ? api.auth.updateProfile({ username: editUsername.trim() } as any)
+                        : Promise.resolve(),
+                    ]);
+                    if (profileData) {
+                      await api.profiles.updateMe({ customStatus: editCustomStatus || undefined });
+                    }
+                    // Refresh
+                    const fresh = await api.profiles.getMe();
+                    setProfileData(fresh);
+                    setBlocks(fresh.blocks || []);
+                    setIsEditingBlocks(false);
+                    setIsEditingBlocks(false);
+                    useAuthStore.getState().loadSession();
+                    addToast(t("profile.updated"), "success");
+                  } catch (err: any) {
+                    addToast(err?.message || t("common.error"), "error");
+                  } finally {
+                    setSavingBlocks(false);
+                  }
+                }}
+                disabled={savingBlocks}
+                className="flex items-center gap-2 px-6 py-2 rounded bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white text-[11px] font-bold uppercase tracking-widest shadow-lg shadow-[#1a9fff]/20 transition-all disabled:opacity-60"
+              >
+                {savingBlocks && <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                {t("profile.blocks.saveChanges")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
