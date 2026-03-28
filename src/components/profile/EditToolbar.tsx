@@ -18,7 +18,7 @@ export function EditToolbar({ visibility, allowComments, onVisibilityChange, onA
 
   return (
     <div className="bg-[#161920]/90 backdrop-blur-md border border-[#2a2e38] rounded-xl p-4 mb-4">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
         {/* Visibility */}
         <div className="flex-1">
           <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.blocks.visibility")}</label>
