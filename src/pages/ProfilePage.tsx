@@ -35,7 +35,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [editBio, setEditBio] = useState(user?.bio || "");
   const [editUsername, setEditUsername] = useState(user?.username || "");
-  const [showEmail, setShowEmail] = useState(user?.preferences?.showEmail !== false);
   const [editCustomStatus, setEditCustomStatus] = useState("");
 
   // Block system state
@@ -232,12 +231,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-white text-center focus:outline-none focus:border-[#47bfff] transition-colors"
                     minLength={3} maxLength={30} />
                 </div>
-                <button onClick={() => setShowEmail(!showEmail)} className="flex items-center gap-2 w-full text-left">
-                  <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 ${showEmail ? "bg-[#1a9fff] border-[#1a9fff]" : "border-[#3d4450]"}`}>
-                    {showEmail && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>}
-                  </div>
-                  <span className="text-[10px] text-[#8f98a0]">{t("profile.showEmail")}</span>
-                </button>
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.customStatus")}</label>
                   <input type="text" value={editCustomStatus} onChange={(e) => setEditCustomStatus(e.target.value)}
@@ -256,7 +249,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             ) : (
               <>
                 <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">{user.username}</h1>
-                {(user.preferences?.showEmail !== false) && <p className="text-xs text-[#67707b] font-medium mb-1">{user.email}</p>}
                 {profileData?.customStatus && <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profileData.customStatus}</p>}
                 {user.isStudent && (
                   <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">{t("profile.student")}</span>
@@ -277,7 +269,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   setEditUsername(user?.username || "");
                   setEditBio(user?.bio || "");
                   setEditCustomStatus(profileData?.customStatus || "");
-                  setShowEmail(user?.preferences?.showEmail !== false);
                 }}
                 className="w-full py-2.5 bg-[#1a9fff]/10 hover:bg-[#1a9fff]/20 text-[#1a9fff] text-[11px] font-black uppercase tracking-widest rounded transition-all border border-[#1a9fff]/30"
               >
@@ -418,7 +409,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       api.profiles.saveBlocks(blockData),
                       api.profiles.updateMe({ visibility: editVisibility as any, allowComments: editAllowComments }),
                       api.auth.updateProfile({ bio: editBio }),
-                      api.auth.updatePreferences({ showEmail, customStatus: editCustomStatus || null }),
+                      api.auth.updatePreferences({ customStatus: editCustomStatus || null }),
                       (editUsername !== user?.username && editUsername.trim().length >= 3)
                         ? api.auth.updateProfile({ username: editUsername.trim() } as any)
                         : Promise.resolve(),
@@ -432,7 +423,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     setBlocks(fresh.blocks || []);
                     setIsEditingBlocks(false);
                     setIsEditingBlocks(false);
-                    useAuthStore.getState().loadSession();
+                    await useAuthStore.getState().loadSession();
                     addToast(t("profile.updated"), "success");
                   } catch (err: any) {
                     addToast(err?.message || t("common.error"), "error");
