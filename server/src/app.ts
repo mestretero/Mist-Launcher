@@ -32,7 +32,7 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export async function buildApp() {
   const app = Fastify({ logger: true });
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, { origin: true, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] });
   await app.register(helmet);
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   await app.register(fastifyStatic, {

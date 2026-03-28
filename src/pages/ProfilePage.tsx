@@ -82,31 +82,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const totalPlayTimeMins = libraryItems.reduce((sum, item) => sum + (item.playTimeMins || 0), 0);
   const totalPlayTimeHours = Math.floor(totalPlayTimeMins / 60);
 
-  // Find the most played game
-  const favoriteItem = libraryItems.length > 0
-    ? libraryItems.reduce((max, item) => (item.playTimeMins > max.playTimeMins) ? item : max, libraryItems[0])
-    : null;
-
   // Recently played games (sorted by lastPlayedAt)
   const recentlyPlayed = [...libraryItems]
     .filter(item => item.lastPlayedAt)
     .sort((a, b) => new Date(b.lastPlayedAt!).getTime() - new Date(a.lastPlayedAt!).getTime())
     .slice(0, 4);
-
-  const formatPlayTime = (mins: number) => {
-    if (mins < 60) return t("library.minutesShort", { count: mins });
-    return t("library.hoursMinutes", { hours: Math.floor(mins / 60), minutes: mins % 60 });
-  };
-
-  const formatRelativeDate = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    if (days === 0) return t("library.today");
-    if (days === 1) return t("library.yesterday");
-    if (days < 7) return t("library.daysAgo", { count: days });
-    if (days < 30) return t("library.weeksAgo", { count: Math.floor(days / 7) });
-    return t("library.monthsAgo", { count: Math.floor(days / 30) });
-  };
 
   const cancelEditingBlocks = () => {
     setEditBlocks([]);
@@ -351,92 +331,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar pb-20">
           <div className="flex flex-col gap-10">
 
-            {/* Spotlight Banner: Favorite Game */}
-            {favoriteItem && (
-              <section>
-                <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#47bfff]"></span>
-                  {t("profile.spotlight")}
-                </h2>
-
-                <div className="relative rounded-xl overflow-hidden border border-[#2a2e38] shadow-2xl group h-[280px]">
-                  <img src={favoriteItem.game.coverImageUrl} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" alt="Cover" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent" />
-
-                  <div className="absolute top-0 bottom-0 left-0 p-10 flex flex-col justify-center w-2/3">
-                    <span className="text-[10px] font-black text-[#47bfff] bg-[#47bfff]/10 px-2 py-1 rounded inline-block w-max mb-3 uppercase tracking-widest border border-[#47bfff]/20">
-                      {favoriteItem.game.publisher.name}
-                    </span>
-                    <h3 className="text-4xl font-black text-white tracking-widest uppercase mb-4 drop-shadow-md">{favoriteItem.game.title}</h3>
-
-                    <div className="flex gap-10 mb-6">
-                      <div>
-                        <div className="text-3xl font-black text-white drop-shadow">{formatPlayTime(favoriteItem.playTimeMins)}</div>
-                        <div className="text-[10px] font-bold text-[#8f98a0] uppercase tracking-widest">{t("library.playTime")}</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Recently Played Games */}
-            {recentlyPlayed.length > 0 && (
-              <section>
-                <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-brand-400"></span>
-                  {t("profile.recentlyPlayed")}
-                </h2>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {recentlyPlayed.map((item) => (
-                    <div key={item.id} className="relative rounded-xl overflow-hidden border border-[#2a2e38] group shadow-xl h-[140px]">
-                      <img src={item.game.coverImageUrl} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={item.game.title} />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0f1115] via-[#0f1115]/40 to-transparent" />
-                      <div className="absolute bottom-0 inset-x-0 p-4">
-                        <span className="text-xs font-black text-white uppercase tracking-widest drop-shadow-md block">{item.game.title}</span>
-                        <div className="flex items-center justify-between mt-1">
-                          <span className="text-[10px] font-bold text-[#47bfff]">{formatPlayTime(item.playTimeMins)}</span>
-                          <span className="text-[10px] font-bold text-[#67707b]">{formatRelativeDate(item.lastPlayedAt!)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Activity Timeline */}
-            <section>
-              <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#c6d4df]"></span>
-                {t("profile.timeline")}
-              </h2>
-
-              <div className="bg-[#1a1c23]/60 backdrop-blur-md rounded-xl border border-[#2a2e38] p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute left-[39px] top-6 bottom-6 w-px bg-[#2a2e38]"></div>
-
-                {recentlyPlayed.slice(0, 3).map((item, i) => (
-                  <div key={item.id} className={`flex gap-6 ${i < recentlyPlayed.length - 1 ? "mb-8" : ""} relative z-10`}>
-                    <div className={`w-8 h-8 rounded border-2 ${i === 0 ? "border-[#47bfff] shadow-[0_0_10px_rgba(71,191,255,0.2)]" : "border-[#67707b]"} bg-[#2a2e38] flex items-center justify-center flex-shrink-0 overflow-hidden`}>
-                      <img src={item.game.coverImageUrl} className="w-full h-full object-cover" alt="" />
-                    </div>
-                    <div className="bg-[#20232c]/80 p-4 rounded-lg border border-[#2a2e38] flex-1 hover:border-[#3d4450] transition-colors">
-                      <div className="text-[10px] font-bold text-[#8f98a0] uppercase tracking-widest mb-1">{formatRelativeDate(item.lastPlayedAt!)}</div>
-                      <p className="text-sm font-medium text-[#c6d4df]">
-                        {t("profile.playedActivity", { title: item.game.title, time: formatPlayTime(item.playTimeMins) })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {recentlyPlayed.length === 0 && (
-                  <p className="text-sm text-[#67707b] font-medium relative z-10">{t("library.noActivity")}</p>
-                )}
-              </div>
-            </section>
-
-            {/* Profile Blocks Section */}
+            {/* Profile Blocks Section — all content is blocks */}
             {(blocks.length > 0 || isEditingBlocks) && (
               <section className="mt-4">
                 {isEditingBlocks && (

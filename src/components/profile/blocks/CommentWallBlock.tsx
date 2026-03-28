@@ -35,7 +35,7 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
-  const initials = name.slice(0, 2).toUpperCase();
+  const initials = (name || "??").slice(0, 2).toUpperCase();
   if (avatarUrl) {
     return (
       <img

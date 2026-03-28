@@ -3,9 +3,11 @@ import { notFound, forbidden, badRequest } from "../lib/errors.js";
 
 // Default blocks created when a new profile is first accessed
 const DEFAULT_BLOCK_TYPES = [
-  { type: "STATS" as const, position: 0 },
-  { type: "ACTIVITY" as const, position: 1 },
-  { type: "COMMENT_WALL" as const, position: 2 },
+  { type: "FAVORITE_GAME" as const, position: 0, config: {} },
+  { type: "STATS" as const, position: 1, config: { show: ["games", "hours", "achievements"] } },
+  { type: "GAME_SHOWCASE" as const, position: 2, config: { gameIds: [], layout: "grid" } },
+  { type: "ACTIVITY" as const, position: 3, config: { count: 5 } },
+  { type: "COMMENT_WALL" as const, position: 4, config: {} },
 ];
 
 /**
