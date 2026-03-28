@@ -38,8 +38,17 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   const loadFriends = async () => {
     setFriendsLoading(true);
     try {
-      const data = await api.friends.list();
-      setFriends(Array.isArray(data) ? data : []);
+      const raw = await api.friends.list();
+      const data = (Array.isArray(raw) ? raw : []).map((f: any) => ({
+        id: f.friend?.id || f.id,
+        friendshipId: f.friendshipId || f.id,
+        username: f.friend?.username || f.username,
+        avatarUrl: f.friend?.avatarUrl || f.avatarUrl,
+        bio: f.friend?.bio || f.bio,
+        status: "ACCEPTED" as const,
+        createdAt: f.since || f.createdAt,
+      }));
+      setFriends(data);
     } catch {
       setFriends([]);
     } finally {
@@ -50,8 +59,17 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   const loadPending = async () => {
     setPendingLoading(true);
     try {
-      const data = await api.friends.pending();
-      setPending(Array.isArray(data) ? data : []);
+      const raw = await api.friends.pending();
+      const data = (Array.isArray(raw) ? raw : []).map((f: any) => ({
+        id: f.sender?.id || f.senderId,
+        friendshipId: f.id,
+        username: f.sender?.username,
+        avatarUrl: f.sender?.avatarUrl,
+        bio: f.sender?.bio,
+        status: "PENDING" as const,
+        createdAt: f.createdAt,
+      }));
+      setPending(data);
     } catch {
       setPending([]);
     } finally {
@@ -103,8 +121,16 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
     if (!searchQuery.trim()) return;
     setSearchLoading(true);
     try {
-      const data = await api.friends.search(searchQuery.trim());
-      setSearchResults(Array.isArray(data) ? data : []);
+      const raw = await api.friends.search(searchQuery.trim());
+      const data = (Array.isArray(raw) ? raw : []).map((u: any) => ({
+        id: u.id,
+        friendshipId: u.id,
+        username: u.username,
+        avatarUrl: u.avatarUrl,
+        status: "PENDING" as const,
+        createdAt: "",
+      }));
+      setSearchResults(data);
     } catch {
       setSearchResults([]);
       addToast(t("friends.searchError"), "error");
@@ -125,8 +151,8 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
     }
   };
 
-  const getInitials = (username: string) => {
-    return username.slice(0, 2).toUpperCase();
+  const getInitials = (name?: string | null) => {
+    return (name || "??").slice(0, 2).toUpperCase();
   };
 
   const containerClass = "max-w-[1400px] mx-auto px-10";
@@ -315,7 +341,7 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                     {/* Avatar */}
                     {req.avatarUrl ? (
                       <img
-                        src={req.avatarUrl}
+                        src={req.avatarUrl?.startsWith("http") ? req.avatarUrl : `http://localhost:3001${req.avatarUrl}`}
                         alt={req.username}
                         className="w-10 h-10 rounded-full object-cover"
                       />
@@ -406,7 +432,7 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                     {/* Avatar */}
                     {user.avatarUrl ? (
                       <img
-                        src={user.avatarUrl}
+                        src={user.avatarUrl?.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`}
                         alt={user.username}
                         className="w-10 h-10 rounded-full object-cover"
                       />
