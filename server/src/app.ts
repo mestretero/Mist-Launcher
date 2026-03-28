@@ -35,7 +35,10 @@ export async function buildApp() {
 
   await app.register(cors, { origin: true, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] });
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB max
-  await app.register(helmet);
+  await app.register(helmet, {
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: false,
+  });
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   await app.register(fastifyStatic, {
     root: join(__dirname, "..", "public"),
