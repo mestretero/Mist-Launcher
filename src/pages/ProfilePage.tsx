@@ -108,12 +108,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     return t("library.monthsAgo", { count: Math.floor(days / 30) });
   };
 
-  // Block system handlers
-  const startEditingBlocks = () => {
-    setEditBlocks([...blocks]);
-    setIsEditingBlocks(true);
-  };
-
   const cancelEditingBlocks = () => {
     setEditBlocks([]);
     setIsEditingBlocks(false);
@@ -304,10 +298,15 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             )}
 
             <button
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                const next = !isEditingBlocks;
+                setIsEditingBlocks(next);
+                if (next) { setEditBlocks([...blocks]); }
+                else { setEditBlocks([]); }
+              }}
               className="w-full py-2.5 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-all shadow-md"
             >
-              {isEditing ? t("common.cancel") : t("profile.editProfile")}
+              {isEditingBlocks ? t("profile.blocks.cancelEdit") : t("profile.editProfile")}
             </button>
             <button
               onClick={() => onNavigate?.("settings")}
@@ -438,21 +437,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             </section>
 
             {/* Profile Blocks Section */}
-            {blocks.length > 0 && (
+            {(blocks.length > 0 || isEditingBlocks) && (
               <section className="mt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[11px] font-black text-[#8f98a0] uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#1a9fff]"></span>
-                    {t("profile.blocks.editProfile")}
-                  </h2>
-                  {!isEditingBlocks && (
-                    <button onClick={startEditingBlocks}
-                      className="text-[10px] font-bold text-[#1a9fff] hover:text-white uppercase tracking-widest transition-colors">
-                      {t("profile.blocks.editProfile")}
-                    </button>
-                  )}
-                </div>
-
                 {isEditingBlocks && (
                   <EditToolbar
                     visibility={editVisibility}
