@@ -158,7 +158,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     const extras: any = {};
     if (block.type === "STATS") extras.stats = { games: totalGames, hours: totalPlayTimeHours, achievements: 0 };
     if (block.type === "ACTIVITY") extras.recentlyPlayed = recentlyPlayed.map((i) => ({ title: i.game.title, coverUrl: i.game.coverImageUrl, playTime: i.playTimeMins, lastPlayed: i.lastPlayedAt }));
-    if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") extras.libraryItems = libraryItems;
+    if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") {
+      extras.libraryItems = libraryItems.map((i) => ({
+        id: i.gameId || i.id,
+        title: i.game.title,
+        coverUrl: i.game.coverImageUrl,
+        playTime: i.playTimeMins,
+      }));
+    }
     if (block.type === "ACHIEVEMENTS") extras.achievements = [];
     if (block.type === "COMMENT_WALL") {
       extras.username = user?.username;
@@ -338,10 +345,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <EditToolbar
                     visibility={editVisibility}
                     allowComments={editAllowComments}
-                    bannerTheme={editBannerTheme}
                     onVisibilityChange={setEditVisibility}
                     onAllowCommentsChange={setEditAllowComments}
-                    onBannerThemeChange={setEditBannerTheme}
                     onSave={saveBlocks}
                     onCancel={cancelEditingBlocks}
                     saving={savingBlocks}

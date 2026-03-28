@@ -1,12 +1,5 @@
 import { useTranslation } from "react-i18next";
 
-const BANNER_THEMES = [
-  { id: "default", nameKey: "profile.themeDarkGalaxy" },
-  { id: "cyber", nameKey: "profile.themeCyberNeon" },
-  { id: "nature", nameKey: "profile.themeMysticForest" },
-  { id: "mech", nameKey: "profile.themeMetallicWar" },
-];
-
 const VISIBILITY_OPTIONS = [
   { value: "PUBLIC", labelKey: "profile.blocks.visibilityPublic" },
   { value: "FRIENDS", labelKey: "profile.blocks.visibilityFriends" },
@@ -16,18 +9,16 @@ const VISIBILITY_OPTIONS = [
 interface EditToolbarProps {
   visibility: string;
   allowComments: boolean;
-  bannerTheme: string;
   onVisibilityChange: (v: string) => void;
   onAllowCommentsChange: (v: boolean) => void;
-  onBannerThemeChange: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
 }
 
 export function EditToolbar({
-  visibility, allowComments, bannerTheme,
-  onVisibilityChange, onAllowCommentsChange, onBannerThemeChange,
+  visibility, allowComments,
+  onVisibilityChange, onAllowCommentsChange,
   onSave, onCancel, saving,
 }: EditToolbarProps) {
   const { t } = useTranslation();
@@ -37,22 +28,13 @@ export function EditToolbar({
   return (
     <div className="bg-[#161920]/95 backdrop-blur-md border border-[#2a2e38] rounded-xl shadow-xl shadow-black/40 p-4 space-y-3">
       {/* Row 1: Controls */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {/* Visibility */}
         <div>
           <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.blocks.visibility")}</label>
           <select value={visibility} onChange={(e) => onVisibilityChange(e.target.value)} className={selectCls + " w-full"}>
             {VISIBILITY_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
-            ))}
-          </select>
-        </div>
-        {/* Banner theme */}
-        <div>
-          <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.chooseTheme")}</label>
-          <select value={bannerTheme} onChange={(e) => onBannerThemeChange(e.target.value)} className={selectCls + " w-full"}>
-            {BANNER_THEMES.map((theme) => (
-              <option key={theme.id} value={theme.id}>{t(theme.nameKey)}</option>
             ))}
           </select>
         </div>
