@@ -455,7 +455,11 @@
       "textTitlePlaceholder": "İsteğe bağlı başlık",
       "textContent": "İçerik",
       "textContentPlaceholder": "Bir şeyler yaz...",
-      "textEmpty": "Henüz içerik yok."
+      "textEmpty": "Henüz içerik yok.",
+      "commentJustNow": "Az once",
+      "commentMinutesAgo": "{{count}} dk once",
+      "commentHoursAgo": "{{count}} sa once",
+      "commentDaysAgo": "{{count}} gun once"
     }
   },
   "gameCard": {

@@ -455,7 +455,11 @@
       "textTitlePlaceholder": "Encabezado opcional",
       "textContent": "Contenido",
       "textContentPlaceholder": "Escribe algo...",
-      "textEmpty": "Aún no hay contenido."
+      "textEmpty": "Aún no hay contenido.",
+      "commentJustNow": "Justo ahora",
+      "commentMinutesAgo": "Hace {{count}} min",
+      "commentHoursAgo": "Hace {{count}}h",
+      "commentDaysAgo": "Hace {{count}} dias"
     }
   },
   "gameCard": {

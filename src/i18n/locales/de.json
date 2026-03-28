@@ -455,7 +455,11 @@
       "textTitlePlaceholder": "Optionale Überschrift",
       "textContent": "Inhalt",
       "textContentPlaceholder": "Schreibe etwas...",
-      "textEmpty": "Noch kein Inhalt."
+      "textEmpty": "Noch kein Inhalt.",
+      "commentJustNow": "Gerade eben",
+      "commentMinutesAgo": "Vor {{count}} Min.",
+      "commentHoursAgo": "Vor {{count}} Std.",
+      "commentDaysAgo": "Vor {{count}} Tagen"
     }
   },
   "gameCard": {
