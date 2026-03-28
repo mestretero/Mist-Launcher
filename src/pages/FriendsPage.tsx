@@ -6,7 +6,7 @@ import type { Friend } from "../lib/types";
 
 type Tab = "friends" | "pending" | "search";
 
-export function FriendsPage() {
+export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?: string) => void }) {
   const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const [activeTab, setActiveTab] = useState<Tab>("friends");
@@ -235,9 +235,12 @@ export function FriendsPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-brand-100 truncate">
+                      <button
+                        onClick={() => onNavigate?.("user-profile", friend.username)}
+                        className="text-sm font-bold text-brand-100 truncate hover:text-brand-300 transition-colors text-left"
+                      >
                         {friend.username}
-                      </h4>
+                      </button>
                       {friend.bio && (
                         <p className="text-xs text-brand-500 truncate mt-0.5">
                           {friend.bio}

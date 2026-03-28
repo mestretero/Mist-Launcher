@@ -110,7 +110,7 @@ function App() {
       {page === "cart" && <CartPage onGameClick={(slug) => navigate("game", slug)} onNavigate={navigate} />}
       {page === "collections" && <CollectionsPage />}
       {page === "scanner" && <GameScannerPage onNavigate={navigate} />}
-      {page === "friends" && <FriendsPage />}
+      {page === "friends" && <FriendsPage onNavigate={navigate} />}
       {page === "settings" && <SettingsPage />}
       {page === "profile" && <ProfilePage onNavigate={navigate} />}
       {page === "user-profile" && gameSlug && (
