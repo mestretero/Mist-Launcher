@@ -22,9 +22,10 @@ async function getAccessToken(): Promise<string | null> {
 async function request<T>(path: string, options: RequestInit = {}, _retry = false): Promise<T> {
   const token = await getAccessToken();
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...((options.headers as Record<string, string>) || {}),
   };
+  // Only set Content-Type for requests with body
+  if (options.body) headers["Content-Type"] = "application/json";
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
