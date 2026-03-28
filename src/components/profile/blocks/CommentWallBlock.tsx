@@ -23,15 +23,15 @@ interface BlockProps {
   onDeleteComment?: (id: string) => void;
 }
 
-function formatRelativeTime(dateStr: string): string {
+function formatRelativeTime(dateStr: string, t: (key: string, opts?: any) => string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return "just now";
+  if (days > 0) return t("profile.blocks.commentDaysAgo", { count: days });
+  if (hours > 0) return t("profile.blocks.commentHoursAgo", { count: hours });
+  if (minutes > 0) return t("profile.blocks.commentMinutesAgo", { count: minutes });
+  return t("profile.blocks.commentJustNow");
 }
 
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
@@ -148,7 +148,7 @@ export function CommentWallBlock({
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-white">{comment.authorName}</span>
                       <span className="text-[10px] text-[#5e6673]">
-                        {formatRelativeTime(comment.createdAt)}
+                        {formatRelativeTime(comment.createdAt, t)}
                       </span>
                     </div>
                     {(isOwn || isProfileOwner) && onDeleteComment && (
