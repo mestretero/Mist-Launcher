@@ -241,7 +241,7 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
 
   if (!profile) return null;
 
-  const visibleBlocks = profile.blocks.filter((b) => b.visible);
+  const visibleBlocks = (profile.blocks || []).filter((b: any) => b.visible);
 
   return (
     <div className="flex flex-col h-full bg-[#0f1115] overflow-hidden">
