@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-const API_URL = "http://localhost:3001";
+export const API_URL = "http://localhost:3001";
 
 let cachedAccessToken: string | null = null;
 

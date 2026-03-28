@@ -133,8 +133,11 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-brand-800 transition-colors"
               >
-                <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px]">
-                  {user.username.slice(0, 2).toUpperCase()}
+                <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px] overflow-hidden">
+                  {user.avatarUrl
+                    ? <img src={`http://localhost:3001${user.avatarUrl}`} alt="" className="w-full h-full object-cover" />
+                    : user.username.slice(0, 2).toUpperCase()
+                  }
                 </div>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`text-brand-500 transition-transform ${profileOpen ? "rotate-180" : ""}`}>
                   <polyline points="6 9 12 15 18 9"/>
