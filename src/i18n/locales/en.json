@@ -375,6 +375,8 @@
     "customStatus": "Custom Status",
     "customStatusPlaceholder": "What are you up to?",
     "bio": "About Me",
+    "avatarUpdated": "Profile picture updated",
+    "avatarTooLarge": "File too large (max 2MB)",
     "blocks": {
       "gameShowcase": "Game Showcase",
       "gameShowcaseDesc": "Display 1-4 games",

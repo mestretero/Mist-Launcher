@@ -218,9 +218,37 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
             <div className="relative mb-6">
               <div className="w-32 h-32 bg-[#2a2e38] border-2 border-[#47bfff] rounded-full shadow-[0_0_20px_rgba(71,191,255,0.2)] overflow-hidden flex items-center justify-center relative z-10">
-                <span className="text-4xl font-black text-[#8f98a0]">{user.username.slice(0, 2).toUpperCase()}</span>
+                {user.avatarUrl ? (
+                  <img src={`http://localhost:3001${user.avatarUrl}`} alt={user.username} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-4xl font-black text-[#8f98a0]">{user.username.slice(0, 2).toUpperCase()}</span>
+                )}
               </div>
               <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#47bfff] rounded-full border-4 border-[#1a1c23] z-20" title={t("profile.online")} />
+              {isEditingBlocks && (
+                <button
+                  onClick={() => document.getElementById("avatar-upload")?.click()}
+                  className="absolute top-0 left-0 w-32 h-32 rounded-full bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-30 cursor-pointer"
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+              )}
+              <input
+                id="avatar-upload" type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 2 * 1024 * 1024) { addToast(t("profile.avatarTooLarge"), "error"); return; }
+                  try {
+                    await api.auth.uploadAvatar(file);
+                    await useAuthStore.getState().loadSession();
+                    addToast(t("profile.avatarUpdated"), "success");
+                  } catch (err: any) {
+                    addToast(err?.message || t("common.error"), "error");
+                  }
+                  e.target.value = "";
+                }}
+              />
             </div>
 
             {isEditingBlocks ? (

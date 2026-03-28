@@ -375,6 +375,8 @@
     "customStatus": "Estado personalizado",
     "customStatusPlaceholder": "¿Qué estás haciendo?",
     "bio": "Sobre mí",
+    "avatarUpdated": "Foto de perfil actualizada",
+    "avatarTooLarge": "Archivo demasiado grande (max 2MB)",
     "blocks": {
       "gameShowcase": "Vitrina de juegos",
       "gameShowcaseDesc": "Muestra entre 1 y 4 juegos",

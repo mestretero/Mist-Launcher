@@ -79,6 +79,19 @@ export const api = {
     me: () => request<{ id: string; email: string; username: string; isStudent: boolean; referralCode: string; avatarUrl?: string; bio?: string; walletBalance: string; isEmailVerified: boolean; twoFactorEnabled: boolean; preferences?: Record<string, any>; createdAt?: string }>("/auth/me"),
     updateProfile: (data: { bio?: string; avatarUrl?: string }) =>
       request<any>("/auth/profile", { method: "PATCH", body: JSON.stringify(data) }),
+    uploadAvatar: async (file: File) => {
+      const token = await getAccessToken();
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API_URL}/auth/avatar`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error?.message || "Upload failed");
+      return body.data;
+    },
     updatePreferences: (prefs: Record<string, any>) =>
       request<any>("/auth/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
     forgotPassword: (email: string) =>

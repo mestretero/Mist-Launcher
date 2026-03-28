@@ -1,9 +1,17 @@
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { randomUUID } from "crypto";
+import { join } from "path";
+import { unlink, writeFile, mkdir } from "fs/promises";
+import { existsSync } from "fs";
 import { registerSchema, loginSchema, refreshSchema, verifyStudentSchema } from "../schemas/auth.schema.js";
 import * as authService from "../services/auth.service.js";
 import * as twoFactorService from "../services/twoFactor.service.js";
 import { AppError } from "../lib/errors.js";
+
+const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_AVATAR_SIZE = 2 * 1024 * 1024; // 2MB
+const AVATARS_DIR = join(import.meta.dirname, "../../public/avatars");
 
 const preferencesSchema = z.object({
   downloadPath: z.string().optional(),
@@ -58,6 +66,53 @@ export default async function authRoutes(app: FastifyInstance) {
     handler: async (request, reply) => {
       const { bio, avatarUrl } = request.body as { bio?: string; avatarUrl?: string };
       const user = await authService.updateProfile(request.user!.userId, { bio, avatarUrl });
+      return reply.send({ data: user });
+    },
+  });
+
+  // Avatar upload
+  app.post("/auth/avatar", {
+    preHandler: [app.authenticate],
+    handler: async (request, reply) => {
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "No file uploaded" } });
+      }
+
+      if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+        return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "Only JPG, PNG, WebP allowed" } });
+      }
+
+      // Read file buffer
+      const chunks: Buffer[] = [];
+      for await (const chunk of file.file) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+
+      if (buffer.length > MAX_AVATAR_SIZE) {
+        return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "File too large (max 2MB)" } });
+      }
+
+      // Delete old avatar if exists
+      const currentUser = await authService.getProfile(request.user!.userId);
+      if (currentUser.avatarUrl) {
+        const oldFilename = currentUser.avatarUrl.split("/").pop();
+        if (oldFilename) {
+          const oldPath = join(AVATARS_DIR, oldFilename);
+          try { await unlink(oldPath); } catch {}
+        }
+      }
+
+      // Save new avatar
+      const ext = file.mimetype === "image/png" ? ".png" : file.mimetype === "image/webp" ? ".webp" : ".jpg";
+      const filename = `${request.user!.userId}-${randomUUID().slice(0, 8)}${ext}`;
+      if (!existsSync(AVATARS_DIR)) await mkdir(AVATARS_DIR, { recursive: true });
+      await writeFile(join(AVATARS_DIR, filename), buffer);
+
+      // Update DB
+      const avatarUrl = `/public/avatars/${filename}`;
+      const user = await authService.updateProfile(request.user!.userId, { avatarUrl });
       return reply.send({ data: user });
     },
   });

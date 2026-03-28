@@ -375,6 +375,8 @@
     "customStatus": "Ozel Durum",
     "customStatusPlaceholder": "Ne yapiyorsun?",
     "bio": "Hakkimda",
+    "avatarUpdated": "Profil resmi guncellendi",
+    "avatarTooLarge": "Dosya cok buyuk (maks 2MB)",
     "blocks": {
       "gameShowcase": "Oyun Vitrini",
       "gameShowcaseDesc": "1-4 oyun secip sergile",
