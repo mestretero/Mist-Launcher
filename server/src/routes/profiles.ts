@@ -95,10 +95,15 @@ export default async function profileRoutes(app: FastifyInstance) {
   app.delete(
     "/profiles/:username/comments/:id",
     { preHandler: [app.authenticate] },
-    async (request) => {
-      const { id } = request.params as { username: string; id: string };
-      await profileService.deleteComment(request.user!.userId, id);
-      return { data: { success: true } };
+    async (request, reply) => {
+      try {
+        const { id } = request.params as { username: string; id: string };
+        await profileService.deleteComment(request.user!.userId, id);
+        return { data: { success: true } };
+      } catch (err: any) {
+        const status = err.statusCode || 500;
+        return reply.status(status).send({ error: { code: err.code || "ERROR", message: err.message || "Unknown error" } });
+      }
     }
   );
 }
