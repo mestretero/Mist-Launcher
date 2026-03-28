@@ -35,6 +35,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [editBio, setEditBio] = useState(user?.bio || "");
+  const [editUsername, setEditUsername] = useState(user?.username || "");
+  const [showEmail, setShowEmail] = useState(user?.preferences?.showEmail !== false);
+  const [editCustomStatus, setEditCustomStatus] = useState("");
 
   // Block system state
   const [profileData, setProfileData] = useState<any>(null);
@@ -60,6 +63,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       setEditVisibility(data.visibility || "PUBLIC");
       setEditAllowComments(data.allowComments ?? true);
       setEditBannerTheme(data.bannerTheme || "default");
+      setEditCustomStatus(data.customStatus || "");
     }).catch(() => {});
 
     // Fetch comments for comment wall
@@ -194,9 +198,21 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const handleSaveProfile = async () => {
     try {
       await api.auth.updateProfile({ bio: editBio });
+      // Save username if changed
+      if (editUsername !== user?.username && editUsername.trim().length >= 3) {
+        await api.auth.updateProfile({ username: editUsername.trim() } as any);
+      }
+      // Save preferences (showEmail, customStatus)
+      await api.auth.updatePreferences({ showEmail, customStatus: editCustomStatus || null });
+      // Update profile custom status
+      if (profileData) {
+        await api.profiles.updateMe({ customStatus: editCustomStatus || undefined });
+      }
       addToast(t("profile.updated"), "success");
       setIsEditing(false);
-    } catch { addToast(t("profile.updateError"), "error"); }
+      // Reload user data
+      useAuthStore.getState().loadSession();
+    } catch (err: any) { addToast(err?.message || t("profile.updateError"), "error"); }
   };
 
   return (
@@ -253,48 +269,86 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#47bfff] rounded-full border-4 border-[#1a1c23] z-20" title={t("profile.online")} />
             </div>
 
-            <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">
-              {user.username}
-            </h1>
-            <p className="text-xs text-[#67707b] font-medium mb-4">{user.email}</p>
-
-            {user.isStudent && (
-              <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">
-                {t("profile.student")}
-              </span>
-            )}
-
             {isEditing ? (
-              <div className="w-full mb-8 border-y border-[#2a2e38]/50 py-4">
-                <textarea
-                  value={editBio}
-                  onChange={(e) => setEditBio(e.target.value)}
-                  placeholder={t("profile.bioPlaceholder")}
-                  className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors resize-none"
-                  rows={3}
-                />
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={handleSaveProfile}
-                    className="flex-1 py-2 bg-[#47bfff] hover:bg-[#47bfff]/80 text-[#0f1115] text-[11px] font-black uppercase tracking-widest rounded transition-colors"
-                  >
+              /* Edit mode — full identity editing */
+              <div className="w-full space-y-3 mb-6">
+                {/* Username */}
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("auth.usernamePlaceholder")}</label>
+                  <input
+                    type="text" value={editUsername} onChange={(e) => setEditUsername(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-white text-center focus:outline-none focus:border-[#47bfff] transition-colors"
+                    minLength={3} maxLength={30}
+                  />
+                </div>
+
+                {/* Email visibility toggle */}
+                <button onClick={() => setShowEmail(!showEmail)} className="flex items-center gap-2 cursor-pointer w-full text-left">
+                  <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 ${showEmail ? "bg-[#1a9fff] border-[#1a9fff]" : "border-[#3d4450]"}`}>
+                    {showEmail && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                  <span className="text-[10px] text-[#8f98a0]">{t("profile.showEmail")}</span>
+                </button>
+
+                {/* Custom Status */}
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.customStatus")}</label>
+                  <input
+                    type="text" value={editCustomStatus} onChange={(e) => setEditCustomStatus(e.target.value)}
+                    placeholder={t("profile.customStatusPlaceholder")}
+                    className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-xs text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors"
+                    maxLength={100}
+                  />
+                </div>
+
+                {/* Bio */}
+                <div>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.bio")}</label>
+                  <textarea
+                    value={editBio} onChange={(e) => setEditBio(e.target.value)}
+                    placeholder={t("profile.bioPlaceholder")}
+                    className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button onClick={handleSaveProfile}
+                    className="flex-1 py-2 bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white text-[11px] font-black uppercase tracking-widest rounded transition-colors">
                     {t("common.save")}
                   </button>
-                  <button
-                    onClick={() => { setIsEditing(false); setEditBio(user?.bio || ""); }}
-                    className="flex-1 py-2 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-colors"
-                  >
+                  <button onClick={() => { setIsEditing(false); setEditBio(user?.bio || ""); setEditUsername(user?.username || ""); }}
+                    className="flex-1 py-2 bg-[#2a2e38]/80 hover:bg-[#3d4450] text-white text-[11px] font-black uppercase tracking-widest rounded transition-colors">
                     {t("common.cancel")}
                   </button>
                 </div>
               </div>
             ) : (
-              <p
-                onClick={() => setIsEditing(true)}
-                className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-8 border-y border-[#2a2e38]/50 py-4 cursor-pointer hover:text-white transition-colors"
-              >
-                {user.bio ? `"${user.bio}"` : `"${t("profile.defaultBio")}"`}
-              </p>
+              /* View mode */
+              <>
+                <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">
+                  {user.username}
+                </h1>
+                {(user.preferences?.showEmail !== false) && (
+                  <p className="text-xs text-[#67707b] font-medium mb-1">{user.email}</p>
+                )}
+                {profileData?.customStatus && (
+                  <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profileData.customStatus}</p>
+                )}
+
+                {user.isStudent && (
+                  <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">
+                    {t("profile.student")}
+                  </span>
+                )}
+
+                <p
+                  onClick={() => setIsEditing(true)}
+                  className="text-sm font-medium text-[#c6d4df] text-center leading-relaxed italic mb-6 border-y border-[#2a2e38]/50 py-4 cursor-pointer hover:text-white transition-colors w-full"
+                >
+                  {user.bio ? `"${user.bio}"` : `"${t("profile.defaultBio")}"`}
+                </p>
+              </>
             )}
 
             <button
