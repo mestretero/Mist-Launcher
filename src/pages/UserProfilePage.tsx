@@ -22,24 +22,33 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
   const { user: currentUser } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
 
-  const [profile, setProfile] = useState<any>(null);
+  const [profileData, setProfileData] = useState<any>(null); // { user, profile }
   const [restricted, setRestricted] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    setProfile(null);
+    setProfileData(null);
     setRestricted(null);
     api.profiles.get(username)
       .then((data: any) => {
-        if (data?.restricted) setRestricted(data.restricted);
-        else if (data?.profile) setProfile(data.profile);
-        else setProfile(data);
+        if (data?.restricted) {
+          setRestricted(data.restricted);
+        } else {
+          // API returns { user: {...}, profile: { blocks: [...] } } OR { profile: {...} }
+          setProfileData({
+            user: data.user || data.profile?.user || {},
+            profile: data.profile || data,
+          });
+        }
       })
       .catch(() => addToast(t("common.error"), "error"))
       .finally(() => setLoading(false));
   }, [username]);
+
+  const profile = profileData?.profile;
+  const profileUser = profileData?.user;
 
   const fetchComments = useCallback(async () => {
     if (!profile?.allowComments) return;
@@ -64,6 +73,9 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
       await fetchComments();
     } catch { addToast(t("common.error"), "error"); }
   };
+
+  // For blocks that need library data — we don't have access to other user's library
+  // So game_showcase and favorite_game blocks will show titles from config only
 
   if (loading) {
     return (
@@ -92,31 +104,31 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
     );
   }
 
-  if (!profile) return null;
+  if (!profileData) return null;
 
-  const user = profile.user || profile;
-  const blocks = (profile.blocks || []).filter((b: any) => b.visible);
-  const bgTheme = THEMES.find(t => t.id === profile.bannerTheme) || THEMES[0];
+  const user = profileUser || {};
+  const blocks = (profile?.blocks || []).filter((b: any) => b.visible);
+  const bgTheme = THEMES.find(t => t.id === profile?.bannerTheme) || THEMES[0];
   const avatarUrl = user.avatarUrl ? (user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`) : null;
 
   const getExtraProps = (block: any) => {
+    const extras: any = {};
     if (block.type === "COMMENT_WALL") {
-      return {
-        username,
-        comments: comments.map((c: any) => ({
-          id: c.id,
-          authorName: c.author?.username || "?",
-          authorAvatar: c.author?.avatarUrl,
-          content: c.content,
-          createdAt: c.createdAt,
-        })),
-        allowComments: profile.allowComments ?? false,
-        currentUserId: currentUser?.id,
-        onAddComment: handleAddComment,
-        onDeleteComment: handleDeleteComment,
-      };
+      extras.username = username;
+      extras.comments = comments.map((c: any) => ({
+        id: c.id, authorName: c.author?.username || "?", authorAvatar: c.author?.avatarUrl,
+        content: c.content, createdAt: c.createdAt,
+      }));
+      extras.allowComments = profile?.allowComments ?? false;
+      extras.currentUserId = currentUser?.id;
+      extras.onAddComment = handleAddComment;
+      extras.onDeleteComment = handleDeleteComment;
     }
-    return {};
+    if (block.type === "STATS") extras.stats = { games: 0, hours: 0, achievements: 0 };
+    if (block.type === "ACTIVITY") extras.recentlyPlayed = [];
+    if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") extras.libraryItems = [];
+    if (block.type === "ACHIEVEMENTS") extras.achievements = [];
+    return extras;
   };
 
   return (
@@ -147,7 +159,7 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
             </div>
 
             <h1 className="text-3xl font-black text-white tracking-widest uppercase mb-1 drop-shadow-md text-center">{user.username}</h1>
-            {profile.customStatus && <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profile.customStatus}</p>}
+            {profile?.customStatus && <p className="text-xs text-[#47bfff] font-medium mb-3 italic">{profile.customStatus}</p>}
             {user.isStudent && (
               <span className="text-[10px] font-black px-3 py-1 rounded-full bg-[#47bfff]/10 text-[#47bfff] border border-[#47bfff]/30 mb-4 uppercase tracking-widest">{t("profile.student")}</span>
             )}
