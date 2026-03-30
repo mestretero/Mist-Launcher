@@ -269,9 +269,7 @@ export const AAA_APPIDS = [
   1593500, // God of War
   1338770, // Death Stranding DC
   1332010, // Stray
-  // === MULTIPLAYER WITH CAMPAIGNS ===
-  381210,  // Dead by Daylight
-  252490,  // Rust
+  // === (multiplayer-only games removed) ===
   // === STRATEGY / SIM ===
   813780,  // Age of Empires II DE
   1466860, // Age of Empires IV
@@ -313,7 +311,7 @@ export const AAA_APPIDS = [
   // === SIMULATION ===
   227300,  // Euro Truck Simulator 2
   311210,  // Call of Duty: Black Ops III
-  393380,  // Squad
+  // 393380, // Squad (multiplayer-only)
   431960,  // Wallpaper Engine
   // === MORE QUALITY INDIE ===
   1092790, // Inscryption
@@ -326,7 +324,7 @@ export const AAA_APPIDS = [
   1313140, // Subnautica: Below Zero
   427520,  // Factorio
   526870,  // Satisfactory
-  304930,  // Unturned
+  // 304930, // Unturned (multiplayer-only)
   1150690, // OMORI
   1902490, // Dave the Diver
   560130,  // Celeste
@@ -417,10 +415,10 @@ export const AAA_APPIDS = [
   431960,  // Wallpaper Engine
   236390,  // War Thunder
   346110,  // ARK: Survival Evolved
-  304930,  // Unturned
+  // 304930, // Unturned (multiplayer-only)
   526870,  // Satisfactory
   427520,  // Factorio
-  393380,  // Squad
+  // 393380, // Squad (multiplayer-only)
   // === CALL OF DUTY SERIES ===
   2933620, // Marathon (Bungie)
   1938090, // CoD: Modern Warfare III
