@@ -38,6 +38,9 @@ async function fetchAppDetails(appId: number): Promise<SteamAppDetail | null> {
   try {
     const res = await fetch(`https://store.steampowered.com/api/appdetails?appids=${appId}&l=english`, {
       signal: AbortSignal.timeout(10000),
+      headers: {
+        Cookie: "birthtime=0; wants_mature_content=1; lastagecheckage=1-0-1990; mature_content=1",
+      },
     });
     const data = await res.json();
     const entry = data[String(appId)];
@@ -833,6 +836,116 @@ export const AAA_APPIDS = [
   // === DYING LIGHT FULL ===
   239140,  // Dying Light
   534380,  // Dying Light 2
+  // === MISSING BIG SERIES ===
+  // Witcher full
+  20900,   // The Witcher: Enhanced Edition
+  20920,   // The Witcher 2
+  // Mafia series
+  1030840, // Mafia: Definitive Edition
+  1030830, // Mafia II: Definitive Edition
+  360430,  // Mafia III: Definitive Edition
+  // Sleeping Dogs
+  307690,  // Sleeping Dogs: Definitive Edition
+  // Alan Wake 2
+  1942400, // Alan Wake 2
+  // Sekiro
+  814380,  // Sekiro: Shadows Die Twice
+  // Persona
+  2400510, // Persona 3 Reload
+  1382330, // Persona 5 Royal
+  // Mortal Kombat 1
+  976310,  // Mortal Kombat 1
+  // Dragon Age
+  2305050, // Dragon Age: The Veilguard
+  // Spyro
+  1702060, // Spyro Reignited Trilogy
+  // Dead Island
+  383150,  // Dead Island Definitive Edition
+  2135150, // Dead Island 2
+  // Nioh
+  485510,  // Nioh
+  1325200, // Nioh 2
+  // GTA Vice City
+  12100,   // GTA: Vice City
+  // DOOM: The Dark Ages
+  2767030, // DOOM: The Dark Ages
+  // Avowed
+  2589550, // Avowed
+  // Fable
+  2198510, // Fable
+  // Sniper Elite 4
+  502890,  // Sniper Elite 4
+  // Elden Ring Nightreign
+  2784840, // Elden Ring Nightreign
+  // AC Mirage + Shadows
+  2208920, // Assassin's Creed Mirage
+  2378900, // Assassin's Creed Shadows
+  // RE Revelations
+  304240,  // RE Revelations
+  // Batman Arkham Knight
+  474180,  // Batman: Arkham Knight
+  // Horizon Forbidden West
+  2411780, // Horizon Forbidden West
+  // Ghost Recon Wildlands/Breakpoint
+  // Uncharted
+  1659420, // Uncharted: Legacy of Thieves (already in list but may not have synced)
+  // Ratchet & Clank
+  1895880, // Ratchet & Clank: Rift Apart
+  // Returnal
+  1649240, // Returnal
+  // God of War Ragnarok
+  2322010, // God of War Ragnarok
+  // Spider-Man Remastered
+  1817190, // Spider-Man: Miles Morales
+  // Jedi Survivor
+  1774580, // Star Wars Jedi: Survivor
+  // Tomb Raider (2013)
+  203160,  // Tomb Raider (2013)
+  // Shadow of the Tomb Raider
+  750920,  // Shadow of the Tomb Raider
+  // Yakuza 0
+  1388590, // Yakuza 0
+  // Like a Dragon: Infinite Wealth
+  1330310, // Like a Dragon: Infinite Wealth
+  // Like a Dragon: Ishin
+  1235140, // Like a Dragon: Ishin!
+  // Dead Space Remake
+  1693980, // Dead Space
+  // Control
+  870780,  // Control
+  // Remnant II
+  1659420, // Remnant II
+  // Need for Speed Unbound + Heat
+  1262540, // NFS Unbound
+  1262560, // NFS Heat
+  // Ghostrunner
+  911430,  // Ghostrunner
+  976310,  // Ghostrunner 2
+  // Resident Evil 9
+  2835570, // Resident Evil 9
+  // NBA 2K25
+  2338770, // NBA 2K25
+  // Crimson Desert (already there)
+  // MGS Master Collection
+  2740960, // MGS: Master Collection
+  // MGS Ground Zeroes
+  945950,  // MGSV: Ground Zeroes
+  // Star Wars Outlaws
+  2225070, // Star Wars Outlaws
+  // STALKER 2
+  2420510, // S.T.A.L.K.E.R. 2
+  // Marvel's Wolverine (if on Steam)
+  // Civilization VII
+  2507950, // Civilization VII
+  // EA FC 24
+  2669320, // EA Sports FC 24
+  // Clair Obscur
+  2677660, // Clair Obscur: Expedition 33
+  // Kingdom Come already in list
+  // Split Fiction
+  2001120, // Split Fiction
+  // Last of Us already in list
+  // The First Berserker already in list
 ];
 
 /**

@@ -22,6 +22,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   fetch: async () => {
     try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const token = await invoke<string | null>("get_token", { key: "access_token" });
+      if (!token) return; // not logged in, skip
       const data = await api.notifications.list();
       set({ notifications: data.notifications, unreadCount: data.unreadCount });
     } catch {}
