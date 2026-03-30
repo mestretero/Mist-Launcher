@@ -89,6 +89,46 @@ enum VoteType {
   @@map("vote_type")
 }
 
+enum RoomVisibility {
+  FRIENDS
+  INVITE
+  PUBLIC
+
+  @@map("room_visibility")
+}
+
+enum RoomStatus {
+  WAITING
+  PLAYING
+  CLOSED
+
+  @@map("room_status")
+}
+
+enum HostType {
+  LAN_HOST
+  DEDICATED
+
+  @@map("host_type")
+}
+
+enum PlayerStatus {
+  CONNECTING
+  CONNECTED
+  READY
+  DISCONNECTED
+
+  @@map("player_status")
+}
+
+enum GameProtocol {
+  TCP
+  UDP
+  BOTH
+
+  @@map("game_protocol")
+}
+
 // ─── Core Models ─────────────────────────────────
 
 model User {
@@ -136,6 +176,9 @@ model User {
   communityLinks         CommunityLink[]
   communityLinkVotes     CommunityLinkVote[]
   communityLinkReports   CommunityLinkReport[]
+  hostedRooms            Room[]        @relation("hostedRooms")
+  roomPlayers            RoomPlayer[]
+  roomMessages           RoomMessage[]
 
   @@map("users")
 }
@@ -187,7 +230,9 @@ model Game {
   achievements     Achievement[]
   collectionItems  GameCollectionItem[]
   cartItems        CartItem[]
-  communityLinks   CommunityLink[]
+  communityLinks       CommunityLink[]
+  rooms                Room[]
+  hostingProfiles      GameHostingProfile[]
 
   @@index([status, releaseDate])
   @@map("games")
@@ -602,4 +647,80 @@ model CommunityLinkReport {
 
   @@unique([communityLinkId, userId])
   @@map("community_link_reports")
+}
+
+// ─── P2P Multiplayer ─────────────────────────────
+
+model Room {
+  id         String         @id @default(uuid()) @db.Uuid
+  hostId     String         @map("host_id") @db.Uuid
+  host       User           @relation("hostedRooms", fields: [hostId], references: [id])
+  gameId     String?        @map("game_id") @db.Uuid
+  game       Game?          @relation(fields: [gameId], references: [id])
+  gameName   String         @map("game_name")
+  name       String
+  code       String         @unique
+  visibility RoomVisibility @default(FRIENDS)
+  status     RoomStatus     @default(WAITING)
+  maxPlayers Int            @default(8) @map("max_players")
+  hostType   HostType       @default(LAN_HOST) @map("host_type")
+  port       Int?
+  config     Json?
+  createdAt  DateTime       @default(now()) @map("created_at")
+  closedAt   DateTime?      @map("closed_at")
+
+  players  RoomPlayer[]
+  messages RoomMessage[]
+
+  @@index([status, visibility])
+  @@index([hostId])
+  @@map("rooms")
+}
+
+model RoomPlayer {
+  id        String       @id @default(uuid()) @db.Uuid
+  roomId    String       @map("room_id") @db.Uuid
+  room      Room         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String       @map("user_id") @db.Uuid
+  user      User         @relation(fields: [userId], references: [id])
+  virtualIp String       @map("virtual_ip")
+  publicKey String       @map("public_key")
+  status    PlayerStatus @default(CONNECTING)
+  joinedAt  DateTime     @default(now()) @map("joined_at")
+
+  @@unique([roomId, userId])
+  @@index([roomId])
+  @@map("room_players")
+}
+
+model RoomMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  roomId    String   @map("room_id") @db.Uuid
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String?  @map("user_id") @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id])
+  content   String
+  isSystem  Boolean  @default(false) @map("is_system")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([roomId, createdAt])
+  @@map("room_messages")
+}
+
+model GameHostingProfile {
+  id                String       @id @default(uuid()) @db.Uuid
+  gameId            String?      @map("game_id") @db.Uuid
+  game              Game?        @relation(fields: [gameId], references: [id])
+  gameName          String       @map("game_name")
+  port              Int
+  protocol          GameProtocol @default(TCP)
+  hostType          HostType     @default(LAN_HOST) @map("host_type")
+  serverFileUrl     String?      @map("server_file_url")
+  serverFileName    String?      @map("server_file_name")
+  setupInstructions String?      @map("setup_instructions")
+  isOfficial        Boolean      @default(false) @map("is_official")
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  @@index([gameId])
+  @@map("game_hosting_profiles")
 }
