@@ -6,6 +6,7 @@ const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "dev-refresh-secret";
 export interface TokenPayload {
   userId: string;
   email: string;
+  isAdmin: boolean;
 }
 
 export function signAccessToken(payload: TokenPayload): string {

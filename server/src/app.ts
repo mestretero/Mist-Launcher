@@ -20,6 +20,9 @@ import achievementRoutes from "./routes/achievements.js";
 import collectionRoutes from "./routes/collections.js";
 import cartRoutes from "./routes/cart.js";
 import profileRoutes from "./routes/profiles.js";
+import marketplaceRoutes from "./routes/marketplace.js";
+import adminRoutes from "./routes/admin.js";
+import communityLinkRoutes from "./routes/communityLinks.js";
 import { AppError } from "./lib/errors.js";
 import { ZodError } from "zod";
 
@@ -83,6 +86,9 @@ export async function buildApp() {
   await app.register(collectionRoutes);
   await app.register(cartRoutes);
   await app.register(profileRoutes);
+  await app.register(marketplaceRoutes);
+  await app.register(adminRoutes);
+  await app.register(communityLinkRoutes);
 
   return app;
 }

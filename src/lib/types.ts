@@ -9,6 +9,7 @@ export interface User {
   walletBalance: string;
   isEmailVerified: boolean;
   twoFactorEnabled: boolean;
+  isAdmin: boolean;
   preferences?: Record<string, any>;
   createdAt?: string;
 }
@@ -128,4 +129,27 @@ export interface Collection {
   name: string;
   createdAt: string;
   items: { id: string; gameId: string; game: Game }[];
+}
+
+export interface CommunityLinkMirror {
+  id: string;
+  sourceName: string;
+  url: string;
+}
+
+export interface CommunityLink {
+  id: string;
+  title: string;
+  description?: string;
+  size?: string;
+  crackInfo?: string;
+  score: number;
+  virusReports: number;
+  isAdminPost: boolean;
+  isHidden: boolean;
+  createdAt: string;
+  user: { username: string; avatarUrl?: string };
+  mirrors: CommunityLinkMirror[];
+  userVote: "UP" | "DOWN" | null;
+  hasReported: boolean;
 }

@@ -4,6 +4,8 @@
     "library": "Kütüphane",
     "collections": "Koleksiyonlar",
     "scanner": "Oyun Tara",
+    "marketplace": "Pazar",
+    "refresh": "Yenile",
     "wishlist": "İstek Listesi",
     "friends": "Arkadaşlar",
     "notifications": "Bildirimler",
@@ -12,6 +14,25 @@
     "profile": "Profil",
     "settings": "Ayarlar",
     "logout": "Çıkış Yap"
+  },
+  "marketplace": {
+    "title": "Tema Pazarı",
+    "subtitle": "Profiline özel temalar al",
+    "buy": "Satın Al",
+    "owned": "Sahipsin",
+    "free": "Ücretsiz",
+    "insufficientBalance": "Yetersiz SC",
+    "purchaseSuccess": "Tema satın alındı!",
+    "all": "Tümü",
+    "games": "Oyunlar",
+    "crossovers": "Crossover",
+    "myThemes": "Sahip Olunanlar",
+    "noThemes": "Tema bulunamadı.",
+    "dailyBonus": "Günlük 50 SC kazandın!",
+    "preview": "Önizleme",
+    "categoryGame": "Oyun",
+    "categoryCrossover": "Crossover",
+    "categoryDefault": "Varsayılan"
   },
   "notifications": {
     "title": "Bildirimler",
@@ -45,6 +66,10 @@
   "library": {
     "scanButton": "Oyun Tara",
     "addButton": "Oyun Ekle",
+    "selectGameFolder": "Oyun klasörünü seç",
+    "noExeFound": "Bu klasörde .exe dosyası bulunamadı.",
+    "pickExe": "Çalıştırılabilir dosya seç",
+    "pickExeDesc": "Birden fazla exe dosyası bulundu. Ana oyun dosyasını seçin.",
     "refreshCovers": "Görselleri Yükle",
     "refreshingCovers": "Görseller Yükleniyor...",
     "sortAZ": "A-Z",
@@ -350,6 +375,7 @@
   },
   "profile": {
     "chooseTheme": "Tema Seç",
+    "mirrorBg": "Arka Planı Aynala",
     "libraryThemes": "Kütüphane Temaları",
     "themeDarkGalaxy": "Karanlık Galaksi",
     "themeCyberNeon": "Siber Neon",
@@ -395,7 +421,12 @@
       "stats": "Istatistikler",
       "statsDesc": "Oyun sayisi, oynama suresi vb.",
       "commentWall": "Yorum Duvari",
-      "commentWallDesc": "Ziyaretciler yorum birakabilir",
+      "commentWallDesc": "Ziyaretçiler yorum bırakabilir",
+      "referralDesc": "Referans kodunu göster",
+      "sidebarBlock": "Kenar Bloğu",
+      "moveToMain": "Ana panele taşı",
+      "addSidebarBlock": "Kenar bloğu ekle",
+      "noReferralCode": "Referans kodu yok.",
       "addBlock": "Blok Ekle",
       "editProfile": "Profili Duzenle",
       "saveChanges": "Degisiklikleri Kaydet",
@@ -542,6 +573,38 @@
     "addedToLibrary": "{{title}} kütüphaneye eklendi!",
     "paymentFailed": "Ödeme başarısız",
     "popupBlocked": "Popup engellenmiş olabilir. Lütfen tarayıcı ayarlarınızı kontrol edin.",
-    "installmentInfo": "{{count}} taksit ile aylık {{price}} TL"
+    "installmentInfo": "{{count}} taksit ile aylık {{price}} TL",
+    "communityLinks": {
+      "title": "Topluluk İndirme Linkleri",
+      "count": "{{count}} link",
+      "share": "Link Paylaş",
+      "empty": "Henüz indirme linki paylaşılmamış",
+      "emptyAction": "İlk linki sen paylaş!",
+      "download": "İndir",
+      "admin": "ADMIN",
+      "hidden": "Gizli",
+      "loginRequired": "Link paylaşmak için giriş yapın",
+      "deleteConfirm": "Bu linki silmek istediğinize emin misiniz?",
+      "rateLimitError": "Link paylaşma limitine ulaştınız",
+      "today": "Bugün",
+      "modal": {
+        "title": "Yeni İndirme Linki Paylaş",
+        "linkTitle": "Başlık",
+        "crackInfo": "Versiyon / Crack Bilgisi",
+        "size": "Boyut",
+        "description": "Açıklama",
+        "mirrors": "İndirme Linkleri",
+        "addMirror": "+ Mirror Link Ekle",
+        "sourceName": "ör. Fitgirl",
+        "sourceUrl": "https://...",
+        "submit": "Paylaş",
+        "cancel": "İptal"
+      },
+      "vote": {
+        "report": "Virüs Bildir",
+        "reported": "Bildirildi",
+        "reportConfirm": "Bu linki virüs olarak bildirmek istediğinize emin misiniz?"
+      }
+    }
   }
 }

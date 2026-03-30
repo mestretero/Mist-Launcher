@@ -8,6 +8,7 @@ import { InstallmentSelector } from "../components/InstallmentSelector";
 import { ScreenshotLightbox } from "../components/ScreenshotLightbox";
 import { AddToCollectionDropdown } from "../components/AddToCollectionDropdown";
 import { AchievementCard } from "../components/AchievementCard";
+import { CommunityLinks } from "../components/CommunityLinks";
 import type { Game, LibraryItem } from "../lib/types";
 
 interface Props {
@@ -331,6 +332,9 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                 <p className="text-sm text-brand-500 font-medium">{t("gameDetail.noReviews")}</p>
               )}
             </div>
+
+            {/* Community Download Links */}
+            <CommunityLinks slug={slug} onNavigateToUser={(username) => onNavigate("user-profile", username)} />
 
             {/* Achievements section */}
             {achievements.length > 0 && (

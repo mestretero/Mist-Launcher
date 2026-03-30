@@ -4,6 +4,8 @@
     "library": "Biblioteca",
     "collections": "Colecciones",
     "scanner": "Escanear juegos",
+    "marketplace": "Mercado",
+    "refresh": "Actualizar",
     "wishlist": "Lista de deseos",
     "friends": "Amigos",
     "notifications": "Notificaciones",
@@ -12,6 +14,25 @@
     "profile": "Perfil",
     "settings": "Ajustes",
     "logout": "Cerrar sesión"
+  },
+  "marketplace": {
+    "title": "Mercado de Temas",
+    "subtitle": "Consigue temas únicos para tu perfil",
+    "buy": "Comprar",
+    "owned": "Adquirido",
+    "free": "Gratis",
+    "insufficientBalance": "SC insuficiente",
+    "purchaseSuccess": "¡Tema comprado!",
+    "all": "Todos",
+    "games": "Juegos",
+    "crossovers": "Crossover",
+    "myThemes": "Adquiridos",
+    "noThemes": "No se encontraron temas.",
+    "dailyBonus": "¡50 SC diarios ganados!",
+    "preview": "Vista previa",
+    "categoryGame": "Juego",
+    "categoryCrossover": "Crossover",
+    "categoryDefault": "Predeterminado"
   },
   "notifications": {
     "title": "Notificaciones",
@@ -45,6 +66,10 @@
   "library": {
     "scanButton": "Escanear juegos",
     "addButton": "Añadir juego",
+    "selectGameFolder": "Seleccionar carpeta del juego",
+    "noExeFound": "No se encontraron archivos .exe en esta carpeta.",
+    "pickExe": "Seleccionar ejecutable",
+    "pickExeDesc": "Se encontraron varios archivos exe. Elige el ejecutable principal del juego.",
     "refreshCovers": "Cargar portadas",
     "refreshingCovers": "Cargando portadas...",
     "sortAZ": "A-Z",
@@ -350,6 +375,7 @@
   },
   "profile": {
     "chooseTheme": "Elegir tema",
+    "mirrorBg": "Espejo del fondo",
     "libraryThemes": "Temas de biblioteca",
     "themeDarkGalaxy": "Galaxia oscura",
     "themeCyberNeon": "Cyber Neon",
@@ -396,6 +422,11 @@
       "statsDesc": "Número de juegos, tiempo jugado, etc.",
       "commentWall": "Muro de comentarios",
       "commentWallDesc": "Los visitantes pueden dejar comentarios",
+      "referralDesc": "Muestra tu código de referencia",
+      "sidebarBlock": "Bloque lateral",
+      "moveToMain": "Mover al principal",
+      "addSidebarBlock": "Añadir bloque lateral",
+      "noReferralCode": "Sin código de referencia.",
       "addBlock": "Añadir bloque",
       "editProfile": "Editar perfil",
       "saveChanges": "Guardar cambios",
@@ -542,6 +573,38 @@
     "addedToLibrary": "¡{{title}} añadido a la biblioteca!",
     "paymentFailed": "Pago fallido",
     "popupBlocked": "Es posible que el popup esté bloqueado. Por favor revisa la configuración de tu navegador.",
-    "installmentInfo": "{{count}} cuotas de {{price}} TL/mes"
+    "installmentInfo": "{{count}} cuotas de {{price}} TL/mes",
+    "communityLinks": {
+      "title": "Enlaces de Descarga de la Comunidad",
+      "count": "{{count}} enlaces",
+      "share": "Compartir Enlace",
+      "empty": "Aún no se han compartido enlaces de descarga",
+      "emptyAction": "¡Sé el primero en compartir un enlace!",
+      "download": "Descargar",
+      "admin": "ADMIN",
+      "hidden": "Oculto",
+      "loginRequired": "Inicia sesión para compartir enlaces",
+      "deleteConfirm": "¿Estás seguro de que quieres eliminar este enlace?",
+      "rateLimitError": "Has alcanzado el límite de enlaces compartidos",
+      "today": "Hoy",
+      "modal": {
+        "title": "Compartir Nuevo Enlace de Descarga",
+        "linkTitle": "Título",
+        "crackInfo": "Versión / Info de Crack",
+        "size": "Tamaño",
+        "description": "Descripción",
+        "mirrors": "Enlaces de Descarga",
+        "addMirror": "+ Agregar Enlace Mirror",
+        "sourceName": "ej. Fitgirl",
+        "sourceUrl": "https://...",
+        "submit": "Compartir",
+        "cancel": "Cancelar"
+      },
+      "vote": {
+        "report": "Reportar Virus",
+        "reported": "Reportado",
+        "reportConfirm": "¿Estás seguro de que quieres reportar este enlace como virus?"
+      }
+    }
   }
 }

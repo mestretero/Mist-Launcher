@@ -29,6 +29,19 @@ export async function registerUser(input: RegisterInput) {
       passwordHash,
       referralCode,
       emailVerifyToken,
+      walletBalance: 500,
+    },
+  });
+
+  // Signup bonus transaction
+  await prisma.walletTransaction.create({
+    data: {
+      id: randomBytes(16).toString("hex"),
+      userId: user.id,
+      amount: 500,
+      type: "SIGNUP_BONUS",
+      balanceAfter: 500,
+      description: "Welcome bonus",
     },
   });
 
@@ -47,10 +60,10 @@ export async function registerUser(input: RegisterInput) {
     console.error("Failed to send verification email:", err),
   );
 
-  const tokens = await createTokens(user.id, user.email);
+  const tokens = await createTokens(user.id, user.email, false);
 
   return {
-    user: { id: user.id, email: user.email, username: user.username, referralCode },
+    user: { id: user.id, email: user.email, username: user.username, referralCode, avatarUrl: user.avatarUrl, bio: user.bio, walletBalance: user.walletBalance, isEmailVerified: user.isEmailVerified, twoFactorEnabled: user.twoFactorEnabled, preferences: user.preferences, createdAt: user.createdAt, isAdmin: false },
     tokens,
   };
 }
@@ -66,11 +79,36 @@ export async function loginUser(input: LoginInput) {
     return { requires2FA: true as const, userId: user.id };
   }
 
-  const tokens = await createTokens(user.id, user.email);
+  // Daily login bonus (50 SC, once per UTC day)
+  let dailyBonusAwarded = false;
+  const today = new Date().toISOString().slice(0, 10);
+  const lastBonus = user.lastDailyBonus?.toISOString().slice(0, 10);
+  if (lastBonus !== today) {
+    const newBalance = Number(user.walletBalance) + 50;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { walletBalance: newBalance, lastDailyBonus: new Date() },
+    });
+    await prisma.walletTransaction.create({
+      data: {
+        id: randomBytes(16).toString("hex"),
+        userId: user.id,
+        amount: 50,
+        type: "DAILY_BONUS",
+        balanceAfter: newBalance,
+        description: "Daily login bonus",
+      },
+    });
+    dailyBonusAwarded = true;
+    user.walletBalance = newBalance as any;
+  }
+
+  const tokens = await createTokens(user.id, user.email, user.isAdmin);
 
   return {
     requires2FA: false as const,
-    user: { id: user.id, email: user.email, username: user.username, isStudent: user.isStudent, referralCode: user.referralCode },
+    dailyBonusAwarded,
+    user: { id: user.id, email: user.email, username: user.username, isStudent: user.isStudent, referralCode: user.referralCode, avatarUrl: user.avatarUrl, bio: user.bio, walletBalance: user.walletBalance, isEmailVerified: user.isEmailVerified, twoFactorEnabled: user.twoFactorEnabled, preferences: user.preferences, createdAt: user.createdAt, isAdmin: user.isAdmin },
     tokens,
   };
 }
@@ -83,7 +121,8 @@ export async function refreshTokens(refreshToken: string) {
 
   await prisma.refreshToken.delete({ where: { id: stored.id } });
 
-  return createTokens(payload.userId, payload.email);
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { isAdmin: true } });
+  return createTokens(payload.userId, payload.email, user?.isAdmin ?? false);
 }
 
 export async function verifyStudent(userId: string, studentEmail: string) {
@@ -103,7 +142,7 @@ export async function getProfile(userId: string) {
     select: {
       id: true, email: true, username: true, isStudent: true, referralCode: true, createdAt: true,
       bio: true, avatarUrl: true, walletBalance: true, isEmailVerified: true, twoFactorEnabled: true,
-      preferences: true,
+      preferences: true, isAdmin: true,
     },
   });
   if (!user) throw notFound("User not found");
@@ -182,9 +221,12 @@ export async function verifyEmail(token: string) {
   return { verified: true };
 }
 
-export async function createTokens(userId: string, email: string) {
-  const accessToken = signAccessToken({ userId, email });
-  const refreshToken = signRefreshToken({ userId, email });
+export async function createTokens(userId: string, email: string, isAdmin = false) {
+  // Delete existing refresh tokens for this user to avoid unique constraint conflicts
+  await prisma.refreshToken.deleteMany({ where: { userId } });
+
+  const accessToken = signAccessToken({ userId, email, isAdmin });
+  const refreshToken = signRefreshToken({ userId, email, isAdmin });
 
   await prisma.refreshToken.create({
     data: {

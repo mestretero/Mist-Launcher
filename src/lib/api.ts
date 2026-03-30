@@ -76,7 +76,7 @@ export const api = {
       request<{ tokens: any }>("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }),
     verifyStudent: (studentEmail: string) =>
       request<{ verified: boolean }>("/auth/verify-student", { method: "POST", body: JSON.stringify({ studentEmail }) }),
-    me: () => request<{ id: string; email: string; username: string; isStudent: boolean; referralCode: string; avatarUrl?: string; bio?: string; walletBalance: string; isEmailVerified: boolean; twoFactorEnabled: boolean; preferences?: Record<string, any>; createdAt?: string }>("/auth/me"),
+    me: () => request<{ id: string; email: string; username: string; isStudent: boolean; isAdmin: boolean; referralCode: string; avatarUrl?: string; bio?: string; walletBalance: string; isEmailVerified: boolean; twoFactorEnabled: boolean; preferences?: Record<string, any>; createdAt?: string }>("/auth/me"),
     updateProfile: (data: { bio?: string; avatarUrl?: string }) =>
       request<any>("/auth/profile", { method: "PATCH", body: JSON.stringify(data) }),
     uploadAvatar: async (file: File) => {
@@ -112,13 +112,20 @@ export const api = {
     },
   },
   games: {
-    list: (page = 1, category?: string) => {
+    list: async (page = 1, limit = 20, category?: string) => {
       const params = new URLSearchParams();
       params.set("page", String(page));
+      params.set("limit", String(limit));
       if (category && category !== "Tümü") params.set("category", category);
-      return request<any[]>(`/games?${params}`);
+      const token = await getAccessToken();
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`${API_URL}/games?${params}`, { headers });
+      const body = await res.json();
+      return { games: body.data || [], meta: body.meta || { total: 0, page: 1 } };
     },
     featured: () => request<any[]>("/games/featured"),
+    recommended: () => request<any[]>("/games/recommended"),
     getBySlug: (slug: string) => request<any>(`/games/${slug}`),
     search: (q: string) => request<any[]>(`/games/search?q=${encodeURIComponent(q)}`),
     dlcs: (slug: string) => request<any[]>(`/games/${slug}/dlcs`),
@@ -153,6 +160,19 @@ export const api = {
     update: (slug: string, data: { rating: number; content: string }) =>
       request<any>(`/games/${slug}/reviews`, { method: "PUT", body: JSON.stringify(data) }),
     remove: (slug: string) => request<any>(`/games/${slug}/reviews`, { method: "DELETE" }),
+  },
+  communityLinks: {
+    list: (slug: string) => request<{ links: any[] }>(`/games/${slug}/community-links`),
+    create: (slug: string, data: { title: string; description?: string; size?: string; crackInfo?: string; mirrors: { sourceName: string; url: string }[] }) =>
+      request<any>(`/games/${slug}/community-links`, { method: "POST", body: JSON.stringify(data) }),
+    vote: (slug: string, linkId: string, voteType: "UP" | "DOWN") =>
+      request<{ score: number; userVote: string | null }>(`/games/${slug}/community-links/${linkId}/vote`, { method: "POST", body: JSON.stringify({ voteType }) }),
+    report: (slug: string, linkId: string) =>
+      request<{ reported: boolean; virusReports: number }>(`/games/${slug}/community-links/${linkId}/report`, { method: "POST" }),
+    delete: (slug: string, linkId: string) =>
+      request<void>(`/games/${slug}/community-links/${linkId}`, { method: "DELETE" }),
+    toggleHide: (slug: string, linkId: string) =>
+      request<{ isHidden: boolean }>(`/games/${slug}/community-links/${linkId}/toggle-hide`, { method: "PATCH" }),
   },
   notifications: {
     list: () => request<{ notifications: any[]; unreadCount: number }>("/notifications"),
@@ -204,5 +224,17 @@ export const api = {
       request<any>(`/profiles/${username}/comments`, { method: "POST", body: JSON.stringify({ content }) }),
     deleteComment: (username: string, commentId: string) =>
       request<any>(`/profiles/${username}/comments/${commentId}`, { method: "DELETE" }),
+    getLibrarySummary: (username: string) =>
+      request<any>(`/profiles/${username}/library-summary`),
+    syncGames: (games: Array<{ title: string; coverUrl?: string | null; playTimeMins: number; exePathHash: string; lastPlayedAt?: string | null }>) =>
+      request<any[]>("/profiles/me/sync-games", { method: "POST", body: JSON.stringify(games) }),
+    syncGame: (data: { exePathHash: string; playTimeMins: number; lastPlayedAt?: string | null; title?: string }) =>
+      request<any>("/profiles/me/sync-games", { method: "PATCH", body: JSON.stringify(data) }),
+  },
+  marketplace: {
+    getThemes: () => request<any[]>("/marketplace/themes"),
+    getMyThemes: () => request<string[]>("/marketplace/my-themes"),
+    purchase: (themeId: string) =>
+      request<{ success: boolean; newBalance: number }>(`/marketplace/themes/${themeId}/purchase`, { method: "POST" }),
   },
 };
