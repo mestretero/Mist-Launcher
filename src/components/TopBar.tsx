@@ -9,13 +9,14 @@ import { api } from "../lib/api";
 interface TopBarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
+  onRefresh: () => void;
   canGoBack: boolean;
   canGoForward: boolean;
   onGoBack: () => void;
   onGoForward: () => void;
 }
 
-export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoBack, onGoForward }: TopBarProps) {
+export function TopBar({ currentPage, onNavigate, onRefresh, canGoBack, canGoForward, onGoBack, onGoForward }: TopBarProps) {
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const cartItemCount = useCartStore((s) => s.items.length);
@@ -46,6 +47,8 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
     { id: "library", label: t("nav.library") },
     { id: "collections", label: t("nav.collections") },
     { id: "scanner", label: t("nav.scanner") },
+    { id: "multiplayer", label: t("nav.multiplayer") },
+    { id: "marketplace", label: t("nav.marketplace") },
   ];
 
   const noDrag = { WebkitAppRegion: "no-drag" } as React.CSSProperties;
@@ -67,6 +70,20 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
           <button onClick={onGoForward} disabled={!canGoForward}
             className={`p-1 rounded ${canGoForward ? "text-brand-400 hover:text-white hover:bg-brand-800" : "text-brand-800"}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button
+            onClick={() => {
+              import("../stores/localGameStore").then(({ useLocalGameStore }) => {
+                useLocalGameStore.getState().loadGames().then(() => {
+                  useLocalGameStore.getState().syncToServer();
+                });
+              }).catch(() => {});
+              onRefresh();
+            }}
+            className="p-1 rounded text-brand-400 hover:text-white hover:bg-brand-800 transition-colors"
+            title={t("nav.refresh")}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
           </button>
         </div>
 
@@ -164,7 +181,7 @@ export function TopBar({ currentPage, onNavigate, canGoBack, canGoForward, onGoB
                   {/* Wallet */}
                   <div className="px-4 py-2 border-b border-brand-800 flex items-center justify-between">
                     <span className="text-xs text-brand-400">{t("nav.wallet")}</span>
-                    <span className="text-xs font-bold text-brand-200">{user.walletBalance ? parseFloat(user.walletBalance).toFixed(2) : "0.00"} TL</span>
+                    <span className="text-xs font-bold text-brand-200">{user.walletBalance ? Math.floor(parseFloat(user.walletBalance)) : "0"} SC</span>
                   </div>
                   {/* Menu items */}
                   <div className="py-1">

@@ -18,6 +18,9 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import GameScannerPage from "./pages/GameScannerPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import { MarketplacePage } from "./pages/MarketplacePage";
+import MultiplayerPage from "./pages/MultiplayerPage";
+import RoomPage from "./pages/RoomPage";
 import { ToastContainer } from "./components/ToastContainer";
 
 function App() {
@@ -29,16 +32,42 @@ function App() {
   // Custom Router History
   const [history, setHistory] = useState<{page: string, slug?: string}[]>([{page: "store"}]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     loadSession();
     initListener();
+
+    // Listen for game close events to sync play time to server
+    let unlisten: (() => void) | undefined;
+    Promise.all([
+      import("@tauri-apps/api/event"),
+      import("./stores/localGameStore"),
+    ]).then(([{ listen }, { useLocalGameStore }]) => {
+      listen<{ game_id: string; status: string; play_time_secs: number }>("game-status", (event) => {
+        if (event.payload.status === "stopped" && event.payload.play_time_secs > 0) {
+          const store = useLocalGameStore.getState();
+          const game = store.games.find((g) => g.id === event.payload.game_id);
+          if (game) {
+            store.syncSingleGame(game.exe_path, Math.floor(game.play_time / 60), game.title);
+          }
+        }
+      }).then((fn) => { unlisten = fn; });
+    }).catch(() => {});
+
+    return () => { unlisten?.(); };
   }, []);
 
   useEffect(() => {
     if (isAuthenticated) {
       useNotificationStore.getState().startPolling();
       useCartStore.getState().fetch();
+      // Sync local games to server for profile display
+      import("./stores/localGameStore").then(({ useLocalGameStore }) => {
+        useLocalGameStore.getState().loadGames().then(() => {
+          useLocalGameStore.getState().syncToServer();
+        });
+      }).catch(() => {});
     }
     return () => { useNotificationStore.getState().stopPolling(); };
   }, [isAuthenticated]);
@@ -93,26 +122,30 @@ function App() {
   const { page, slug: gameSlug } = currentRoute;
 
   return (
-    <Layout 
-      currentPage={page} 
+    <Layout
+      currentPage={page}
       onNavigate={navigate}
+      onRefresh={() => setRefreshKey((k) => k + 1)}
       canGoBack={canGoBack}
       canGoForward={canGoForward}
       onGoBack={goBack}
       onGoForward={goForward}
     >
-      {page === "store" && <StorePage onGameClick={(slug) => navigate("game", slug)} />}
+      {page === "store" && <StorePage key={refreshKey} onGameClick={(slug) => navigate("game", slug)} />}
       {page === "game" && gameSlug && (
         <GameDetailPage slug={gameSlug} onBack={goBack} onNavigate={navigate} />
       )}
-      {page === "library" && <LibraryPage onNavigate={navigate} />}
-      {page === "wishlist" && <WishlistPage onGameClick={(slug) => navigate("game", slug)} />}
+      {page === "library" && <LibraryPage key={refreshKey} onNavigate={navigate} />}
+      {page === "wishlist" && <WishlistPage key={refreshKey} onGameClick={(slug) => navigate("game", slug)} />}
       {page === "cart" && <CartPage onGameClick={(slug) => navigate("game", slug)} onNavigate={navigate} />}
-      {page === "collections" && <CollectionsPage />}
+      {page === "collections" && <CollectionsPage key={refreshKey} />}
       {page === "scanner" && <GameScannerPage onNavigate={navigate} />}
-      {page === "friends" && <FriendsPage onNavigate={navigate} />}
+      {page === "multiplayer" && <MultiplayerPage onNavigate={navigate} />}
+      {page === "room" && gameSlug && <RoomPage roomId={gameSlug} onNavigate={navigate} />}
+      {page === "marketplace" && <MarketplacePage key={refreshKey} />}
+      {page === "friends" && <FriendsPage key={refreshKey} onNavigate={navigate} />}
       {page === "settings" && <SettingsPage />}
-      {page === "profile" && <ProfilePage onNavigate={navigate} />}
+      {page === "profile" && <ProfilePage key={refreshKey} onNavigate={navigate} />}
       {page === "user-profile" && gameSlug && (
         <UserProfilePage username={gameSlug} onNavigate={navigate} />
       )}
