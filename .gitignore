@@ -37,3 +37,4 @@ target/
 .superpowers/
 server/public/downloads/
 src-tauri/.env
+.worktrees/
