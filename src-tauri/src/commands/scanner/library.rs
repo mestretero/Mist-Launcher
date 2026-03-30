@@ -211,6 +211,32 @@ pub fn delete_game(db: State<'_, Db>, game_id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// List exe files in a directory (non-recursive, top-level only)
+#[tauri::command]
+pub fn list_exe_files(dir_path: String) -> Result<Vec<String>, String> {
+    let path = std::path::Path::new(&dir_path);
+    if !path.is_dir() {
+        return Err("Not a directory".to_string());
+    }
+    let mut exes = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() {
+                if let Some(ext) = p.extension() {
+                    if ext.eq_ignore_ascii_case("exe") {
+                        if let Some(s) = p.to_str() {
+                            exes.push(s.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    exes.sort();
+    Ok(exes)
+}
+
 #[tauri::command]
 pub fn get_scan_config(db: State<'_, Db>) -> Result<ScanConfig, String> {
     let conn = db.lock().unwrap();

@@ -1,4 +1,5 @@
 mod commands;
+mod tunnel;
 
 use commands::scanner::db;
 use tauri::Manager;
@@ -46,6 +47,13 @@ pub fn run() {
             commands::scanner::library::get_collections_for_local_game,
             commands::scanner::library::get_scan_config,
             commands::scanner::library::update_scan_config,
+            commands::scanner::library::list_exe_files,
+            commands::tunnel::generate_keypair,
+            commands::tunnel::create_tunnel,
+            commands::tunnel::destroy_tunnel,
+            commands::tunnel::get_tunnel_status,
+            commands::server_manager::start_dedicated_server,
+            commands::server_manager::stop_dedicated_server,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

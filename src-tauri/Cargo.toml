@@ -37,6 +37,10 @@ walkdir = "2"
 dotenvy = "0.15"
 urlencoding = "2"
 chrono = { version = "0.4", features = ["serde"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+base64 = "0.22"
+lazy_static = "1"
+rand = "0.8"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
