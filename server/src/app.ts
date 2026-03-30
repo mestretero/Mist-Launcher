@@ -4,6 +4,8 @@ import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import multipart from "@fastify/multipart";
+import websocket from "@fastify/websocket";
+import wsGateway from "./ws/gateway.js";
 import { join } from "path";
 import { fileURLToPath } from "url";
 import authPlugin from "./plugins/auth.plugin.js";
@@ -50,6 +52,8 @@ export async function buildApp() {
     prefix: "/public/",
   });
   await app.register(authPlugin);
+  await app.register(websocket);
+  await app.register(wsGateway);
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
