@@ -153,3 +153,55 @@ export interface CommunityLink {
   userVote: "UP" | "DOWN" | null;
   hasReported: boolean;
 }
+
+export interface Room {
+  id: string;
+  hostId: string;
+  host: { id: string; username: string; avatarUrl?: string };
+  gameId?: string;
+  game?: { id: string; title: string; slug: string; coverImageUrl: string };
+  gameName: string;
+  name: string;
+  code: string;
+  visibility: "FRIENDS" | "INVITE" | "PUBLIC";
+  status: "WAITING" | "PLAYING" | "CLOSED";
+  maxPlayers: number;
+  hostType: "LAN_HOST" | "DEDICATED";
+  port?: number;
+  config?: Record<string, any>;
+  createdAt: string;
+  closedAt?: string;
+  players: RoomPlayer[];
+}
+
+export interface RoomPlayer {
+  id: string;
+  userId: string;
+  user: { id: string; username: string; avatarUrl?: string };
+  virtualIp: string;
+  publicKey: string;
+  status: "CONNECTING" | "CONNECTED" | "READY" | "DISCONNECTED";
+  joinedAt: string;
+}
+
+export interface RoomMessage {
+  id: string;
+  userId?: string;
+  username?: string;
+  content: string;
+  isSystem: boolean;
+  createdAt: string;
+}
+
+export interface GameHostingProfile {
+  id: string;
+  gameId?: string;
+  gameName: string;
+  port: number;
+  protocol: "TCP" | "UDP" | "BOTH";
+  hostType: "LAN_HOST" | "DEDICATED";
+  serverFileUrl?: string;
+  serverFileName?: string;
+  setupInstructions?: string;
+  isOfficial: boolean;
+}
