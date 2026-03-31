@@ -249,6 +249,7 @@ export const api = {
       maxPlayers?: number;
       hostType?: string;
       port?: number;
+      visibility?: string;
       hostLaunchArgs?: string;
       clientLaunchArgs?: string;
     }) => request<Room>("/rooms", { method: "POST", body: JSON.stringify(data) }),

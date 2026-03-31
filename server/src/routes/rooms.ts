@@ -14,6 +14,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       maxPlayers?: number;
       hostType?: "LAN_HOST" | "DEDICATED";
       port?: number;
+      visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
       hostLaunchArgs?: string;
       clientLaunchArgs?: string;
     };

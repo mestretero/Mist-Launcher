@@ -14,17 +14,25 @@ export default function MultiplayerPage({ onNavigate }: Props) {
   const { user } = useAuthStore();
   const { rooms, fetchRooms, createRoom, wsConnected } = useRoomStore();
   const [showCreate, setShowCreate] = useState(false);
+  const [gameFilter, setGameFilter] = useState<string>("");
 
   useEffect(() => {
     fetchRooms();
   }, []);
 
-  const myRooms = rooms.filter(
+  // Get unique game names for filter dropdown
+  const gameNames = [...new Set(rooms.map((r) => r.gameName))].sort();
+
+  const filtered = gameFilter
+    ? rooms.filter((r) => r.gameName === gameFilter)
+    : rooms;
+
+  const myRooms = filtered.filter(
     (r) =>
       r.hostId === user?.id ||
       r.players.some((p) => p.userId === user?.id),
   );
-  const friendRooms = rooms.filter(
+  const friendRooms = filtered.filter(
     (r) =>
       r.hostId !== user?.id &&
       !r.players.some((p) => p.userId === user?.id),
@@ -64,6 +72,31 @@ export default function MultiplayerPage({ onNavigate }: Props) {
           {t("multiplayer.createRoom")}
         </button>
       </div>
+
+      {/* Game Filter */}
+      {gameNames.length > 1 && (
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setGameFilter("")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              !gameFilter ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800 hover:border-brand-600"
+            }`}
+          >
+            {t("multiplayer.allGames", "Tümü")}
+          </button>
+          {gameNames.map((name) => (
+            <button
+              key={name}
+              onClick={() => setGameFilter(name === gameFilter ? "" : name)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                gameFilter === name ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800 hover:border-brand-600"
+              }`}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Empty State */}
       {allEmpty && (

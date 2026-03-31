@@ -25,6 +25,7 @@ interface RoomState {
     maxPlayers?: number;
     hostType?: string;
     port?: number;
+    visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
     hostLaunchArgs?: string;
     clientLaunchArgs?: string;
   }) => Promise<Room>;

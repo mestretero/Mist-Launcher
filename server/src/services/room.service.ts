@@ -30,6 +30,7 @@ export async function createRoom(
     maxPlayers?: number;
     hostType?: "LAN_HOST" | "DEDICATED";
     port?: number;
+    visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
     hostLaunchArgs?: string;
     clientLaunchArgs?: string;
   },
@@ -62,6 +63,7 @@ export async function createRoom(
       code: code!,
       maxPlayers: data.maxPlayers || 8,
       hostType: data.hostType || "LAN_HOST",
+      visibility: data.visibility || "FRIENDS",
       port: data.port || null,
       ...(Object.keys(config).length > 0 && { config }),
     },
@@ -121,7 +123,14 @@ export async function listRooms(userId: string) {
   return prisma.room.findMany({
     where: {
       status: { in: ["WAITING", "PLAYING"] },
-      hostId: { in: allowedHostIds },
+      OR: [
+        // Public rooms from anyone (except blocked users)
+        { visibility: "PUBLIC", hostId: { notIn: [...blockedIds] } },
+        // Friends-only rooms from friends + own rooms
+        { visibility: "FRIENDS", hostId: { in: allowedHostIds } },
+        // Own rooms (any visibility)
+        { hostId: userId },
+      ],
     },
     include: roomInclude,
     orderBy: { createdAt: "desc" },
@@ -207,10 +216,8 @@ export async function leaveRoom(roomId: string, userId: string) {
   if (!room) throw notFound("Room not found");
 
   if (room.hostId === userId) {
-    await prisma.room.update({
-      where: { id: roomId },
-      data: { status: "CLOSED", closedAt: new Date() },
-    });
+    // Host left — hard delete the room (cascade deletes players + messages)
+    await prisma.room.delete({ where: { id: roomId } });
     return { closed: true };
   }
 
@@ -290,10 +297,8 @@ export async function closeRoom(roomId: string, userId: string) {
   if (!room) throw notFound("Room not found");
   if (room.hostId !== userId) throw forbidden("Only host can close the room");
 
-  return prisma.room.update({
-    where: { id: roomId },
-    data: { status: "CLOSED", closedAt: new Date() },
-  });
+  // Hard delete — cascade deletes players + messages
+  await prisma.room.delete({ where: { id: roomId } });
 }
 
 // ── Update room settings ─────────────────────────
@@ -343,9 +348,8 @@ export async function getMessages(
 
 export async function cleanupStaleRooms() {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  const result = await prisma.room.updateMany({
+  const result = await prisma.room.deleteMany({
     where: { status: "WAITING", createdAt: { lt: oneHourAgo } },
-    data: { status: "CLOSED", closedAt: new Date() },
   });
   if (result.count > 0) {
     console.log(`Cleaned up ${result.count} stale rooms`);

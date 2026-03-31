@@ -5,7 +5,7 @@ import type { GameHostingProfile } from "../lib/types";
 
 interface CreateRoomModalProps {
   onClose: () => void;
-  onCreate: (data: { gameName: string; name: string; maxPlayers: number; hostType: "LAN_HOST" | "DEDICATED"; port?: number; hostLaunchArgs?: string; clientLaunchArgs?: string; }) => void;
+  onCreate: (data: { gameName: string; name: string; maxPlayers: number; hostType: "LAN_HOST" | "DEDICATED"; port?: number; visibility?: "FRIENDS" | "INVITE" | "PUBLIC"; hostLaunchArgs?: string; clientLaunchArgs?: string; }) => void;
 }
 
 export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
@@ -16,6 +16,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
   const [maxPlayers, setMaxPlayers] = useState(8);
   const [hostType, setHostType] = useState<"LAN_HOST" | "DEDICATED">("LAN_HOST");
   const [port, setPort] = useState<number | undefined>();
+  const [visibility, setVisibility] = useState<"FRIENDS" | "INVITE" | "PUBLIC">("FRIENDS");
   const [selectedProfile, setSelectedProfile] = useState<GameHostingProfile | null>(null);
 
   useEffect(() => { api.hostingProfiles.list().then(setProfiles).catch(() => {}); }, []);
@@ -36,6 +37,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
       maxPlayers,
       hostType,
       port,
+      visibility,
       hostLaunchArgs: selectedProfile?.hostLaunchArgs || undefined,
       clientLaunchArgs: selectedProfile?.clientLaunchArgs || undefined,
     });
@@ -98,6 +100,22 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
             </button>
             <button onClick={() => setHostType("DEDICATED")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${hostType === "DEDICATED" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
               {t("room.hostType.dedicated")}
+            </button>
+          </div>
+        </div>
+
+        {/* Visibility */}
+        <div className="mb-4">
+          <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.visibility", "Kimler Katılabilir?")}</label>
+          <div className="flex gap-2">
+            <button onClick={() => setVisibility("PUBLIC")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${visibility === "PUBLIC" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
+              {t("room.visibility.public", "Herkes")}
+            </button>
+            <button onClick={() => setVisibility("FRIENDS")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${visibility === "FRIENDS" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
+              {t("room.visibility.friends", "Arkadaşlar")}
+            </button>
+            <button onClick={() => setVisibility("INVITE")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${visibility === "INVITE" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
+              {t("room.visibility.invite", "Davetli")}
             </button>
           </div>
         </div>
