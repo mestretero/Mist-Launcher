@@ -30,7 +30,7 @@ interface RoomState {
     clientLaunchArgs?: string;
   }) => Promise<Room>;
   joinRoom: (roomId: string) => Promise<void>;
-  leaveRoom: () => void;
+  leaveRoom: () => Promise<void>;
   sendMessage: (content: string) => void;
   toggleReady: (ready: boolean) => void;
   startGame: () => void;
@@ -154,18 +154,29 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }
   },
 
-  leaveRoom: () => {
+  leaveRoom: async () => {
     const { wsClient, currentRoom } = get();
-    if (currentRoom && wsClient) {
+    if (!currentRoom) return;
+
+    // Notify other players via WS
+    if (wsClient) {
       wsClient.send("room:leave", { roomId: currentRoom.id });
-      invoke("destroy_tunnel", { roomId: currentRoom.id }).catch(() => {});
-      set({
-        currentRoom: null,
-        messages: [],
-        tunnelActive: false,
-        virtualIp: null,
-      });
     }
+
+    // Host: also call REST DELETE to guarantee room deletion
+    try {
+      await api.rooms.close(currentRoom.id);
+    } catch {
+      // Non-host or already deleted — that's fine
+    }
+
+    invoke("destroy_tunnel", { roomId: currentRoom.id }).catch(() => {});
+    set({
+      currentRoom: null,
+      messages: [],
+      tunnelActive: false,
+      virtualIp: null,
+    });
   },
 
   sendMessage: (content) => {

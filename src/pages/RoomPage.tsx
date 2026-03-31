@@ -72,8 +72,8 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     }
   }
 
-  function handleLeave() {
-    leaveRoom();
+  async function handleLeave() {
+    await leaveRoom();
     onNavigate("multiplayer");
   }
 
