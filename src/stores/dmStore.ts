@@ -17,17 +17,8 @@ interface DmMessage {
   createdAt: string;
 }
 
-interface Conversation {
-  friendId: string;
-  friend: Friend;
-  lastMessage: string;
-  lastMessageAt: string;
-  isFromMe: boolean;
-}
-
 interface DmState {
   friends: Friend[];
-  conversations: Conversation[];
   activeChatFriend: Friend | null;
   chatMessages: DmMessage[];
   panelOpen: boolean;
@@ -35,16 +26,14 @@ interface DmState {
 
   togglePanel: () => void;
   loadFriends: () => Promise<void>;
-  loadConversations: () => Promise<void>;
   openChat: (friend: Friend) => Promise<void>;
   closeChat: () => void;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string) => Promise<void>;
   receiveMessage: (msg: DmMessage) => void;
 }
 
 export const useDmStore = create<DmState>((set, get) => ({
   friends: [],
-  conversations: [],
   activeChatFriend: null,
   chatMessages: [],
   panelOpen: false,
@@ -53,16 +42,12 @@ export const useDmStore = create<DmState>((set, get) => ({
   togglePanel: () => {
     const isOpen = !get().panelOpen;
     set({ panelOpen: isOpen });
-    if (isOpen) {
-      get().loadFriends();
-      get().loadConversations();
-    }
+    if (isOpen) get().loadFriends();
   },
 
   loadFriends: async () => {
     try {
       const res = await api.friends.list();
-      // API returns { friendshipId, friend: { id, username, avatarUrl }, online }
       const mapped = res.map((f: any) => ({
         id: f.friend?.id || f.id,
         username: f.friend?.username || f.username,
@@ -73,15 +58,8 @@ export const useDmStore = create<DmState>((set, get) => ({
     } catch { /* */ }
   },
 
-  loadConversations: async () => {
-    try {
-      const res = await api.dm.conversations();
-      set({ conversations: res });
-    } catch { /* */ }
-  },
-
   openChat: async (friend) => {
-    set({ activeChatFriend: friend, chatMessages: [] });
+    set({ activeChatFriend: friend, chatMessages: [], unreadCount: 0 });
     try {
       const msgs = await api.dm.messages(friend.id);
       set({ chatMessages: msgs });
@@ -90,28 +68,33 @@ export const useDmStore = create<DmState>((set, get) => ({
 
   closeChat: () => set({ activeChatFriend: null, chatMessages: [] }),
 
-  sendMessage: (content) => {
+  // Send via REST API (reliable) — WS echo will add it to chat
+  sendMessage: async (content) => {
     const { activeChatFriend } = get();
     if (!activeChatFriend || !content.trim()) return;
-    // Send via WS — the WS handler will save to DB and echo back
-    import("./roomStore").then(({ useRoomStore }) => {
-      const wsClient = useRoomStore.getState().wsClient;
-      if (wsClient) {
-        wsClient.send("dm:send", { friendId: activeChatFriend.id, content: content.trim() });
-      }
-    });
+    try {
+      const msg = await api.dm.send(activeChatFriend.id, content.trim());
+      // Add immediately to chat (don't wait for WS echo)
+      set({ chatMessages: [...get().chatMessages, msg] });
+    } catch (e) {
+      console.error("Failed to send DM:", e);
+    }
   },
 
   receiveMessage: (msg) => {
-    const { activeChatFriend } = get();
-    const myChat = activeChatFriend && (msg.senderId === activeChatFriend.id || msg.receiverId === activeChatFriend.id);
-    if (myChat) {
-      set({ chatMessages: [...get().chatMessages, msg] });
+    const { activeChatFriend, chatMessages } = get();
+    // Check if this message is for the active chat
+    const isActiveChat = activeChatFriend &&
+      (msg.senderId === activeChatFriend.id || msg.receiverId === activeChatFriend.id);
+
+    if (isActiveChat) {
+      // Avoid duplicates (we already added it in sendMessage)
+      const exists = chatMessages.some((m) => m.id === msg.id);
+      if (!exists) {
+        set({ chatMessages: [...chatMessages, msg] });
+      }
     } else {
-      // Not viewing this chat — increment unread
       set({ unreadCount: get().unreadCount + 1 });
     }
-    // Update conversations
-    get().loadConversations();
   },
 }));
