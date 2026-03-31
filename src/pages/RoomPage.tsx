@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { invoke } from "@tauri-apps/api/core";
 import { useRoomStore } from "../stores/roomStore";
 import { useAuthStore } from "../stores/authStore";
 import type { RoomPlayer, RoomMessage } from "../lib/types";
@@ -45,6 +46,13 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     init();
   }, [roomId]);
 
+  // Auto-launch game when host starts
+  useEffect(() => {
+    if (currentRoom?.status === "PLAYING" && !isHost) {
+      handleLaunchGame();
+    }
+  }, [currentRoom?.status]);
+
   // Auto-scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,6 +74,27 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   function handleLeave() {
     leaveRoom();
     onNavigate("multiplayer");
+  }
+
+  async function handleLaunchGame() {
+    if (!currentRoom) return;
+    // Signal room that game is starting (host only)
+    if (isHost) startGame();
+
+    // Try to find the game in local library and launch it
+    try {
+      const localGames = await invoke<any[]>("get_local_games");
+      const gameName = currentRoom.gameName.toLowerCase();
+      const match = localGames.find((g: any) =>
+        g.title?.toLowerCase().includes(gameName) ||
+        gameName.includes(g.title?.toLowerCase())
+      );
+      if (match?.exe_path) {
+        await invoke("launch_game", { gameId: match.id, exePath: match.exe_path });
+      }
+    } catch {
+      // If auto-launch fails, user can manually start the game
+    }
   }
 
   const isHost = currentRoom?.hostId === user?.id;
@@ -202,7 +231,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           {/* Action buttons */}
           <div className="p-3 border-t border-brand-800 space-y-2">
             {isHost && (
-              <button onClick={startGame} className="w-full py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors">
+              <button onClick={handleLaunchGame} className="w-full py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors">
                 {t("room.startGame")}
               </button>
             )}
