@@ -76,6 +76,17 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
     }
   };
 
+  const handleDeleteReview = async () => {
+    try {
+      await api.reviews.remove(slug);
+      const updated = await api.reviews.list(slug);
+      setReviews(updated);
+      addToast(t("gameDetail.reviewDeleted", "Review deleted"), "success");
+    } catch (err: any) {
+      addToast(err.message || t("common.error"), "error");
+    }
+  };
+
   const tabs = [
     { key: "about", label: t("gameDetail.about") },
     { key: "reviews", label: `${t("gameDetail.userReviews")} ${reviews?.totalReviews ? `(${reviews.totalReviews})` : ""}` },
@@ -323,7 +334,6 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3">
                               <span className="text-sm font-bold text-white">{review.user?.username || t("gameDetail.anonymous")}</span>
-                              {/* Stars inline */}
                               <div className="flex gap-0.5">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <svg key={star} width="13" height="13" viewBox="0 0 24 24" fill={star <= review.rating ? "#facc15" : "#1e2128"} stroke={star <= review.rating ? "#facc15" : "#2a2e38"} strokeWidth="1.5">
@@ -336,6 +346,16 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                               {new Date(review.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
                             </span>
                           </div>
+                          {/* Delete button for own review */}
+                          {user && review.user?.id === user.id && (
+                            <button
+                              onClick={handleDeleteReview}
+                              className="flex items-center gap-1.5 text-[#3e4450] hover:text-red-400 text-xs font-medium px-2 py-1 rounded hover:bg-red-400/10 transition-colors flex-shrink-0"
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              {t("common.delete")}
+                            </button>
+                          )}
                         </div>
                         {review.content && (
                           <p className="text-sm text-[#9aa0aa] leading-relaxed ml-[52px]">{review.content}</p>
