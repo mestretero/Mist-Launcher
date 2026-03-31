@@ -249,6 +249,8 @@ export const api = {
       maxPlayers?: number;
       hostType?: string;
       port?: number;
+      hostLaunchArgs?: string;
+      clientLaunchArgs?: string;
     }) => request<Room>("/rooms", { method: "POST", body: JSON.stringify(data) }),
     close: (id: string) => request<void>(`/rooms/${id}`, { method: "DELETE" }),
     getMessages: (id: string, before?: string) => {

@@ -25,6 +25,8 @@ interface RoomState {
     maxPlayers?: number;
     hostType?: string;
     port?: number;
+    hostLaunchArgs?: string;
+    clientLaunchArgs?: string;
   }) => Promise<Room>;
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: () => void;
@@ -92,7 +94,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }
 
     // Host creates tunnel immediately (no peers yet, will add as they join)
-    let listenPort = 0;
+    let publicEndpoint = "";
     if (privateKey) {
       try {
         const tunnelInfo = await invoke<any>("create_tunnel", {
@@ -101,7 +103,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
           privateKey,
           peers: [],
         });
-        listenPort = tunnelInfo.listen_port || 0;
+        publicEndpoint = tunnelInfo.public_endpoint || "";
         set({ tunnelActive: true });
       } catch (e) {
         console.warn("Tunnel creation failed (will work without VPN):", e);
@@ -116,13 +118,13 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       virtualIp: "10.13.37.1",
     });
 
-    // Join via WS — include listen_port as endpoint info
+    // Join via WS — include public endpoint from STUN discovery
     const { wsClient, wsConnected } = get();
     if (wsClient && wsConnected) {
       wsClient.send("room:join", {
         roomId: room.id,
         publicKey,
-        endpoint: listenPort ? `0.0.0.0:${listenPort}` : "",
+        endpoint: publicEndpoint,
       });
     }
     return room;
@@ -238,14 +240,14 @@ function handleWsMessage(
       });
       const { wsClient, publicKey } = get();
       if (wsClient && publicKey) {
-        // Get our tunnel's listen port to share with the peer
-        invoke<number>("get_tunnel_listen_port", { roomId: room.id })
-          .then((port) => {
+        // Get our tunnel's public endpoint (from STUN discovery) to share with the peer
+        invoke<any>("get_tunnel_status", { roomId: room.id })
+          .then((status) => {
             wsClient.send("peer:offer", {
               roomId: room.id,
               targetUserId: payload.userId,
               publicKey,
-              endpoint: port > 0 ? `0.0.0.0:${port}` : "",
+              endpoint: status?.public_endpoint || "",
             });
           })
           .catch(() => {
@@ -299,7 +301,19 @@ function handleWsMessage(
 
     case "room:game-starting": {
       const room = get().currentRoom;
-      if (room) set({ currentRoom: { ...room, status: "PLAYING" as const } });
+      if (room) set({
+        currentRoom: {
+          ...room,
+          status: "PLAYING" as const,
+          config: {
+            ...room.config,
+            hostLaunchArgs: payload.hostLaunchArgs,
+            clientLaunchArgs: payload.clientLaunchArgs,
+            hostVirtualIp: payload.hostVirtualIp,
+            gamePort: payload.port,
+          },
+        },
+      });
       break;
     }
 

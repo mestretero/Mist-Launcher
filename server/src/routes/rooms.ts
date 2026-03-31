@@ -14,6 +14,8 @@ export default async function roomRoutes(app: FastifyInstance) {
       maxPlayers?: number;
       hostType?: "LAN_HOST" | "DEDICATED";
       port?: number;
+      hostLaunchArgs?: string;
+      clientLaunchArgs?: string;
     };
     const room = await roomService.createRoom(userId, body);
     return reply.status(201).send({ data: room });

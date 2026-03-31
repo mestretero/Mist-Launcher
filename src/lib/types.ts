@@ -203,5 +203,7 @@ export interface GameHostingProfile {
   serverFileUrl?: string;
   serverFileName?: string;
   setupInstructions?: string;
+  hostLaunchArgs?: string;
+  clientLaunchArgs?: string;
   isOfficial: boolean;
 }

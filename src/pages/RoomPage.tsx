@@ -76,6 +76,14 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     onNavigate("multiplayer");
   }
 
+  function buildLaunchArgs(template: string | null | undefined, ip: string, port: number): string[] {
+    if (!template) return [];
+    const resolved = template
+      .replace(/\{ip\}/g, ip)
+      .replace(/\{port\}/g, String(port));
+    return resolved.split(/\s+/).filter(Boolean);
+  }
+
   async function handleLaunchGame() {
     if (!currentRoom) return;
     // Signal room that game is starting (host only)
@@ -90,7 +98,12 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
         gameName.includes(g.title?.toLowerCase())
       );
       if (match?.exe_path) {
-        await invoke("launch_game", { gameId: match.id, exePath: match.exe_path });
+        const config = (currentRoom.config || {}) as Record<string, any>;
+        const template = isHost ? config.hostLaunchArgs : config.clientLaunchArgs;
+        const ip = config.hostVirtualIp || "10.13.37.1";
+        const port = config.gamePort || currentRoom.port || 0;
+        const args = buildLaunchArgs(template, ip, port);
+        await invoke("launch_game", { gameId: match.id, exePath: match.exe_path, args });
       }
     } catch {
       // If auto-launch fails, user can manually start the game

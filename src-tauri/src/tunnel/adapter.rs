@@ -80,6 +80,19 @@ pub async fn create_adapter(
         .local_addr()
         .map_err(|e| format!("Port alınamadı: {}", e))?
         .port();
+
+    // Step 4.5: STUN discovery — find our public endpoint for NAT traversal
+    let public_endpoint = match super::stun::discover_public_endpoint(&udp_socket) {
+        Ok(addr) => {
+            eprintln!("[STUN] Public endpoint discovered: {}", addr);
+            addr.to_string()
+        }
+        Err(e) => {
+            eprintln!("[STUN] Discovery failed: {} — LAN mode only", e);
+            format!("0.0.0.0:{}", listen_port) // fallback to local
+        }
+    };
+
     udp_socket
         .set_nonblocking(true)
         .map_err(|e| format!("Non-blocking ayarlanamadı: {}", e))?;
@@ -108,6 +121,14 @@ pub async fn create_adapter(
             shared_key,
             virtual_ip: peer.virtual_ip.clone(),
         });
+    }
+
+    // Step 6.5: UDP hole punching — send empty packets to open NAT tables
+    for peer in &peer_entries {
+        for _ in 0..3 {
+            let _ = udp_socket.send_to(&[0u8; 1], peer.endpoint);
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
     }
 
     // Step 7: Create shutdown channel
@@ -217,6 +238,7 @@ pub async fn create_adapter(
         private_key: private_key.to_string(),
         public_key: keypair.public_key,
         listen_port,
+        public_endpoint,
     };
     super::register_tunnel(room_id, info.clone(), shutdown_tx);
     super::update_peer_count(room_id, peer_entries.len());

@@ -30,6 +30,8 @@ export async function createRoom(
     maxPlayers?: number;
     hostType?: "LAN_HOST" | "DEDICATED";
     port?: number;
+    hostLaunchArgs?: string;
+    clientLaunchArgs?: string;
   },
 ) {
   const activeCount = await prisma.room.count({
@@ -47,6 +49,10 @@ export async function createRoom(
   } while (attempts < 5);
   if (attempts >= 5) throw badRequest("Could not generate unique room code");
 
+  const config: Record<string, string> = {};
+  if (data.hostLaunchArgs) config.hostLaunchArgs = data.hostLaunchArgs;
+  if (data.clientLaunchArgs) config.clientLaunchArgs = data.clientLaunchArgs;
+
   const room = await prisma.room.create({
     data: {
       hostId,
@@ -57,6 +63,7 @@ export async function createRoom(
       maxPlayers: data.maxPlayers || 8,
       hostType: data.hostType || "LAN_HOST",
       port: data.port || null,
+      ...(Object.keys(config).length > 0 && { config }),
     },
   });
 
@@ -261,7 +268,7 @@ export async function updatePlayerStatus(
 export async function startGame(roomId: string, hostId: string) {
   const room = await prisma.room.findUnique({
     where: { id: roomId },
-    select: { hostId: true, status: true },
+    select: { hostId: true, status: true, config: true },
   });
   if (!room) throw notFound("Room not found");
   if (room.hostId !== hostId) throw forbidden("Only host can start the game");

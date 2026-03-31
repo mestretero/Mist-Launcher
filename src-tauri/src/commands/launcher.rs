@@ -15,9 +15,13 @@ pub async fn launch_game(
     db: State<'_, Db>,
     game_id: String,
     exe_path: String,
+    args: Option<Vec<String>>,
 ) -> Result<u32, String> {
-    let child = Command::new(&exe_path)
-        .spawn()
+    let mut cmd = Command::new(&exe_path);
+    if let Some(ref a) = args {
+        cmd.args(a);
+    }
+    let child = cmd.spawn()
         .map_err(|e| format!("Failed to launch: {}", e))?;
 
     let pid = child.id();

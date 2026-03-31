@@ -146,6 +146,7 @@ async function handleSendMessage(client: Client, payload: SendMessagePayload) {
 async function handleStartGame(client: Client, payload: RoomIdPayload) {
   const { roomId } = payload;
   const room = await roomService.startGame(roomId, client.userId);
+  const config = (room.config as Record<string, unknown>) || {};
 
   broadcastToRoom(roomId, {
     type: "room:game-starting",
@@ -153,8 +154,9 @@ async function handleStartGame(client: Client, payload: RoomIdPayload) {
       roomId,
       hostType: room.hostType,
       port: room.port,
-      // The host's virtual IP is always 10.13.37.1 (assigned in createRoom)
       hostVirtualIp: "10.13.37.1",
+      hostLaunchArgs: config.hostLaunchArgs || null,
+      clientLaunchArgs: config.clientLaunchArgs || null,
     },
   });
 }

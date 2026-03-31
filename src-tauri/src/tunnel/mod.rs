@@ -1,9 +1,10 @@
 pub mod adapter;
+pub mod stun;
 pub mod wg;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use tokio::sync::watch;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -19,7 +20,8 @@ pub struct TunnelInfo {
     pub virtual_ip: String,
     pub private_key: String,
     pub public_key: String,
-    pub listen_port: u16,  // our UDP listen port for peers to connect
+    pub listen_port: u16,       // our UDP listen port for peers to connect
+    pub public_endpoint: String, // public IP:port from STUN, or "0.0.0.0:PORT" fallback
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,6 +30,7 @@ pub struct TunnelStatus {
     pub virtual_ip: String,
     pub peer_count: usize,
     pub listen_port: u16,
+    pub public_endpoint: String,
 }
 
 /// Active tunnel state with shutdown handle
@@ -71,12 +74,14 @@ pub fn get_tunnel_status(room_id: &str) -> TunnelStatus {
             virtual_ip: t.info.virtual_ip.clone(),
             peer_count: t.peer_count,
             listen_port: t.info.listen_port,
+            public_endpoint: t.info.public_endpoint.clone(),
         },
         None => TunnelStatus {
             active: false,
             virtual_ip: String::new(),
             peer_count: 0,
             listen_port: 0,
+            public_endpoint: String::new(),
         },
     }
 }

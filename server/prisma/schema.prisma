@@ -718,6 +718,8 @@ model GameHostingProfile {
   serverFileUrl     String?      @map("server_file_url")
   serverFileName    String?      @map("server_file_name")
   setupInstructions String?      @map("setup_instructions")
+  hostLaunchArgs    String?      @map("host_launch_args")
+  clientLaunchArgs  String?      @map("client_launch_args")
   isOfficial        Boolean      @default(false) @map("is_official")
   createdAt         DateTime     @default(now()) @map("created_at")
 
