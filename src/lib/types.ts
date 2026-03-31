@@ -185,6 +185,7 @@ export interface RoomMessage {
   id: string;
   userId?: string;
   username?: string;
+  user?: { id: string; username: string; avatarUrl?: string };
   content: string;
   isSystem: boolean;
   createdAt: string;

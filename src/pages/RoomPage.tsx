@@ -512,8 +512,8 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
                     className={`max-w-[70%] ${isMine ? "text-right" : "text-left"}`}
                   >
                     {!isMine && (
-                      <span className="text-[10px] font-semibold text-[#67707b] mb-1 block px-1">
-                        {msg.username}
+                      <span className="text-[10px] font-semibold text-[#1a9fff]/70 mb-1 block px-1">
+                        {msg.user?.username || msg.username || "?"}
                       </span>
                     )}
                     <div

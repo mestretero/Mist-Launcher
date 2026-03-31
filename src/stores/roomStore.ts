@@ -254,9 +254,21 @@ function handleWsMessage(
       break;
     }
 
-    case "room:message":
+    case "room:message": {
       set({ messages: [...get().messages, payload] });
+      // Browser notification for lobby messages (if tab not focused)
+      if (document.hidden && !payload.isSystem) {
+        const sender = payload.user?.username || payload.username || "?";
+        try {
+          if (Notification.permission === "granted") {
+            new Notification(sender, { body: payload.content, silent: false });
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission();
+          }
+        } catch { /* notifications not supported */ }
+      }
       break;
+    }
 
     case "room:game-starting": {
       const room = get().currentRoom;
@@ -289,6 +301,17 @@ function handleWsMessage(
       import("./dmStore").then(({ useDmStore }) => {
         useDmStore.getState().receiveMessage(payload);
       });
+      // Browser notification for DMs
+      if (document.hidden) {
+        const sender = payload.sender?.username || "?";
+        try {
+          if (Notification.permission === "granted") {
+            new Notification(sender, { body: payload.content, silent: false });
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission();
+          }
+        } catch { /* */ }
+      }
       break;
 
     case "error":
