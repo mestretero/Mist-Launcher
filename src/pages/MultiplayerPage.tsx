@@ -5,18 +5,30 @@ import { useAuthStore } from "../stores/authStore";
 import { CreateRoomModal } from "../components/CreateRoomModal";
 import type { Room } from "../lib/types";
 
-interface Props { onNavigate: (page: string, slug?: string) => void; }
+interface Props {
+  onNavigate: (page: string, slug?: string) => void;
+}
 
 export default function MultiplayerPage({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
-  const { rooms, fetchRooms, createRoom } = useRoomStore();
+  const { rooms, fetchRooms, createRoom, wsConnected } = useRoomStore();
   const [showCreate, setShowCreate] = useState(false);
 
-  useEffect(() => { fetchRooms(); }, []);
+  useEffect(() => {
+    fetchRooms();
+  }, []);
 
-  const myRooms = rooms.filter((r) => r.hostId === user?.id || r.players.some((p) => p.userId === user?.id));
-  const friendRooms = rooms.filter((r) => r.hostId !== user?.id && !r.players.some((p) => p.userId === user?.id));
+  const myRooms = rooms.filter(
+    (r) =>
+      r.hostId === user?.id ||
+      r.players.some((p) => p.userId === user?.id),
+  );
+  const friendRooms = rooms.filter(
+    (r) =>
+      r.hostId !== user?.id &&
+      !r.players.some((p) => p.userId === user?.id),
+  );
 
   async function handleCreate(data: any) {
     const room = await createRoom(data);
@@ -24,67 +36,202 @@ export default function MultiplayerPage({ onNavigate }: Props) {
     onNavigate("room", room.id);
   }
 
+  const allEmpty = myRooms.length === 0 && friendRooms.length === 0;
+
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-black text-brand-100">{t("multiplayer.title")}</h1>
-        <button onClick={() => setShowCreate(true)} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors">
-          + {t("multiplayer.createRoom")}
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-black text-white tracking-tight">
+            {t("multiplayer.title")}
+          </h1>
+          <div className="flex items-center gap-3 mt-1">
+            <div className={`flex items-center gap-1.5 text-xs ${wsConnected ? "text-emerald-400" : "text-gray-500"}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${wsConnected ? "bg-emerald-400" : "bg-gray-600"}`} />
+              {wsConnected ? "Online" : "Offline"}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all hover:scale-[1.02] shadow-lg shadow-emerald-900/20"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          {t("multiplayer.createRoom")}
         </button>
       </div>
 
-      <section className="mb-8">
-        <h2 className="text-sm font-bold uppercase tracking-widest text-brand-500 mb-3">{t("multiplayer.myRooms")}</h2>
-        {myRooms.length === 0 ? (
-          <p className="text-sm text-brand-600">{t("multiplayer.noRooms")}</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {myRooms.map((room) => <RoomCard key={room.id} room={room} onClick={() => onNavigate("room", room.id)} />)}
+      {/* Empty State */}
+      {allEmpty && (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-[#12151a] border border-[#1e2128] flex items-center justify-center mb-6">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2a2e38" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
           </div>
-        )}
-      </section>
+          <h3 className="text-lg font-bold text-white mb-2">{t("multiplayer.noRooms")}</h3>
+          <p className="text-sm text-gray-500 mb-6 max-w-xs">
+            {t("multiplayer.noFriendsHosting")}
+          </p>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-5 py-2.5 bg-[#1e2128] hover:bg-[#282c34] text-gray-200 text-sm font-semibold rounded-xl border border-[#2e323a] transition-colors"
+          >
+            {t("multiplayer.createRoom")}
+          </button>
+        </div>
+      )}
 
-      <section>
-        <h2 className="text-sm font-bold uppercase tracking-widest text-brand-500 mb-3">{t("multiplayer.friendsHosting")}</h2>
-        {friendRooms.length === 0 ? (
-          <p className="text-sm text-brand-600">{t("multiplayer.noFriendsHosting")}</p>
-        ) : (
+      {/* My Rooms */}
+      {myRooms.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-[11px] font-bold uppercase tracking-[2px] text-gray-500 mb-4">
+            {t("multiplayer.myRooms")}
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {friendRooms.map((room) => <RoomCard key={room.id} room={room} onClick={() => onNavigate("room", room.id)} />)}
+            {myRooms.map((room) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                isOwn
+                onClick={() => onNavigate("room", room.id)}
+              />
+            ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {showCreate && <CreateRoomModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
+      {/* Friends Hosting */}
+      {friendRooms.length > 0 && (
+        <section>
+          <h2 className="text-[11px] font-bold uppercase tracking-[2px] text-gray-500 mb-4">
+            {t("multiplayer.friendsHosting")}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {friendRooms.map((room) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                onClick={() => onNavigate("room", room.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {showCreate && (
+        <CreateRoomModal
+          onClose={() => setShowCreate(false)}
+          onCreate={handleCreate}
+        />
+      )}
     </div>
   );
 }
 
-function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
+function RoomCard({ room, onClick, isOwn }: { room: Room; onClick: () => void; isOwn?: boolean }) {
   const { t } = useTranslation();
-  const statusColor = room.status === "WAITING" ? "text-green-400" : "text-yellow-400";
-  const statusBg = room.status === "WAITING" ? "bg-green-400/10" : "bg-yellow-400/10";
+  const isWaiting = room.status === "WAITING";
   const initials = room.host.username.slice(0, 2).toUpperCase();
 
   return (
-    <button onClick={onClick} className="flex items-center gap-4 p-4 bg-brand-950 border border-brand-800 rounded-xl hover:border-brand-600 transition-colors text-left w-full">
-      <div className="w-12 h-12 rounded-lg bg-brand-900 flex items-center justify-center text-xl flex-shrink-0">
-        {room.game?.coverImageUrl ? <img src={room.game.coverImageUrl} alt="" className="w-full h-full rounded-lg object-cover" /> : "🎮"}
+    <button
+      onClick={onClick}
+      className={`group relative flex items-center gap-4 p-4 rounded-xl border transition-all text-left w-full hover:scale-[1.01] ${
+        isOwn
+          ? "bg-emerald-500/[0.03] border-emerald-500/10 hover:border-emerald-500/25"
+          : "bg-[#0c0e14] border-[#1e2128] hover:border-[#3a3e48]"
+      }`}
+    >
+      {/* Game Cover */}
+      <div className="w-14 h-14 rounded-lg bg-[#12151a] flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden border border-[#1e2128]">
+        {room.game?.coverImageUrl ? (
+          <img
+            src={room.game.coverImageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2a2e38" strokeWidth="1.5">
+            <path d="M6 12h4m4 0h4M6 12a6 6 0 1112 0 6 6 0 01-12 0zm0 0H2m20 0h-2" />
+          </svg>
+        )}
       </div>
+
+      {/* Info */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-sm font-bold text-brand-100 truncate">{room.name}</span>
-          <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${statusBg} ${statusColor}`}>{room.status}</span>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-sm font-bold text-white truncate">{room.name}</span>
+          <span
+            className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wider ${
+              isWaiting
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "bg-amber-500/10 text-amber-400"
+            }`}
+          >
+            {isWaiting ? t("room.status.waiting", "Waiting") : t("room.status.playing", "In Game")}
+          </span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-brand-500">
-          <span>{room.gameName}</span><span>•</span>
-          <span>{t("room.playerCount", { current: room.players.length, max: room.maxPlayers })}</span>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <span className="text-gray-400">{room.gameName}</span>
+          <span className="text-[#1e2128]">|</span>
+          <div className="flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+            </svg>
+            <span>
+              {room.players.length}/{room.maxPlayers}
+            </span>
+          </div>
+          {room.port && (
+            <>
+              <span className="text-[#1e2128]">|</span>
+              <span>:{room.port}</span>
+            </>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {room.host.avatarUrl ? <img src={room.host.avatarUrl} alt="" className="w-8 h-8 rounded-md object-cover" /> :
-          <div className="w-8 h-8 rounded-md bg-indigo-600 flex items-center justify-center text-white text-xs font-black">{initials}</div>}
+
+      {/* Host Avatar */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="text-right mr-1 hidden sm:block">
+          <span className="text-[10px] text-gray-600 block">host</span>
+          <span className="text-xs text-gray-400 font-medium">{room.host.username}</span>
+        </div>
+        {room.host.avatarUrl ? (
+          <img
+            src={room.host.avatarUrl}
+            alt=""
+            className="w-9 h-9 rounded-lg object-cover border border-[#1e2128]"
+          />
+        ) : (
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#2a2e38] to-[#1e2128] flex items-center justify-center text-gray-400 text-xs font-black">
+            {initials}
+          </div>
+        )}
       </div>
+
+      {/* Join arrow */}
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        className="text-gray-600 group-hover:text-gray-300 transition-colors flex-shrink-0"
+      >
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
     </button>
   );
 }
