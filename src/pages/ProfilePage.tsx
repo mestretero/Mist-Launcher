@@ -283,11 +283,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 </div>
                 <div>
                   <label className="text-[9px] font-bold uppercase tracking-widest text-[#5e6673] mb-1 block">{t("profile.bio")}</label>
-                  <textarea value={editBio} onChange={(e) => setEditBio(e.target.value.slice(0, 80))}
+                  <textarea value={editBio} onChange={(e) => setEditBio(e.target.value.slice(0, 300))}
                     placeholder={t("profile.bioPlaceholder")}
                     className="w-full px-3 py-2 bg-[#20232c] border border-[#3d4450] rounded text-sm text-[#c6d4df] placeholder-[#67707b] focus:outline-none focus:border-[#47bfff] transition-colors resize-none"
-                    rows={2} maxLength={80} />
-                  <p className={`text-[9px] mt-1 text-right ${editBio.length > 65 ? "text-yellow-400" : "text-[#3d4450]"}`}>{editBio.length}/80</p>
+                    rows={3} maxLength={300} />
+                  <p className={`text-[9px] mt-1 text-right ${editBio.length > 250 ? "text-yellow-400" : "text-[#3d4450]"}`}>{editBio.length}/300</p>
                 </div>
               </div>
             ) : (
