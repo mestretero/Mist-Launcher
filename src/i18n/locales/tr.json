@@ -616,7 +616,9 @@
     "offline": "Çevrimdışı",
     "noFriends": "Henüz arkadaşın yok",
     "noMessages": "Henüz mesaj yok",
-    "messagePlaceholder": "Mesaj yaz..."
+    "messagePlaceholder": "Mesaj yaz...",
+    "viewProfile": "Profili Görüntüle",
+    "sendMessage": "Mesaj Gönder"
   },
   "gameDetail": {
     "back": "Geri",

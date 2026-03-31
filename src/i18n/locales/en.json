@@ -616,7 +616,9 @@
     "offline": "Offline",
     "noFriends": "No friends yet",
     "noMessages": "No messages yet",
-    "messagePlaceholder": "Type a message..."
+    "messagePlaceholder": "Type a message...",
+    "viewProfile": "View Profile",
+    "sendMessage": "Send Message"
   },
   "gameDetail": {
     "back": "Back",

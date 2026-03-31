@@ -166,7 +166,7 @@ function App() {
         <UserProfilePage username={gameSlug} onNavigate={navigate} />
       )}
       <ToastContainer />
-      <ChatPanel />
+      <ChatPanel onNavigate={navigate} />
     </Layout>
   );
 }

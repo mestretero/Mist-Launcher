@@ -616,7 +616,9 @@
     "offline": "Desconectado",
     "noFriends": "No tienes amigos aún",
     "noMessages": "No hay mensajes aún",
-    "messagePlaceholder": "Escribe un mensaje..."
+    "messagePlaceholder": "Escribe un mensaje...",
+    "viewProfile": "Ver Perfil",
+    "sendMessage": "Enviar Mensaje"
   },
   "gameDetail": {
     "back": "Volver",

@@ -3,7 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useDmStore } from "../stores/dmStore";
 import { useAuthStore } from "../stores/authStore";
 
-export function ChatPanel() {
+interface Props {
+  onNavigate: (page: string, slug?: string) => void;
+}
+
+export function ChatPanel({ onNavigate }: Props) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const {
@@ -13,17 +17,29 @@ export function ChatPanel() {
   } = useDmStore();
 
   const [chatInput, setChatInput] = useState("");
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; friend: any } | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
+  useEffect(() => {
+    function close() { setContextMenu(null); }
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
+
   async function handleSend() {
     if (!chatInput.trim()) return;
     const text = chatInput.trim();
     setChatInput("");
     await sendMessage(text);
+  }
+
+  function handleContextMenu(e: React.MouseEvent, friend: any) {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, friend });
   }
 
   const sortedFriends = [...friends].sort((a, b) => {
@@ -33,14 +49,14 @@ export function ChatPanel() {
   });
   const onlineCount = friends.filter((f) => f.online).length;
 
-  // Panel always renders, animated via CSS
   return (
-    <div className="fixed bottom-0 right-0 z-50 flex" style={{ height: panelOpen ? 440 : 36 }}>
-      {/* ─── Chat (left, slides in) ─── */}
+    <div className="fixed bottom-0 right-0 z-50 flex items-end">
+      {/* ─── Chat (left) ─── */}
       <div
         className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{
           width: panelOpen && activeChatFriend ? 340 : 0,
+          height: panelOpen ? 440 : 36,
           opacity: panelOpen && activeChatFriend ? 1 : 0,
         }}
       >
@@ -50,22 +66,28 @@ export function ChatPanel() {
             <button onClick={closeChat} className="p-1 rounded-lg hover:bg-[#2a2e38] text-[#67707b] hover:text-white transition-colors">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
-            <div className="relative">
-              {activeChatFriend?.avatarUrl ? (
-                <img src={activeChatFriend.avatarUrl.startsWith("http") ? activeChatFriend.avatarUrl : `http://localhost:3001${activeChatFriend.avatarUrl}`} alt="" className="w-7 h-7 rounded-lg object-cover" />
-              ) : (
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] flex items-center justify-center text-[9px] font-black text-[#c6d4df]">
-                  {activeChatFriend?.username.slice(0, 2).toUpperCase()}
-                </div>
-              )}
-              {activeChatFriend?.online && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#1a1c23]" />}
-            </div>
-            <div>
-              <span className="text-sm font-bold text-white block">{activeChatFriend?.username}</span>
-              <span className={`text-[10px] ${activeChatFriend?.online ? "text-emerald-400" : "text-[#67707b]"}`}>
-                {activeChatFriend?.online ? t("chat.online") : t("chat.offline")}
-              </span>
-            </div>
+            {/* Clickable profile link */}
+            <button
+              onClick={() => { onNavigate("user-profile", activeChatFriend?.username); togglePanel(); }}
+              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+            >
+              <div className="relative">
+                {activeChatFriend?.avatarUrl ? (
+                  <img src={activeChatFriend.avatarUrl.startsWith("http") ? activeChatFriend.avatarUrl : `http://localhost:3001${activeChatFriend.avatarUrl}`} alt="" className="w-8 h-8 rounded-lg object-cover ring-2 ring-[#2a2e38]" />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] flex items-center justify-center text-[10px] font-black text-[#c6d4df] ring-2 ring-[#2a2e38]">
+                    {activeChatFriend?.username.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                {activeChatFriend?.online && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#1a1c23]" />}
+              </div>
+              <div className="text-left">
+                <span className="text-[13px] font-bold text-white block leading-tight">{activeChatFriend?.username}</span>
+                <span className={`text-[10px] leading-tight ${activeChatFriend?.online ? "text-emerald-400" : "text-[#67707b]"}`}>
+                  {activeChatFriend?.online ? t("chat.online") : t("chat.offline")}
+                </span>
+              </div>
+            </button>
           </div>
 
           {/* Messages */}
@@ -83,6 +105,11 @@ export function ChatPanel() {
               return (
                 <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
                   <div className="max-w-[85%]">
+                    {!isMine && (
+                      <span className="text-[10px] font-semibold text-[#1a9fff]/60 mb-0.5 block px-1">
+                        {msg.sender?.username}
+                      </span>
+                    )}
                     <div className={`px-3 py-2 text-[13px] leading-snug ${
                       isMine ? "bg-[#1a9fff] text-white rounded-2xl rounded-br-sm" : "bg-[#1a1c23] text-[#c6d4df] border border-[#2a2e38] rounded-2xl rounded-bl-sm"
                     }`}>{msg.content}</div>
@@ -116,44 +143,38 @@ export function ChatPanel() {
         </div>
       </div>
 
-      {/* ─── Friends Panel (right, always here) ─── */}
+      {/* ─── Friends Panel (right) ─── */}
       <div
         className={`w-[280px] bg-[#1a1c23] border border-[#2a2e38] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           activeChatFriend && panelOpen ? "rounded-tr-2xl" : "rounded-t-2xl"
         }`}
-        style={{ height: "100%" }}
+        style={{ height: panelOpen ? 440 : 36 }}
       >
-        {/* Header — always visible, acts as the toggle button */}
-        <button
-          onClick={togglePanel}
-          className="w-full flex items-center justify-between px-4 py-2 bg-[#1a1c23] hover:bg-[#20232c] transition-colors cursor-pointer"
-          style={{ height: 36 }}
-        >
+        {/* Header toggle */}
+        <button onClick={togglePanel} className="w-full flex items-center justify-between px-4 py-2 hover:bg-[#20232c] transition-colors" style={{ height: 36 }}>
           <div className="flex items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#1a9fff]">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
             <span className="text-[12px] font-bold text-[#c6d4df]">{t("chat.friendsAndChat")}</span>
             {onlineCount > 0 && <span className="text-[10px] text-emerald-400">({onlineCount})</span>}
-            {unreadCount > 0 && (
-              <span className="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{unreadCount}</span>
-            )}
+            {unreadCount > 0 && <span className="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{unreadCount}</span>}
           </div>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"
-            className={`text-[#67707b] transition-transform duration-300 ${panelOpen ? "rotate-180" : ""}`}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`text-[#67707b] transition-transform duration-300 ${panelOpen ? "rotate-180" : ""}`}>
             <polyline points="18 15 12 9 6 15" />
           </svg>
         </button>
 
         {/* Friends list */}
-        <div className="border-t border-[#2a2e38] overflow-y-auto flex-1">
+        <div className="border-t border-[#2a2e38] overflow-y-auto flex-1" style={{ maxHeight: 404 }}>
           {onlineCount > 0 && (
             <div className="px-3 pt-2.5 pb-1">
               <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400/60">{t("chat.online")} — {onlineCount}</span>
             </div>
           )}
           {sortedFriends.filter((f) => f.online).map((f) => (
-            <FriendRow key={f.id} friend={f} isActive={activeChatFriend?.id === f.id} onClick={() => openChat(f)} />
+            <FriendRow key={f.id} friend={f} isActive={activeChatFriend?.id === f.id}
+              onClick={() => openChat(f)} onContextMenu={(e) => handleContextMenu(e, f)} />
           ))}
           {sortedFriends.some((f) => !f.online) && (
             <div className="px-3 pt-2.5 pb-1">
@@ -161,21 +182,47 @@ export function ChatPanel() {
             </div>
           )}
           {sortedFriends.filter((f) => !f.online).map((f) => (
-            <FriendRow key={f.id} friend={f} isActive={activeChatFriend?.id === f.id} onClick={() => openChat(f)} />
+            <FriendRow key={f.id} friend={f} isActive={activeChatFriend?.id === f.id}
+              onClick={() => openChat(f)} onContextMenu={(e) => handleContextMenu(e, f)} />
           ))}
           {friends.length === 0 && (
             <p className="text-[11px] text-[#67707b] text-center py-10">{t("chat.noFriends")}</p>
           )}
         </div>
       </div>
+
+      {/* ─── Context Menu ─── */}
+      {contextMenu && (
+        <div
+          className="fixed z-[100] bg-[#1a1c23] border border-[#2a2e38] rounded-xl shadow-2xl shadow-black/50 py-1 min-w-[160px] overflow-hidden"
+          style={{ left: contextMenu.x, top: contextMenu.y - 80 }}
+        >
+          <button
+            onClick={() => { onNavigate("user-profile", contextMenu.friend.username); togglePanel(); setContextMenu(null); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c6d4df] hover:bg-[#1a9fff]/10 hover:text-[#1a9fff] transition-colors text-left"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            {t("chat.viewProfile", "Profili Görüntüle")}
+          </button>
+          <button
+            onClick={() => { openChat(contextMenu.friend); setContextMenu(null); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c6d4df] hover:bg-[#1a9fff]/10 hover:text-[#1a9fff] transition-colors text-left"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+            {t("chat.sendMessage", "Mesaj Gönder")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function FriendRow({ friend, isActive, onClick }: { friend: any; isActive: boolean; onClick: () => void }) {
+function FriendRow({ friend, isActive, onClick, onContextMenu }: {
+  friend: any; isActive: boolean; onClick: () => void; onContextMenu: (e: React.MouseEvent) => void;
+}) {
   const initials = friend.username.slice(0, 2).toUpperCase();
   return (
-    <button onClick={onClick}
+    <button onClick={onClick} onContextMenu={onContextMenu}
       className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${isActive ? "bg-[#1a9fff]/10 border-l-2 border-[#1a9fff]" : "hover:bg-[#20232c]/60 border-l-2 border-transparent"}`}>
       <div className="relative flex-shrink-0">
         {friend.avatarUrl ? (

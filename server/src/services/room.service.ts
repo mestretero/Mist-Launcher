@@ -220,7 +220,9 @@ export async function leaveRoom(roomId: string, userId: string) {
   });
   if (!room) throw notFound("Room not found");
 
-  // Remove the player from the room (host or not)
+  // Host can never leave — they must use closeRoom instead
+  if (room.hostId === userId) return { closed: false };
+
   await prisma.roomPlayer.deleteMany({ where: { roomId, userId } });
   return { closed: false };
 }
