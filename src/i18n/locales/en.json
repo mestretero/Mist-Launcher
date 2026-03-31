@@ -634,7 +634,8 @@
     "creator": "Creator",
     "creatorLeaveWarning": "You are the creator. Leaving will delete the group for everyone.",
     "selectFriends": "Select friends to add",
-    "atLeastOneMember": "Select at least one friend"
+    "atLeastOneMember": "Select at least one friend",
+    "searchFriends": "Search friends..."
   },
   "gameDetail": {
     "back": "Back",

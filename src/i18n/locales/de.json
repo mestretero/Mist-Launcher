@@ -634,7 +634,8 @@
     "creator": "Ersteller",
     "creatorLeaveWarning": "Du bist der Ersteller. Wenn du gehst, wird die Gruppe für alle gelöscht.",
     "selectFriends": "Freunde zum Hinzufügen auswählen",
-    "atLeastOneMember": "Wähle mindestens einen Freund aus"
+    "atLeastOneMember": "Wähle mindestens einen Freund aus",
+    "searchFriends": "Freunde suchen..."
   },
   "gameDetail": {
     "back": "Zurück",

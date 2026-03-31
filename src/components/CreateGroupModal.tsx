@@ -25,6 +25,7 @@ export function CreateGroupModal({ friends, preselectedFriend, onClose }: Props)
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
 
   function toggleFriend(id: string) {
     const next = new Set(selectedIds);
@@ -72,12 +73,23 @@ export function CreateGroupModal({ friends, preselectedFriend, onClose }: Props)
           />
         </div>
 
-        {/* Friend selection */}
+        {/* Friend search + selection */}
         <div className="px-5 pb-2">
           <label className="text-[11px] font-bold uppercase tracking-widest text-[#67707b]/60 block mb-1.5">{t("chat.selectFriends")}</label>
+          <div className="relative">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#67707b]/40">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("chat.searchFriends")}
+              className="w-full pl-8 pr-3 py-1.5 bg-[#0f1115] border border-[#2a2e38] rounded-lg text-[12px] text-[#c6d4df] placeholder:text-[#67707b]/40 focus:border-[#1a9fff]/50 outline-none"
+            />
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-3">
-          {friends.map((f) => {
+          {friends.filter((f) => f.username.toLowerCase().includes(search.toLowerCase())).map((f) => {
             const checked = selectedIds.has(f.id);
             return (
               <button key={f.id} onClick={() => toggleFriend(f.id)}

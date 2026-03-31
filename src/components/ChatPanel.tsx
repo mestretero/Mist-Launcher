@@ -58,7 +58,7 @@ export function ChatPanel({ onNavigate }: Props) {
 
   return (
     <>
-      <div className="fixed bottom-0 right-0 z-50 flex items-end">
+      <div className="fixed bottom-0 right-0 z-50 flex items-end" onContextMenu={(e) => e.preventDefault()}>
         {/* ─── Chat (left) ─── */}
         <div
           className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"

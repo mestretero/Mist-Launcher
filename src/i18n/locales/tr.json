@@ -634,7 +634,8 @@
     "creator": "Kurucu",
     "creatorLeaveWarning": "Siz kurucusunuz. Ayrılırsanız grup herkes için silinir.",
     "selectFriends": "Eklenecek arkadaşları seçin",
-    "atLeastOneMember": "En az bir arkadaş seçin"
+    "atLeastOneMember": "En az bir arkadaş seçin",
+    "searchFriends": "Arkadaş ara..."
   },
   "gameDetail": {
     "back": "Geri",
