@@ -80,11 +80,9 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       set({ messages: msgs });
     } catch { /* no history available */ }
 
-    // Join via WS
-    const { wsClient, wsConnected } = get();
-    if (wsClient && wsConnected) {
-      wsClient.send("room:join", { roomId: room.id, publicKey: "" });
-    }
+    // Join via WS (with retry — WS might still be connecting)
+    await waitForWs(get);
+    get().wsClient?.send("room:join", { roomId: room.id });
     return room;
   },
 
@@ -103,11 +101,9 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       /* will get state from WS */
     }
 
-    // Join via WebSocket for real-time updates
-    const { wsClient, wsConnected } = get();
-    if (wsClient && wsConnected) {
-      wsClient.send("room:join", { roomId });
-    }
+    // Join via WebSocket (with retry)
+    await waitForWs(get);
+    get().wsClient?.send("room:join", { roomId });
   },
 
   leaveRoom: () => {
@@ -142,13 +138,16 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   sendMessage: (content) => {
-    const { wsClient, currentRoom } = get();
-    if (currentRoom && wsClient) {
-      wsClient.send("room:send-message", {
-        roomId: currentRoom.id,
-        content,
-      });
+    const { wsClient, wsConnected, currentRoom } = get();
+    if (!currentRoom) return;
+    if (!wsClient || !wsConnected) {
+      console.warn("WebSocket not connected — message not sent");
+      return;
     }
+    wsClient.send("room:send-message", {
+      roomId: currentRoom.id,
+      content,
+    });
   },
 
   toggleReady: (ready) => {
@@ -277,4 +276,19 @@ function handleWsMessage(
       console.error("WebSocket error:", payload.message);
       break;
   }
+}
+
+/** Wait up to 5 seconds for WS to be connected */
+function waitForWs(get: () => RoomState): Promise<void> {
+  return new Promise((resolve) => {
+    if (get().wsConnected) return resolve();
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (get().wsConnected || attempts >= 25) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 200);
+  });
 }
