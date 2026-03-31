@@ -16,6 +16,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
   const [links, setLinks] = useState<CommunityLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   const fetchLinks = useCallback(async () => {
     try {
@@ -46,23 +47,33 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
     } catch {}
   };
 
-  const handleReport = async (linkId: string) => {
+  const handleReport = (linkId: string) => {
     if (!user) return;
-    if (!confirm(t("gameDetail.communityLinks.vote.reportConfirm"))) return;
-    try {
-      const res = await api.communityLinks.report(slug, linkId);
-      setLinks((prev) =>
-        prev.map((l) => (l.id === linkId ? { ...l, virusReports: res.virusReports, hasReported: true } : l)),
-      );
-    } catch {}
+    setConfirmAction({
+      message: t("gameDetail.communityLinks.vote.reportConfirm"),
+      onConfirm: async () => {
+        try {
+          const res = await api.communityLinks.report(slug, linkId);
+          setLinks((prev) =>
+            prev.map((l) => (l.id === linkId ? { ...l, virusReports: res.virusReports, hasReported: true } : l)),
+          );
+        } catch {}
+        setConfirmAction(null);
+      },
+    });
   };
 
-  const handleDelete = async (linkId: string) => {
-    if (!confirm(t("gameDetail.communityLinks.deleteConfirm"))) return;
-    try {
-      await api.communityLinks.delete(slug, linkId);
-      setLinks((prev) => prev.filter((l) => l.id !== linkId));
-    } catch {}
+  const handleDelete = (linkId: string) => {
+    setConfirmAction({
+      message: t("gameDetail.communityLinks.deleteConfirm"),
+      onConfirm: async () => {
+        try {
+          await api.communityLinks.delete(slug, linkId);
+          setLinks((prev) => prev.filter((l) => l.id !== linkId));
+        } catch {}
+        setConfirmAction(null);
+      },
+    });
   };
 
   const handleOpenUrl = (url: string) => {
@@ -159,7 +170,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
               <h3 className="text-white font-semibold text-[15px] truncate">{link.title}</h3>
               <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 flex-wrap">
                 {link.size && (
-                  <span className="bg-[#1a9fff22] text-[#1a9fff] px-2 py-0.5 rounded text-[11px]">{link.size}</span>
+                  <span className="bg-[#1a9fff22] text-[#1a9fff] px-2 py-0.5 rounded text-[11px]">{link.size} GB</span>
                 )}
                 {link.crackInfo && (
                   <span className="bg-[#1a9fff11] text-[#1a9fff99] px-2 py-0.5 rounded text-[11px]">{link.crackInfo}</span>
@@ -202,53 +213,88 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
           )}
 
           {/* Mirror buttons */}
-          <div className="flex flex-wrap gap-2 mb-3">
+          <div className="flex flex-wrap gap-2 mb-4">
             {link.mirrors.map((mirror) => (
               <button
                 key={mirror.id}
                 onClick={() => handleOpenUrl(mirror.url)}
-                className="bg-[#1a1d23] hover:bg-[#252830] border border-[#2a2d35] text-[#1a9fff] px-3 py-1.5 rounded-md text-sm transition-colors"
+                className="flex items-center gap-2 bg-[#1a9fff15] hover:bg-[#1a9fff25] border border-[#1a9fff33] text-[#1a9fff] px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-[1.02]"
               >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                 {mirror.sourceName}
               </button>
             ))}
           </div>
 
           {/* Footer: report + delete + download */}
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
+          <div className="flex justify-between items-center pt-2 border-t border-[#1e2128]">
+            <div className="flex items-center gap-3">
               {user && !link.hasReported && (
                 <button
                   onClick={() => handleReport(link.id)}
-                  className="text-gray-500 hover:text-red-400 text-xs transition-colors"
+                  className="flex items-center gap-1.5 text-gray-500 hover:text-amber-400 text-xs font-medium transition-colors px-2 py-1 rounded hover:bg-amber-400/10"
                 >
-                  ⚠️ {t("gameDetail.communityLinks.vote.report")}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  {t("gameDetail.communityLinks.vote.report")}
                 </button>
               )}
               {link.hasReported && (
-                <span className="text-gray-600 text-xs">⚠️ {t("gameDetail.communityLinks.vote.reported")}</span>
+                <span className="flex items-center gap-1.5 text-amber-600/60 text-xs font-medium px-2 py-1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  {t("gameDetail.communityLinks.vote.reported")}
+                </span>
               )}
               {user && (user.username === link.user.username || user.isAdmin) && (
                 <button
                   onClick={() => handleDelete(link.id)}
-                  className="text-gray-500 hover:text-red-400 text-xs transition-colors"
+                  className="flex items-center gap-1.5 text-gray-500 hover:text-red-400 text-xs font-medium transition-colors px-2 py-1 rounded hover:bg-red-400/10"
                 >
-                  🗑️
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  {t("common.delete")}
                 </button>
               )}
             </div>
             <button
               onClick={() => handleOpenUrl(link.mirrors[0]?.url)}
-              className="bg-[#1a9fff] hover:bg-[#1580d0] text-white px-5 py-2 rounded-md text-sm font-semibold transition-colors"
+              className="flex items-center gap-2 bg-gradient-to-r from-[#1a9fff] to-[#0d7fd4] hover:from-[#3aafff] hover:to-[#1a9fff] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-[#1a9fff]/20 hover:shadow-[#1a9fff]/30 hover:scale-[1.02]"
             >
-              ⬇ {t("gameDetail.communityLinks.download")}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              {t("gameDetail.communityLinks.download")}
             </button>
           </div>
         </div>
       ))}
 
-      {/* Modal */}
+      {/* Create Link Modal */}
       {showModal && <CommunityLinkModal onClose={() => setShowModal(false)} onSubmit={handleCreate} />}
+
+      {/* Confirm Dialog */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[#12151a] border border-[#1e2128] rounded-xl p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <p className="text-sm text-gray-200 leading-relaxed">{confirmAction.message}</p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="px-4 py-2 text-sm font-semibold text-gray-400 bg-[#1a1d23] hover:bg-[#252830] border border-[#2a2d35] rounded-lg transition-colors"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                onClick={confirmAction.onConfirm}
+                className="px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors"
+              >
+                {t("common.confirm", "Evet")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
