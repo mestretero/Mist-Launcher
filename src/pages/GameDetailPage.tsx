@@ -264,67 +264,89 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
               <div className="space-y-4">
                 {/* Review Form */}
                 {user && (
-                  <div className="bg-[#1a1c23] border border-[#2a2e38] rounded-xl p-5">
+                  <div>
                     {!showReviewForm ? (
-                      <button onClick={() => setShowReviewForm(true)} className="w-full py-3 rounded-lg bg-[#1a9fff]/10 text-[#1a9fff] text-xs font-bold uppercase tracking-widest hover:bg-[#1a9fff]/20 transition-colors">
-                        {t("gameDetail.writeReview")}
+                      <button
+                        onClick={() => setShowReviewForm(true)}
+                        className="w-full group flex items-center justify-center gap-3 py-4 rounded-xl bg-[#12151a] border border-dashed border-[#2a2e38] text-[#5e6673] hover:text-white hover:border-[#4a4e56] hover:bg-[#1a1c23] transition-all"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                        <span className="text-sm font-semibold">{t("gameDetail.writeReview")}</span>
                       </button>
                     ) : (
-                      <>
-                        <div className="flex items-center gap-1 mb-3">
-                          <span className="text-xs font-bold text-[#5e6673] uppercase tracking-widest mr-2">{t("gameDetail.rating")}:</span>
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button key={star} onClick={() => setReviewRating(star)} className="hover:scale-110 transition-transform">
-                              <svg width="22" height="22" viewBox="0 0 24 24" fill={star <= reviewRating ? "#facc15" : "none"} stroke="#facc15" strokeWidth="2">
-                                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                              </svg>
-                            </button>
-                          ))}
+                      <div className="bg-[#12151a] border border-[#2a2e38] rounded-xl p-5">
+                        {/* Star Rating */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-xs font-semibold text-[#5e6673] mr-1">{t("gameDetail.rating")}</span>
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button key={star} onClick={() => setReviewRating(star)} className="hover:scale-125 transition-transform">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill={star <= reviewRating ? "#facc15" : "#1e2128"} stroke={star <= reviewRating ? "#facc15" : "#3a3e48"} strokeWidth="1.5">
+                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                </svg>
+                              </button>
+                            ))}
+                          </div>
+                          <span className="text-xs text-[#5e6673] ml-1">{reviewRating}/5</span>
                         </div>
+                        {/* Text Area */}
                         <textarea
                           value={reviewContent} onChange={(e) => setReviewContent(e.target.value)}
                           placeholder={t("gameDetail.reviewPlaceholder")}
-                          className="w-full px-4 py-3 rounded-lg bg-[#0a0c10] border border-[#2a2e38] text-white text-sm focus:outline-none focus:border-[#1a9fff] placeholder-[#5e6673] resize-none"
+                          className="w-full px-4 py-3 rounded-xl bg-[#0c0e14] border border-[#1e2128] text-white text-sm focus:outline-none focus:border-[#3a3e48] placeholder-[#3a3e48] resize-none transition-colors"
                           rows={4}
                         />
+                        {/* Buttons */}
                         <div className="flex gap-2 mt-3">
-                          <button onClick={handleSubmitReview} className="px-6 py-2 rounded-lg bg-[#1a9fff] text-white text-xs font-bold uppercase tracking-widest hover:bg-[#1580d0] transition-colors">{t("gameDetail.submit")}</button>
-                          <button onClick={() => setShowReviewForm(false)} className="px-4 py-2 rounded-lg text-xs font-bold text-[#5e6673] hover:text-white transition-colors">{t("common.cancel")}</button>
+                          <button onClick={handleSubmitReview} className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors">
+                            {t("gameDetail.submit")}
+                          </button>
+                          <button onClick={() => setShowReviewForm(false)} className="px-4 py-2.5 rounded-lg text-xs font-semibold text-[#5e6673] hover:text-white hover:bg-[#1e2128] transition-colors">
+                            {t("common.cancel")}
+                          </button>
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {/* Reviews List */}
                 {reviews?.reviews?.length > 0 ? (
-                  reviews.reviews.map((review: any) => (
-                    <div key={review.id} className="bg-[#1a1c23] border border-[#2a2e38] rounded-xl p-5">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-full bg-[#2a2e38] flex items-center justify-center text-[#1a9fff] font-black text-xs">
-                          {review.user?.username?.slice(0, 2).toUpperCase() || "??"}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold text-white">{review.user?.username || t("gameDetail.anonymous")}</span>
-                            <div className="flex gap-0.5">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <svg key={star} width="12" height="12" viewBox="0 0 24 24" fill={star <= review.rating ? "#facc15" : "none"} stroke="#facc15" strokeWidth="2">
-                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                                </svg>
-                              ))}
-                            </div>
+                  <div className="space-y-3">
+                    {reviews.reviews.map((review: any) => (
+                      <div key={review.id} className="bg-[#12151a] border border-[#1e2128] rounded-xl p-5 hover:border-[#2a2e38] transition-colors">
+                        <div className="flex items-start gap-3 mb-3">
+                          {/* Avatar */}
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#2a2e38] to-[#1e2128] flex items-center justify-center text-gray-400 font-black text-xs flex-shrink-0">
+                            {review.user?.username?.slice(0, 2).toUpperCase() || "??"}
                           </div>
-                          <span className="text-[10px] text-[#5e6673]">{new Date(review.createdAt).toLocaleDateString()}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-bold text-white">{review.user?.username || t("gameDetail.anonymous")}</span>
+                              {/* Stars inline */}
+                              <div className="flex gap-0.5">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <svg key={star} width="13" height="13" viewBox="0 0 24 24" fill={star <= review.rating ? "#facc15" : "#1e2128"} stroke={star <= review.rating ? "#facc15" : "#2a2e38"} strokeWidth="1.5">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                                  </svg>
+                                ))}
+                              </div>
+                            </div>
+                            <span className="text-[11px] text-[#3e4450]">
+                              {new Date(review.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
+                            </span>
+                          </div>
                         </div>
+                        {review.content && (
+                          <p className="text-sm text-[#9aa0aa] leading-relaxed ml-[52px]">{review.content}</p>
+                        )}
                       </div>
-                      {review.content && <p className="text-sm text-[#c6d4df] leading-relaxed">{review.content}</p>}
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1.5" className="mx-auto mb-3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <p className="text-sm text-[#5e6673]">{t("gameDetail.noReviews")}</p>
+                  <div className="text-center py-16">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2a2e38" strokeWidth="1.5" className="mx-auto mb-3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <p className="text-sm text-[#3e4450]">{t("gameDetail.noReviews")}</p>
                   </div>
                 )}
               </div>
