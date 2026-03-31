@@ -36,15 +36,16 @@ export function ChatPanel() {
   // Panel always renders, animated via CSS
   return (
     <div className="fixed bottom-0 right-6 z-50 flex items-end">
-      {/* ─── Chat (left, slides in) ─── */}
+      {/* ─── Chat (left, slides in) — same height as friends panel ─── */}
       <div
         className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{
           width: panelOpen && activeChatFriend ? 340 : 0,
+          height: panelOpen ? 440 : 36,
           opacity: panelOpen && activeChatFriend ? 1 : 0,
         }}
       >
-        <div className="w-[340px] h-[440px] flex flex-col bg-[#0f1115] border border-[#2a2e38] border-r-0 rounded-tl-2xl overflow-hidden">
+        <div className="w-[340px] h-full flex flex-col bg-[#0f1115] border border-[#2a2e38] border-r-0 rounded-tl-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-[#1a1c23]/60 border-b border-[#2a2e38]">
             <button onClick={closeChat} className="p-1 rounded-lg hover:bg-[#2a2e38] text-[#67707b] hover:text-white transition-colors">
