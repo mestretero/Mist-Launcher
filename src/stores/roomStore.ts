@@ -29,7 +29,7 @@ interface RoomState {
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: () => void;
   closeRoom: () => Promise<void>;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string) => Promise<void>;
   toggleReady: (ready: boolean) => void;
   startGame: () => void;
   kickPlayer: (userId: string) => void;
@@ -137,11 +137,14 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     set({ currentRoom: null, messages: [] });
   },
 
-  sendMessage: (content) => {
-    const { wsClient, wsConnected, currentRoom } = get();
+  sendMessage: async (content) => {
+    const { currentRoom } = get();
     if (!currentRoom) return;
-    if (!wsClient || !wsConnected) {
-      console.warn("WebSocket not connected — message not sent");
+    // Wait for WS if not connected yet
+    await waitForWs(get);
+    const { wsClient } = get();
+    if (!wsClient) {
+      console.warn("WebSocket not available — message not sent");
       return;
     }
     wsClient.send("room:send-message", {
@@ -179,9 +182,12 @@ function handleWsMessage(
   get: () => RoomState,
 ) {
   switch (type) {
-    case "room:state":
-      set({ currentRoom: payload });
+    case "room:state": {
+      // Update room data (with fresh player list) but preserve messages
+      const existingMessages = get().messages;
+      set({ currentRoom: payload, messages: existingMessages.length > 0 ? existingMessages : [] });
       break;
+    }
 
     case "room:player-joined": {
       const room = get().currentRoom;
