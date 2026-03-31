@@ -15,7 +15,6 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   const {
     currentRoom,
     messages,
-    wsConnected,
     joinRoom,
     leaveRoom,
     sendMessage,
@@ -26,6 +25,8 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   const [chatInput, setChatInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Join the room on mount
@@ -48,6 +49,35 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Expiry countdown
+  useEffect(() => {
+    if (!currentRoom) return;
+    const config = (currentRoom.config || {}) as Record<string, any>;
+    const durationHours = config.durationHours as number | undefined;
+    if (!durationHours) return;
+
+    function update() {
+      const expiresAt =
+        new Date(currentRoom!.createdAt).getTime() +
+        durationHours! * 60 * 60 * 1000;
+      const now = Date.now();
+      const diff = expiresAt - now;
+      if (diff <= 0) {
+        setExpired(true);
+        setTimeLeft(null);
+      } else {
+        setExpired(false);
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        setTimeLeft(`${h}h ${m}m`);
+      }
+    }
+
+    update();
+    const interval = setInterval(update, 60_000);
+    return () => clearInterval(interval);
+  }, [currentRoom?.id, currentRoom?.createdAt]);
 
   function handleSendMessage() {
     if (!chatInput.trim()) return;
@@ -85,21 +115,26 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   const serverAddress = config.serverAddress as string | undefined;
   const discordLink = config.discordLink as string | undefined;
   const description = config.description as string | undefined;
-  const hasInfo = Boolean(serverAddress || discordLink || description);
+  const durationHours = config.durationHours as number | undefined;
+  const hasInfo = Boolean(
+    serverAddress || discordLink || description || durationHours
+  );
 
   function renderSystemMessage(msg: RoomMessage) {
     let text = msg.content;
     if (text.includes(":")) {
       const [action, username] = text.split(":");
       if (action === "player_joined") {
-        text = `${username} ${t("room.playerJoined", "lobiye kat\u0131ld\u0131")}`;
+        text = `${username} ${t("room.playerJoined")}`;
       } else if (action === "player_left") {
-        text = `${username} ${t("room.playerLeft", "lobiden ayr\u0131ld\u0131")}`;
+        text = `${username} ${t("room.playerLeft")}`;
       }
     }
     return (
-      <div key={msg.id} className="text-center py-1">
-        <span className="text-[11px] text-brand-600 italic">{text}</span>
+      <div key={msg.id} className="flex justify-center py-1.5">
+        <span className="text-[11px] text-[#67707b] italic bg-[#1a1c23]/40 px-3 py-1 rounded-full">
+          {text}
+        </span>
       </div>
     );
   }
@@ -107,10 +142,10 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   /* ---- Loading ---- */
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-[#0f1115]">
         <div className="flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-brand-500">{t("common.loading", "Y\u00FCkleniyor...")}</p>
+          <div className="w-5 h-5 border-2 border-[#1a9fff] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-[#8f98a0]">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -119,31 +154,57 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   /* ---- Room closed / not found ---- */
   if (!currentRoom) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-sm text-brand-400">{t("room.roomClosed", "Bu lobi kapat\u0131lm\u0131\u015F.")}</p>
+      <div className="flex flex-col items-center justify-center h-full gap-4 bg-[#0f1115]">
+        <div className="w-16 h-16 rounded-2xl bg-[#1a1c23]/60 border border-[#2a2e38] flex items-center justify-center mb-2">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="text-[#67707b]"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+          </svg>
+        </div>
+        <p className="text-sm text-[#8f98a0]">{t("room.roomClosed")}</p>
         <button
           onClick={() => onNavigate("multiplayer")}
-          className="px-4 py-2 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-300 hover:border-brand-600 transition-colors"
+          className="px-5 py-2 bg-[#1a1c23] border border-[#2a2e38] rounded-xl text-sm text-[#c6d4df] hover:border-[#1a9fff]/40 transition-colors"
         >
-          {t("gameDetail.back", "Geri D\u00F6n")}
+          {t("gameDetail.back")}
         </button>
       </div>
     );
   }
 
-  const emptySlots = Math.max(0, currentRoom.maxPlayers - currentRoom.players.length);
+  const emptySlots = Math.max(
+    0,
+    currentRoom.maxPlayers - currentRoom.players.length
+  );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#0f1115]">
       {/* ============ TOP BAR ============ */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-brand-800 bg-brand-950">
+      <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 bg-[#1a1c23]/80 backdrop-blur-md border-b border-[#2a2e38] shadow-lg shadow-black/20">
         <div className="flex items-center gap-3 min-w-0">
-          {/* Back button */}
+          {/* Back button — just navigate, don't close the room */}
           <button
-            onClick={handleLeave}
-            className="p-1.5 rounded-lg hover:bg-brand-800 text-brand-400 hover:text-white transition-colors flex-shrink-0"
+            onClick={() => onNavigate("multiplayer")}
+            className="p-2 rounded-lg hover:bg-[#2a2e38] text-[#8f98a0] hover:text-white transition-colors flex-shrink-0"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            >
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
@@ -151,63 +212,41 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           {/* Room title + badges */}
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-base font-bold text-brand-100 truncate">{currentRoom.name}</h1>
-              <span className="text-[10px] font-mono text-brand-500 bg-brand-900 px-2 py-0.5 rounded flex-shrink-0">
+              <h1 className="text-base font-bold text-white truncate">
+                {currentRoom.name}
+              </h1>
+              <span className="text-[10px] font-mono text-[#8f98a0] bg-[#0f1115] px-2 py-0.5 rounded-md border border-[#2a2e38] flex-shrink-0">
                 {currentRoom.code}
               </span>
               <span
-                className={`text-[10px] font-bold px-2 py-0.5 rounded flex-shrink-0 ${
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0 ${
                   currentRoom.visibility === "PUBLIC"
-                    ? "text-emerald-400 bg-emerald-500/10"
+                    ? "text-emerald-400 bg-emerald-500/10 border border-emerald-500/20"
                     : currentRoom.visibility === "FRIENDS"
-                    ? "text-blue-400 bg-blue-500/10"
-                    : "text-amber-400 bg-amber-500/10"
+                    ? "text-[#1a9fff] bg-[#1a9fff]/10 border border-[#1a9fff]/20"
+                    : "text-amber-400 bg-amber-500/10 border border-amber-500/20"
                 }`}
               >
                 {currentRoom.visibility === "PUBLIC"
-                  ? t("room.visibility.public", "Herkes")
+                  ? t("room.visibility.public")
                   : currentRoom.visibility === "FRIENDS"
-                  ? t("room.visibility.friends", "Arkada\u015Flar")
-                  : t("room.visibility.invite", "Davetli")}
+                  ? t("room.visibility.friends")
+                  : t("room.visibility.invite")}
               </span>
             </div>
-            <span className="text-xs text-brand-500">{currentRoom.gameName}</span>
-          </div>
-        </div>
-
-        {/* Right side */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          {/* WS indicator */}
-          <div className="flex items-center gap-1.5">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                wsConnected
-                  ? "bg-emerald-400 shadow-sm shadow-emerald-400/50"
-                  : "bg-brand-600"
-              }`}
-            />
-            <span className="text-[10px] text-brand-500">
-              {wsConnected
-                ? t("room.connected", "Ba\u011Fl\u0131")
-                : t("room.connecting", "Ba\u011Flan\u0131yor...")}
+            <span className="text-xs text-[#67707b]">
+              {currentRoom.gameName}
             </span>
           </div>
-
-          {/* Close room (host only) */}
-          {isHost && (
-            <button
-              onClick={handleLeave}
-              className="text-[11px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              {t("room.closeRoom", "Oday\u0131 Kapat")}
-            </button>
-          )}
         </div>
+
+        {/* Right side — just game name */}
+        <span className="text-xs text-[#67707b] flex-shrink-0">{currentRoom.gameName}</span>
       </div>
 
       {/* ============ INFO PANEL ============ */}
       {hasInfo && (
-        <div className="flex items-center gap-6 px-5 py-2.5 border-b border-brand-800/50 bg-brand-900/30 overflow-x-auto">
+        <div className="flex items-center gap-5 px-5 py-2.5 border-b border-[#2a2e38]/60 bg-[#1a1c23]/40 backdrop-blur-sm overflow-x-auto">
           {/* Server Address */}
           {serverAddress && (
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -218,25 +257,41 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className="text-brand-500"
+                className="text-[#67707b]"
               >
                 <rect x="2" y="2" width="20" height="8" rx="2" />
                 <rect x="2" y="14" width="20" height="8" rx="2" />
                 <circle cx="6" cy="6" r="1" fill="currentColor" />
                 <circle cx="6" cy="18" r="1" fill="currentColor" />
               </svg>
-              <span className="text-xs text-brand-300 font-mono">{serverAddress}</span>
+              <span className="text-xs text-[#c6d4df] font-mono">
+                {serverAddress}
+              </span>
               <button
                 onClick={() => handleCopy(serverAddress, "server")}
-                className="p-1 rounded hover:bg-brand-800 text-brand-500 hover:text-brand-300 transition-colors"
-                title={t("common.copy", "Kopyala")}
+                className="p-1 rounded hover:bg-[#2a2e38] text-[#67707b] hover:text-[#c6d4df] transition-colors"
               >
                 {copiedField === "server" ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-400">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    className="text-emerald-400"
+                  >
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <rect x="9" y="9" width="13" height="13" rx="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                   </svg>
@@ -246,8 +301,8 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           )}
 
           {/* Separator */}
-          {serverAddress && (discordLink || description) && (
-            <div className="w-px h-4 bg-brand-800 flex-shrink-0" />
+          {serverAddress && (discordLink || description || durationHours) && (
+            <div className="w-px h-4 bg-[#2a2e38] flex-shrink-0" />
           )}
 
           {/* Discord Link */}
@@ -256,9 +311,15 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
               href={discordLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors flex-shrink-0"
+              className="flex items-center gap-1.5 text-xs text-[#1a9fff] hover:text-[#1a9fff]/80 font-medium transition-colors flex-shrink-0"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="flex-shrink-0">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="flex-shrink-0"
+              >
                 <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.086-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.095 2.157 2.42 0 1.332-.946 2.418-2.157 2.418z" />
               </svg>
               Discord
@@ -266,8 +327,8 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           )}
 
           {/* Separator */}
-          {discordLink && description && (
-            <div className="w-px h-4 bg-brand-800 flex-shrink-0" />
+          {discordLink && (description || durationHours) && (
+            <div className="w-px h-4 bg-[#2a2e38] flex-shrink-0" />
           )}
 
           {/* Description */}
@@ -280,14 +341,48 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
-                className="text-brand-500 flex-shrink-0"
+                className="text-[#67707b] flex-shrink-0"
               >
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
                 <line x1="16" y1="13" x2="8" y2="13" />
                 <line x1="16" y1="17" x2="8" y2="17" />
               </svg>
-              <span className="text-xs text-brand-400 truncate italic">{description}</span>
+              <span className="text-xs text-[#8f98a0] truncate italic">
+                {description}
+              </span>
+            </div>
+          )}
+
+          {/* Separator */}
+          {description && durationHours && (
+            <div className="w-px h-4 bg-[#2a2e38] flex-shrink-0" />
+          )}
+
+          {/* Expiry countdown */}
+          {durationHours && (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={expired ? "text-red-400" : "text-[#67707b]"}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              {expired ? (
+                <span className="text-[11px] font-semibold text-red-400">
+                  {t("room.expired")}
+                </span>
+              ) : timeLeft ? (
+                <span className="text-[11px] text-[#8f98a0]">
+                  {t("room.expiresIn")}: {timeLeft}
+                </span>
+              ) : null}
             </div>
           )}
         </div>
@@ -296,14 +391,15 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
       {/* ============ MAIN CONTENT ============ */}
       <div className="flex flex-1 min-h-0">
         {/* ---- Left panel: Players ---- */}
-        <div className="w-[280px] flex-shrink-0 border-r border-brand-800 flex flex-col bg-brand-950/50">
-          <div className="px-4 py-3 border-b border-brand-800">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-brand-500">
-              {t("room.players", "Oyuncular")} ({currentRoom.players.length}/{currentRoom.maxPlayers})
+        <div className="w-[280px] flex-shrink-0 border-r border-[#2a2e38] flex flex-col bg-[#0f1115]">
+          <div className="px-4 py-3 border-b border-[#2a2e38]">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-[#67707b]">
+              {t("room.players")} ({currentRoom.players.length}/
+              {currentRoom.maxPlayers})
             </h2>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <div className="flex-1 overflow-y-auto p-3 space-y-0.5">
             {currentRoom.players.map((player) => (
               <PlayerRow
                 key={player.userId}
@@ -318,9 +414,9 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
             {Array.from({ length: emptySlots }).map((_, i) => (
               <div
                 key={`empty-${i}`}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg border border-brand-800/30 border-dashed"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[#2a2e38]/40 border-dashed"
               >
-                <div className="w-8 h-8 rounded-md bg-brand-900/50 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-[#1a1c23]/40 flex items-center justify-center">
                   <svg
                     width="14"
                     height="14"
@@ -328,49 +424,56 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="1.5"
-                    className="text-brand-700"
+                    className="text-[#2a2e38]"
                   >
                     <circle cx="12" cy="7" r="4" />
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                   </svg>
                 </div>
-                <span className="text-xs text-brand-700">{t("room.emptySlot", "Bo\u015F slot")}</span>
+                <span className="text-xs text-[#2a2e38]">
+                  {t("room.emptySlot")}
+                </span>
               </div>
             ))}
           </div>
 
-          {/* Bottom: ready toggle (non-host) + leave */}
-          <div className="p-3 border-t border-brand-800 space-y-2">
+          {/* Bottom actions */}
+          <div className="p-3 border-t border-[#2a2e38] space-y-2">
             {!isHost && (
               <button
                 onClick={() => toggleReady(!isReady)}
-                className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all duration-150 ${
+                className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
                   isReady
-                    ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/25"
-                    : "bg-brand-900 border border-brand-800 text-brand-300 hover:border-brand-600"
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 shadow-sm shadow-emerald-500/10"
+                    : "bg-[#1a1c23] border border-[#2a2e38] text-[#8f98a0] hover:border-[#1a9fff]/40 hover:text-[#c6d4df]"
                 }`}
               >
-                {isReady
-                  ? t("room.ready", "Haz\u0131r")
-                  : t("room.notReady", "Haz\u0131r De\u011Filim")}
+                {isReady ? t("room.ready") : t("room.notReady")}
               </button>
             )}
-            <button
-              onClick={handleLeave}
-              className="w-full py-2 rounded-lg text-xs font-semibold text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              {isHost
-                ? t("room.closeRoom", "Oday\u0131 Kapat")
-                : t("room.leave", "Odadan Ayr\u0131l")}
-            </button>
+            {isHost ? (
+              <button
+                onClick={handleLeave}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 transition-all duration-200"
+              >
+                {t("room.closeRoom")}
+              </button>
+            ) : (
+              <button
+                onClick={handleLeave}
+                className="w-full py-2 rounded-xl text-xs font-semibold text-[#67707b] hover:text-[#8f98a0] hover:bg-[#1a1c23] transition-all duration-200"
+              >
+                {t("room.leave")}
+              </button>
+            )}
           </div>
         </div>
 
         {/* ---- Right panel: Chat ---- */}
-        <div className="flex-1 flex flex-col min-w-0 bg-brand-950/30">
-          <div className="px-4 py-3 border-b border-brand-800">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-brand-500">
-              {t("room.chat", "Sohbet")}
+        <div className="flex-1 flex flex-col min-w-0 bg-[#0f1115]/80">
+          <div className="px-4 py-3 border-b border-[#2a2e38]">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-[#67707b]">
+              {t("room.chat")}
             </h2>
           </div>
 
@@ -378,8 +481,8 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             {messages.length === 0 && (
               <div className="flex items-center justify-center h-full">
-                <p className="text-xs text-brand-600">
-                  {t("room.noMessages", "Hen\u00FCz mesaj yok. Selam ver!")}
+                <p className="text-xs text-[#2a2e38]">
+                  {t("room.noMessages", "Henuz mesaj yok. Selam ver!")}
                 </p>
               </div>
             )}
@@ -388,23 +491,28 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
 
               const isMine = msg.userId === user?.id;
               return (
-                <div key={msg.id} className={`flex gap-2 ${isMine ? "flex-row-reverse" : ""}`}>
-                  <div className={`max-w-[70%] ${isMine ? "text-right" : ""}`}>
+                <div
+                  key={msg.id}
+                  className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[70%] ${isMine ? "text-right" : "text-left"}`}
+                  >
                     {!isMine && (
-                      <span className="text-[10px] font-semibold text-brand-500 mb-0.5 block">
+                      <span className="text-[10px] font-semibold text-[#67707b] mb-1 block px-1">
                         {msg.username}
                       </span>
                     )}
                     <div
-                      className={`inline-block px-3 py-1.5 rounded-lg text-sm ${
+                      className={`inline-block px-3.5 py-2 rounded-2xl text-sm leading-relaxed ${
                         isMine
-                          ? "bg-indigo-600 text-white"
-                          : "bg-brand-900 text-brand-200"
+                          ? "bg-[#1a9fff] text-white rounded-br-md"
+                          : "bg-[#1a1c23] text-[#c6d4df] border border-[#2a2e38] rounded-bl-md"
                       }`}
                     >
                       {msg.content}
                     </div>
-                    <span className="text-[9px] text-brand-700 mt-0.5 block">
+                    <span className="text-[9px] text-[#67707b]/60 mt-1 block px-1">
                       {new Date(msg.createdAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
@@ -418,21 +526,21 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           </div>
 
           {/* Chat input */}
-          <div className="p-3 border-t border-brand-800">
+          <div className="p-3 border-t border-[#2a2e38]">
             <div className="flex gap-2">
               <input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={t("room.messagePlaceholder", "Mesaj yaz...")}
-                className="flex-1 px-3 py-2.5 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 placeholder:text-brand-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 outline-none transition-colors"
+                placeholder={t("room.messagePlaceholder")}
+                className="flex-1 px-4 py-2.5 bg-[#1a1c23] border border-[#2a2e38] rounded-xl text-sm text-[#c6d4df] placeholder:text-[#67707b]/50 focus:border-[#1a9fff]/50 focus:ring-1 focus:ring-[#1a9fff]/20 outline-none transition-all duration-200"
               />
               <button
                 onClick={handleSendMessage}
                 disabled={!chatInput.trim()}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2.5 bg-[#1a9fff] hover:bg-[#1a9fff]/90 text-white text-sm font-bold rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg hover:shadow-[#1a9fff]/20"
               >
-                {t("room.sendMessage", "G\u00F6nder")}
+                {t("room.sendMessage")}
               </button>
             </div>
           </div>
@@ -442,7 +550,9 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   );
 }
 
-/* ---- Player row component ---- */
+/* ------------------------------------------------------------------ */
+/*  Player Row                                                        */
+/* ------------------------------------------------------------------ */
 
 function PlayerRow({
   player,
@@ -463,52 +573,58 @@ function PlayerRow({
       : `http://localhost:3001${player.user.avatarUrl}`
     : null;
 
-  let ledColor = "bg-brand-600";
-  let ledAnim = "";
+  let ledColor = "bg-[#67707b]";
+  let ledShadow = "";
   let statusText = "";
 
   if (player.status === "READY") {
     ledColor = "bg-emerald-400";
-    statusText = t("room.ready", "Haz\u0131r");
+    ledShadow = "shadow-[0_0_4px_rgba(52,211,153,0.5)]";
+    statusText = t("room.ready");
   } else if (player.status === "CONNECTING") {
-    ledColor = "bg-amber-400";
-    ledAnim = "animate-pulse";
-    statusText = t("room.connecting", "Ba\u011Flan\u0131yor");
+    ledColor = "bg-amber-400 animate-pulse";
+    ledShadow = "shadow-[0_0_4px_rgba(251,191,36,0.5)]";
+    statusText = t("room.connecting");
   } else if (player.status === "CONNECTED") {
-    ledColor = "bg-blue-400";
-    statusText = t("room.connected", "Ba\u011Fl\u0131");
+    ledColor = "bg-[#1a9fff]";
+    ledShadow = "shadow-[0_0_4px_rgba(26,159,255,0.5)]";
+    statusText = t("room.connected");
   }
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-brand-900/50 group transition-colors">
-      {/* Avatar */}
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-[#20232c]/60 group transition-colors">
+      {/* Avatar with status LED */}
       <div className="relative flex-shrink-0">
         {avatarSrc ? (
-          <img src={avatarSrc} alt="" className="w-9 h-9 rounded-lg object-cover" />
+          <img
+            src={avatarSrc}
+            alt=""
+            className="w-9 h-9 rounded-lg object-cover ring-1 ring-white/5"
+          />
         ) : (
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-600/40 to-indigo-800/40 flex items-center justify-center text-white text-xs font-black">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#1a9fff]/25 to-[#1a1c23] flex items-center justify-center text-white text-xs font-black ring-1 ring-white/5">
             {initials}
           </div>
         )}
         <div
-          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-brand-950 ${ledColor} ${ledAnim}`}
+          className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0f1115] ${ledColor} ${ledShadow}`}
         />
       </div>
 
-      {/* Name + status */}
+      {/* Username + HOST badge */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="text-sm font-semibold text-brand-200 truncate">
+          <span className="text-sm font-semibold text-[#c6d4df] truncate">
             {player.user.username}
           </span>
           {isHost && (
-            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-indigo-600/20 text-indigo-400 flex-shrink-0">
-              {t("room.host", "Host")}
+            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-[#1a9fff]/15 text-[#1a9fff] flex-shrink-0 tracking-wider">
+              {t("room.host")}
             </span>
           )}
         </div>
         {statusText && (
-          <span className="text-[10px] text-brand-600">{statusText}</span>
+          <span className="text-[10px] text-[#67707b]">{statusText}</span>
         )}
       </div>
 
@@ -516,10 +632,17 @@ function PlayerRow({
       {canKick && (
         <button
           onClick={onKick}
-          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/20 text-red-400 transition-all"
-          title={t("room.kick", "At")}
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/15 text-red-400/60 hover:text-red-400 transition-all duration-200"
+          title={t("room.kick")}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
