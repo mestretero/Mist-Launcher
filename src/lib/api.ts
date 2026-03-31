@@ -9,7 +9,7 @@ export function setAccessToken(token: string | null) {
   cachedAccessToken = token;
 }
 
-async function getAccessToken(): Promise<string | null> {
+export async function getAccessToken(): Promise<string | null> {
   if (cachedAccessToken) return cachedAccessToken;
   try {
     const token = await invoke<string | null>("get_token", { key: "access_token" });

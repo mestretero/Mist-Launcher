@@ -64,8 +64,8 @@ function App() {
       useNotificationStore.getState().startPolling();
       useCartStore.getState().fetch();
       // Connect WebSocket for multiplayer
-      import("@tauri-apps/api/core").then(({ invoke }) => {
-        invoke<string | null>("get_token", { key: "access_token" }).then((token) => {
+      import("./lib/api").then(({ getAccessToken }) => {
+        getAccessToken().then((token) => {
           if (token) {
             import("./stores/roomStore").then(({ useRoomStore }) => {
               useRoomStore.getState().connect(token);

@@ -46,10 +46,17 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     const existing = get().wsClient;
     if (existing) existing.disconnect();
 
+    console.log("[WS] Connecting with token:", token?.slice(0, 20) + "...");
     const client = new WsClient(
       token,
-      (type, payload) => handleWsMessage(type, payload, set, get),
-      (connected) => set({ wsConnected: connected }),
+      (type, payload) => {
+        console.log("[WS] Received:", type);
+        handleWsMessage(type, payload, set, get);
+      },
+      (connected) => {
+        console.log("[WS] Connected:", connected);
+        set({ wsConnected: connected });
+      },
     );
     client.connect();
     set({ wsClient: client });
