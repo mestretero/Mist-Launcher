@@ -61,9 +61,11 @@ export function StorePage({ onGameClick }: StorePageProps) {
 
   // Load featured + curated rows on mount
   useEffect(() => {
-    api.games.featured().then(setFeatured);
-    api.games.list(1, 10).then(({ games }) => setNewReleases(games));
-    api.games.recommended().then(setRecommended).catch(() => {});
+    let stale = false;
+    api.games.featured().then((d) => { if (!stale) setFeatured(d); }).catch(() => {});
+    api.games.list(1, 10).then(({ games }) => { if (!stale) setNewReleases(games); }).catch(() => {});
+    api.games.recommended().then((d) => { if (!stale) setRecommended(d); }).catch(() => {});
+    return () => { stale = true; };
   }, []);
 
   // Fetch localized descriptions for featured/hero games
@@ -72,9 +74,11 @@ export function StorePage({ onGameClick }: StorePageProps) {
     const steamLang: Record<string, string> = { tr: "turkish", es: "spanish", de: "german", en: "english" };
     const lang = steamLang[i18n.language] || "english";
     if (lang === "english") return;
+    let stale = false;
     featured.forEach((game) => {
       api.games.getDescription(game.slug, lang)
         .then((res) => {
+          if (stale) return;
           const desc = res?.shortDescription || res?.description;
           if (desc) {
             const clean = desc.replace(/<[^>]*>/g, "");
@@ -83,6 +87,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
         })
         .catch(() => {});
     });
+    return () => { stale = true; };
   }, [featured, i18n.language]);
 
   // Load browse section (with category filter + pagination)
