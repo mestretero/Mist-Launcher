@@ -11,7 +11,7 @@ interface Props {
 
 export default function MultiplayerPage({ onNavigate }: Props) {
   const { t } = useTranslation();
-  const { user } = useAuthStore();
+  useAuthStore(); // Keep auth context active
   const { rooms, fetchRooms, createRoom, wsConnected } = useRoomStore();
   const [showCreate, setShowCreate] = useState(false);
   const [gameFilter, setGameFilter] = useState<string>("");
@@ -26,11 +26,14 @@ export default function MultiplayerPage({ onNavigate }: Props) {
     [rooms]
   );
 
-  // Single sorted list: newest first
+  // Sorted list: newest first
   const filtered = useMemo(() => {
-    const list = gameFilter ? rooms.filter((r) => r.gameName === gameFilter) : rooms;
+    const list = gameFilter
+      ? rooms.filter((r) => r.gameName === gameFilter)
+      : rooms;
     return [...list].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [rooms, gameFilter]);
 
@@ -41,207 +44,167 @@ export default function MultiplayerPage({ onNavigate }: Props) {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">
-            {t("multiplayer.title", "\u00C7ok Oyunculu")}
-          </h1>
-          <div className="flex items-center gap-2 mt-1.5">
-            <div
-              className={`w-1.5 h-1.5 rounded-full ${
-                wsConnected ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-brand-600"
-              }`}
-            />
-            <span className={`text-xs ${wsConnected ? "text-emerald-400" : "text-brand-500"}`}>
-              {wsConnected
-                ? t("room.connected", "Ba\u011Fl\u0131")
-                : t("room.connecting", "Ba\u011Flan\u0131yor...")}
-            </span>
+    <div className="min-h-full bg-[#0f1115]">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* ============ HEADER ============ */}
+        <div className="flex items-start justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">
+              {t("multiplayer.title")}
+            </h1>
+            <p className="text-sm text-[#67707b] mt-1.5">
+              {t("multiplayer.subtitle", "Arkadaşlarınla birlikte oyna")}
+            </p>
+            {/* WS status */}
+            <div className="flex items-center gap-2 mt-3">
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  wsConnected
+                    ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
+                    : "bg-[#67707b] animate-pulse"
+                }`}
+              />
+              <span
+                className={`text-[11px] font-medium ${
+                  wsConnected ? "text-emerald-400" : "text-[#67707b]"
+                }`}
+              >
+                {wsConnected
+                  ? t("room.connected")
+                  : t("room.connecting")}
+              </span>
+            </div>
           </div>
-        </div>
 
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all duration-150 hover:scale-[1.02] shadow-lg shadow-emerald-900/30"
-        >
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          {t("multiplayer.createRoom", "Lobi Olu\u015Ftur")}
-        </button>
-      </div>
-
-      {/* Game filter pills */}
-      {gameNames.length >= 2 && (
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
           <button
-            onClick={() => setGameFilter("")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 ${
-              !gameFilter
-                ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/25"
-                : "bg-brand-900 text-brand-400 border border-brand-800 hover:border-brand-600"
-            }`}
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[#1a9fff] hover:bg-[#1a9fff]/90 text-white text-sm font-bold rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg shadow-[#1a9fff]/20 hover:shadow-[#1a9fff]/30"
           >
-            {t("multiplayer.allGames", "T\u00FCm\u00FC")}
-          </button>
-          {gameNames.map((gn) => (
-            <button
-              key={gn}
-              onClick={() => setGameFilter(gn === gameFilter ? "" : gn)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 ${
-                gameFilter === gn
-                  ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/25"
-                  : "bg-brand-900 text-brand-400 border border-brand-800 hover:border-brand-600"
-              }`}
-            >
-              {gn}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Room list */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {filtered.map((room) => (
-            <RoomTile
-              key={room.id}
-              room={room}
-              currentUserId={user?.id}
-              onClick={() => onNavigate("room", room.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        /* Empty state */
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-brand-900/50 border border-brand-800/50 flex items-center justify-center mb-6">
             <svg
-              width="36"
-              height="36"
+              width="15"
+              height="15"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="2.5"
               strokeLinecap="round"
-              className="text-brand-700"
             >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-          </div>
-          <h3 className="text-lg font-bold text-brand-200 mb-2">
-            {t("multiplayer.noRooms", "Hen\u00FCz lobi yok")}
-          </h3>
-          <p className="text-sm text-brand-500 mb-6 max-w-xs">
-            {t(
-              "multiplayer.noRoomsDesc",
-              "Arkada\u015Flar\u0131nla oynamak i\u00E7in ilk lobiyi sen olu\u015Ftur!"
-            )}
-          </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-xl transition-all duration-150 hover:scale-[1.02] shadow-lg shadow-emerald-900/30"
-          >
-            {t("multiplayer.createRoom", "Lobi Olu\u015Ftur")}
+            {t("multiplayer.createRoom")}
           </button>
         </div>
-      )}
 
-      {/* Create modal */}
-      {showCreate && (
-        <CreateRoomModal
-          onClose={() => setShowCreate(false)}
-          onCreate={handleCreate}
-        />
-      )}
+        {/* ============ GAME FILTER PILLS ============ */}
+        {gameNames.length >= 2 && (
+          <div className="flex items-center gap-2 mb-6 flex-wrap">
+            <button
+              onClick={() => setGameFilter("")}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                !gameFilter
+                  ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30 shadow-sm shadow-[#1a9fff]/10"
+                  : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30 hover:text-[#c6d4df]"
+              }`}
+            >
+              {t("multiplayer.allGames")}
+            </button>
+            {gameNames.map((gn) => (
+              <button
+                key={gn}
+                onClick={() => setGameFilter(gn === gameFilter ? "" : gn)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                  gameFilter === gn
+                    ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30 shadow-sm shadow-[#1a9fff]/10"
+                    : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30 hover:text-[#c6d4df]"
+                }`}
+              >
+                {gn}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ============ ROOM GRID ============ */}
+        {filtered.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((room) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                onClick={() => onNavigate("room", room.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          /* ============ EMPTY STATE ============ */
+          <div className="flex flex-col items-center justify-center py-28 text-center">
+            <div className="w-20 h-20 rounded-2xl bg-[#1a1c23]/60 border border-[#2a2e38] flex items-center justify-center mb-6 backdrop-blur-sm">
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                className="text-[#67707b]"
+              >
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-[#c6d4df] mb-2">
+              {t("multiplayer.noRooms")}
+            </h3>
+            <p className="text-sm text-[#67707b] mb-8 max-w-xs">
+              {t("multiplayer.noFriendsHosting")}
+            </p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-6 py-2.5 bg-[#1a9fff] hover:bg-[#1a9fff]/90 text-white text-sm font-bold rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg shadow-[#1a9fff]/20"
+            >
+              {t("multiplayer.createRoom")}
+            </button>
+          </div>
+        )}
+
+        {/* ============ CREATE MODAL ============ */}
+        {showCreate && (
+          <CreateRoomModal
+            onClose={() => setShowCreate(false)}
+            onCreate={handleCreate}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-/* ---- Room tile (inline, lightweight) ---- */
+/* ------------------------------------------------------------------ */
+/*  Room Card                                                         */
+/* ------------------------------------------------------------------ */
 
-function RoomTile({
-  room,
-  currentUserId,
-  onClick,
-}: {
-  room: Room;
-  currentUserId?: string;
-  onClick: () => void;
-}) {
+function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
   const { t } = useTranslation();
   const isWaiting = room.status === "WAITING";
-  const initials = room.host.username.slice(0, 2).toUpperCase();
-  const isMine =
-    room.hostId === currentUserId ||
-    room.players.some((p) => p.userId === currentUserId);
-
   const config = (room.config || {}) as Record<string, any>;
   const hasServer = Boolean(config.serverAddress);
+  const initials = room.host.username.slice(0, 2).toUpperCase();
 
   return (
     <button
       onClick={onClick}
-      className={`group relative flex items-center gap-4 p-4 rounded-xl border text-left w-full transition-all duration-150 hover:scale-[1.01] ${
-        isMine
-          ? "bg-indigo-500/[0.04] border-indigo-500/15 hover:border-indigo-500/30"
-          : "bg-brand-950/60 border-brand-800/60 hover:border-brand-700"
-      }`}
+      className="group relative text-left w-full bg-[#1a1c23]/40 backdrop-blur border border-[#2a2e38] rounded-xl p-4 hover:border-[#1a9fff]/30 hover:bg-[#1a1c23]/60 transition-all duration-200 cursor-pointer hover:scale-[1.01] hover:shadow-lg hover:shadow-[#1a9fff]/5"
     >
-      {/* Left: game cover or icon */}
-      <div className="w-12 h-12 rounded-lg bg-brand-900/80 border border-brand-800/50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-        {room.game?.coverImageUrl ? (
-          <img src={room.game.coverImageUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            className="text-brand-600"
-          >
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <path d="M12 6V2M7 12h2M15 12h2M10 16h4" />
-          </svg>
-        )}
-      </div>
-
-      {/* Center: info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          {/* Game badge */}
-          <span className="text-[10px] font-semibold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md truncate max-w-[120px]">
-            {room.gameName}
-          </span>
-          {/* Status badge */}
-          <span
-            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md tracking-wide ${
-              isWaiting
-                ? "bg-emerald-500/10 text-emerald-400"
-                : "bg-amber-500/10 text-amber-400"
-            }`}
-          >
-            {isWaiting
-              ? t("room.status.waiting", "Bekliyor")
-              : t("room.status.playing", "Oyunda")}
-          </span>
-          {/* Server indicator */}
+      {/* Top row: game badge + status */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="bg-[#1a9fff]/10 text-[#1a9fff] text-[10px] font-bold px-2 py-0.5 rounded-md truncate max-w-[140px]">
+          {room.gameName}
+        </span>
+        <div className="flex items-center gap-1.5">
           {hasServer && (
             <svg
               width="12"
@@ -250,7 +213,7 @@ function RoomTile({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
-              className="text-brand-500 flex-shrink-0"
+              className="text-emerald-400/60"
             >
               <rect x="2" y="2" width="20" height="8" rx="2" />
               <rect x="2" y="14" width="20" height="8" rx="2" />
@@ -258,22 +221,45 @@ function RoomTile({
               <circle cx="6" cy="18" r="1" fill="currentColor" />
             </svg>
           )}
+          <div className="flex items-center gap-1.5">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                isWaiting
+                  ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.4)]"
+                  : "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.4)]"
+              }`}
+            />
+            <span
+              className={`text-[10px] font-bold uppercase tracking-wide ${
+                isWaiting ? "text-emerald-400" : "text-amber-400"
+              }`}
+            >
+              {isWaiting
+                ? t("room.status.waiting")
+                : t("room.status.playing")}
+            </span>
+          </div>
         </div>
+      </div>
 
-        {/* Lobby name */}
-        <h3 className="text-sm font-bold text-brand-100 truncate mb-1">{room.name}</h3>
+      {/* Lobby name */}
+      <h3 className="text-[15px] font-bold text-white truncate mb-2.5 group-hover:text-[#1a9fff] transition-colors">
+        {room.name}
+      </h3>
 
-        {/* Meta row */}
-        <div className="flex items-center gap-2.5 text-xs text-brand-500">
+      {/* Bottom row: players + host */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 text-xs text-[#8f98a0]">
           {/* Player count */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <svg
-              width="12"
-              height="12"
+              width="13"
+              height="13"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              className="text-[#67707b]"
             >
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
@@ -282,40 +268,42 @@ function RoomTile({
               {room.players.length}/{room.maxPlayers}
             </span>
           </div>
-          <span className="text-brand-800">|</span>
-          {/* Host */}
-          <span className="text-brand-400 truncate">{room.host.username}</span>
-        </div>
-      </div>
 
-      {/* Right: host avatar */}
-      <div className="flex-shrink-0">
-        {room.host.avatarUrl ? (
-          <img
-            src={room.host.avatarUrl}
-            alt=""
-            className="w-9 h-9 rounded-lg object-cover border border-brand-800/50"
-          />
-        ) : (
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-600/30 to-brand-800 flex items-center justify-center text-brand-300 text-xs font-black border border-brand-800/50">
-            {initials}
+          <span className="text-[#2a2e38]">&bull;</span>
+
+          {/* Host info */}
+          <div className="flex items-center gap-1.5">
+            {room.host.avatarUrl ? (
+              <img
+                src={room.host.avatarUrl}
+                alt=""
+                className="w-4 h-4 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] flex items-center justify-center text-[7px] font-black text-[#c6d4df]">
+                {initials}
+              </div>
+            )}
+            <span className="text-[#8f98a0] truncate max-w-[100px]">
+              {room.host.username}
+            </span>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* Chevron */}
-      <svg
-        width="14"
-        height="14"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        className="text-brand-700 group-hover:text-brand-400 transition-colors flex-shrink-0"
-      >
-        <polyline points="9 18 15 12 9 6" />
-      </svg>
+        {/* Chevron */}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          className="text-[#2a2e38] group-hover:text-[#1a9fff]/60 transition-colors flex-shrink-0"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </div>
     </button>
   );
 }

@@ -250,6 +250,7 @@ export const api = {
       discordLink?: string;
       description?: string;
       visibility?: string;
+      durationHours?: number;
     }) => request<Room>("/rooms", { method: "POST", body: JSON.stringify(data) }),
     close: (id: string) => request<void>(`/rooms/${id}`, { method: "DELETE" }),
     getMessages: (id: string, before?: string) => {

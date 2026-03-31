@@ -21,6 +21,7 @@ interface RoomState {
     discordLink?: string;
     description?: string;
     visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
+    durationHours?: number;
   }) => Promise<Room>;
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: () => Promise<void>;

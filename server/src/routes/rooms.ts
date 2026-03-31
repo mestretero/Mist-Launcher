@@ -16,6 +16,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       serverAddress?: string;
       discordLink?: string;
       description?: string;
+      durationHours?: number;
     };
     const room = await roomService.createRoom(userId, body);
     return reply.status(201).send({ data: room });

@@ -32,6 +32,7 @@ export async function createRoom(
     serverAddress?: string;
     discordLink?: string;
     description?: string;
+    durationHours?: number;
   },
 ) {
   const activeCount = await prisma.room.count({
@@ -53,6 +54,7 @@ export async function createRoom(
   if (data.serverAddress) config.serverAddress = data.serverAddress;
   if (data.discordLink) config.discordLink = data.discordLink;
   if (data.description) config.description = data.description;
+  if (data.durationHours) config.durationHours = String(data.durationHours);
 
   const room = await prisma.room.create({
     data: {
@@ -334,11 +336,23 @@ export async function getMessages(
 // ── Cleanup stale rooms ──────────────────────────
 
 export async function cleanupStaleRooms() {
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  const result = await prisma.room.deleteMany({
-    where: { status: "WAITING", createdAt: { lt: oneHourAgo } },
+  // Fetch all active rooms and check expiry
+  const rooms = await prisma.room.findMany({
+    where: { status: { in: ["WAITING", "PLAYING"] } },
+    select: { id: true, config: true, createdAt: true },
   });
-  if (result.count > 0) {
-    console.log(`Cleaned up ${result.count} stale rooms`);
+
+  const now = Date.now();
+  const expiredIds: string[] = [];
+  for (const room of rooms) {
+    const cfg = room.config as Record<string, any> | null;
+    const hours = Number(cfg?.durationHours) || 1;
+    const expiresAt = new Date(room.createdAt).getTime() + hours * 60 * 60 * 1000;
+    if (now > expiresAt) expiredIds.push(room.id);
+  }
+
+  if (expiredIds.length > 0) {
+    const result = await prisma.room.deleteMany({ where: { id: { in: expiredIds } } });
+    if (result.count > 0) console.log(`Cleaned up ${result.count} expired rooms`);
   }
 }
