@@ -592,6 +592,8 @@
     "rating": "Puntuación",
     "reviewPlaceholder": "Escribe tu reseña...",
     "reviewAdded": "Tu reseña ha sido añadida",
+    "reviewDeleted": "Tu reseña ha sido eliminada",
+    "reviewUpdated": "Tu reseña ha sido actualizada",
     "reviewError": "No se pudo enviar la reseña",
     "submit": "Enviar",
     "noReviews": "Aún no hay reseñas.",

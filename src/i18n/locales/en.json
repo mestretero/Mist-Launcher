@@ -592,6 +592,8 @@
     "rating": "Rating",
     "reviewPlaceholder": "Write your review...",
     "reviewAdded": "Your review has been added",
+    "reviewDeleted": "Your review has been deleted",
+    "reviewUpdated": "Your review has been updated",
     "reviewError": "Could not submit review",
     "submit": "Submit",
     "noReviews": "No reviews yet.",

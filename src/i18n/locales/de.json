@@ -592,6 +592,8 @@
     "rating": "Bewertung",
     "reviewPlaceholder": "Schreibe deine Bewertung...",
     "reviewAdded": "Deine Bewertung wurde hinzugefügt",
+    "reviewDeleted": "Deine Bewertung wurde gelöscht",
+    "reviewUpdated": "Deine Bewertung wurde aktualisiert",
     "reviewError": "Bewertung konnte nicht gesendet werden",
     "submit": "Absenden",
     "noReviews": "Noch keine Bewertungen.",

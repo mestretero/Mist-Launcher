@@ -592,6 +592,8 @@
     "rating": "Puan",
     "reviewPlaceholder": "Değerlendirmenizi yazın...",
     "reviewAdded": "Değerlendirmeniz eklendi",
+    "reviewDeleted": "Değerlendirmeniz silindi",
+    "reviewUpdated": "Değerlendirmeniz güncellendi",
     "reviewError": "Değerlendirme gönderilemedi",
     "submit": "Gönder",
     "noReviews": "Henüz değerlendirme yapılmamış.",
