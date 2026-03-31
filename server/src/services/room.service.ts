@@ -132,6 +132,8 @@ export async function listRooms(userId: string) {
       OR: [
         // Public rooms from anyone (except blocked users)
         { visibility: "PUBLIC", hostId: { notIn: [...blockedIds] } },
+        // Scheduled rooms from anyone (except blocked users)
+        { visibility: "SCHEDULED", hostId: { notIn: [...blockedIds] } },
         // Friends-only rooms from friends + own rooms
         { visibility: "FRIENDS", hostId: { in: allowedHostIds } },
         // Own rooms (any visibility)

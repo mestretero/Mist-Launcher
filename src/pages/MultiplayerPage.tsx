@@ -16,6 +16,7 @@ export default function MultiplayerPage({ onNavigate }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [gameFilter, setGameFilter] = useState<string>("");
   const [languageFilter, setLanguageFilter] = useState<string>("");
+  const [visibilityFilter, setVisibilityFilter] = useState<string>("");
 
   useEffect(() => {
     fetchRooms();
@@ -36,8 +37,9 @@ export default function MultiplayerPage({ onNavigate }: Props) {
   const filtered = useMemo(() => {
     let list = gameFilter ? rooms.filter((r) => r.gameName === gameFilter) : rooms;
     if (languageFilter) list = list.filter((r) => (r.config as any)?.language === languageFilter);
+    if (visibilityFilter) list = list.filter((r) => r.visibility === visibilityFilter);
     return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [rooms, gameFilter, languageFilter]);
+  }, [rooms, gameFilter, languageFilter, visibilityFilter]);
 
   async function handleCreate(data: any) {
     const room = await createRoom(data);
@@ -123,6 +125,28 @@ export default function MultiplayerPage({ onNavigate }: Props) {
             ))}
           </div>
         )}
+
+        {/* ============ VISIBILITY FILTER ============ */}
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          {([
+            { key: "", label: t("multiplayer.allGames") },
+            { key: "PUBLIC", label: t("room.visibility.public") },
+            { key: "FRIENDS", label: t("room.visibility.friends") },
+            { key: "SCHEDULED", label: t("room.visibility.scheduled") },
+          ]).map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setVisibilityFilter(opt.key === visibilityFilter ? "" : opt.key)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                visibilityFilter === opt.key
+                  ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30 shadow-sm shadow-[#1a9fff]/10"
+                  : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30 hover:text-[#c6d4df]"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
         {/* ============ ROOM GRID ============ */}
         {filtered.length > 0 ? (
