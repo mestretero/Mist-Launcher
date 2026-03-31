@@ -12,7 +12,7 @@ interface Props {
 export default function MultiplayerPage({ onNavigate }: Props) {
   const { t } = useTranslation();
   useAuthStore(); // Keep auth context active
-  const { rooms, fetchRooms, createRoom, wsConnected } = useRoomStore();
+  const { rooms, fetchRooms, createRoom } = useRoomStore();
   const [showCreate, setShowCreate] = useState(false);
   const [gameFilter, setGameFilter] = useState<string>("");
 
@@ -55,25 +55,6 @@ export default function MultiplayerPage({ onNavigate }: Props) {
             <p className="text-sm text-[#67707b] mt-1.5">
               {t("multiplayer.subtitle", "Arkadaşlarınla birlikte oyna")}
             </p>
-            {/* WS status */}
-            <div className="flex items-center gap-2 mt-3">
-              <div
-                className={`w-1.5 h-1.5 rounded-full ${
-                  wsConnected
-                    ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]"
-                    : "bg-[#67707b] animate-pulse"
-                }`}
-              />
-              <span
-                className={`text-[11px] font-medium ${
-                  wsConnected ? "text-emerald-400" : "text-[#67707b]"
-                }`}
-              >
-                {wsConnected
-                  ? t("room.connected")
-                  : t("room.connecting")}
-              </span>
-            </div>
           </div>
 
           <button
@@ -138,34 +119,83 @@ export default function MultiplayerPage({ onNavigate }: Props) {
           </div>
         ) : (
           /* ============ EMPTY STATE ============ */
-          <div className="flex flex-col items-center justify-center py-28 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-[#1a1c23]/60 border border-[#2a2e38] flex items-center justify-center mb-6 backdrop-blur-sm">
-              <svg
-                width="36"
-                height="36"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-                className="text-[#67707b]"
-              >
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+          <div className="flex flex-col items-center pt-16 pb-10">
+            {/* Hero */}
+            <div className="text-center mb-12">
+              <div className="w-16 h-16 rounded-2xl bg-[#1a9fff]/10 border border-[#1a9fff]/20 flex items-center justify-center mb-5 mx-auto">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-[#1a9fff]">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">
+                {t("multiplayer.noRooms")}
+              </h3>
+              <p className="text-sm text-[#67707b] max-w-sm mx-auto">
+                {t("multiplayer.noFriendsHosting")}
+              </p>
             </div>
-            <h3 className="text-lg font-bold text-[#c6d4df] mb-2">
-              {t("multiplayer.noRooms")}
-            </h3>
-            <p className="text-sm text-[#67707b] mb-8 max-w-xs">
-              {t("multiplayer.noFriendsHosting")}
-            </p>
+
+            {/* How it works — 3 step cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-3xl mb-10">
+              {[
+                {
+                  step: "1",
+                  icon: (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#1a9fff]">
+                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  ),
+                  title: t("multiplayer.step1Title", "Lobi Oluştur"),
+                  desc: t("multiplayer.step1Desc", "Oyun adını yaz, bilgilerini gir ve lobini aç."),
+                },
+                {
+                  step: "2",
+                  icon: (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#1a9fff]">
+                      <path d="M22 2L11 13" /><path d="M22 2L15 22L11 13L2 9L22 2Z" />
+                    </svg>
+                  ),
+                  title: t("multiplayer.step2Title", "Paylaş"),
+                  desc: t("multiplayer.step2Desc", "Arkadaşların lobiyi görsün veya oda kodunu paylaş."),
+                },
+                {
+                  step: "3",
+                  icon: (
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[#1a9fff]">
+                      <path d="M6 9l6 6 6-6" /><circle cx="12" cy="12" r="10" />
+                    </svg>
+                  ),
+                  title: t("multiplayer.step3Title", "Birlikte Oyna"),
+                  desc: t("multiplayer.step3Desc", "Lobideki sunucu bilgisiyle oyuna bağlan."),
+                },
+              ].map((s) => (
+                <div
+                  key={s.step}
+                  className="relative bg-[#1a1c23]/40 border border-[#2a2e38] rounded-xl p-5 text-center group hover:border-[#1a9fff]/20 transition-colors"
+                >
+                  <div className="absolute top-3 left-3 text-[10px] font-black text-[#2a2e38]">
+                    {s.step}
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-[#1a9fff]/10 flex items-center justify-center mx-auto mb-3">
+                    {s.icon}
+                  </div>
+                  <h4 className="text-sm font-bold text-[#c6d4df] mb-1">{s.title}</h4>
+                  <p className="text-xs text-[#67707b] leading-relaxed">{s.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* CTA */}
             <button
               onClick={() => setShowCreate(true)}
-              className="px-6 py-2.5 bg-[#1a9fff] hover:bg-[#1a9fff]/90 text-white text-sm font-bold rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg shadow-[#1a9fff]/20"
+              className="flex items-center gap-2 px-7 py-3 bg-[#1a9fff] hover:bg-[#1a9fff]/90 text-white text-sm font-bold rounded-xl transition-all duration-200 hover:scale-[1.02] shadow-lg shadow-[#1a9fff]/20"
             >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
               {t("multiplayer.createRoom")}
             </button>
           </div>

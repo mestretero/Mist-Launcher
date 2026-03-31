@@ -561,7 +561,14 @@
     "allGames": "Alle",
     "duration": "Dauer",
     "durationHint": "Lobby wird nach dieser Zeit automatisch geschlossen",
-    "hours": "Stunden"
+    "hours": "Stunden",
+    "step1Title": "Lobby erstellen",
+    "step1Desc": "Spielnamen eingeben, Details ausfüllen und Lobby öffnen.",
+    "step2Title": "Teilen",
+    "step2Desc": "Freunde sehen deine Lobby oder teile den Raumcode.",
+    "step3Title": "Zusammen spielen",
+    "step3Desc": "Verbinde dich über die Server-Info in der Lobby zum Spiel.",
+    "subtitle": "Spiele zusammen mit Freunden"
   },
   "room": {
     "players": "Spieler",

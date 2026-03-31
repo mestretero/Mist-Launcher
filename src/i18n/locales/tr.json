@@ -561,7 +561,14 @@
     "allGames": "Tümü",
     "duration": "Süre",
     "durationHint": "Lobi bu süre sonunda otomatik kapanır",
-    "hours": "saat"
+    "hours": "saat",
+    "step1Title": "Lobi Oluştur",
+    "step1Desc": "Oyun adını yaz, bilgilerini gir ve lobini aç.",
+    "step2Title": "Paylaş",
+    "step2Desc": "Arkadaşların lobiyi görsün veya oda kodunu paylaş.",
+    "step3Title": "Birlikte Oyna",
+    "step3Desc": "Lobideki sunucu bilgisiyle oyuna bağlan.",
+    "subtitle": "Arkadaşlarınla birlikte oyna"
   },
   "room": {
     "players": "Oyuncular",

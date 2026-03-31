@@ -561,7 +561,14 @@
     "allGames": "Todos",
     "duration": "Duración",
     "durationHint": "El lobby se cerrará automáticamente después de este tiempo",
-    "hours": "horas"
+    "hours": "horas",
+    "step1Title": "Crear un Lobby",
+    "step1Desc": "Escribe el nombre del juego, completa los datos y abre tu lobby.",
+    "step2Title": "Compartir",
+    "step2Desc": "Tus amigos verán el lobby o comparte el código de sala.",
+    "step3Title": "Jugar Juntos",
+    "step3Desc": "Conéctate al juego usando la info del servidor en el lobby.",
+    "subtitle": "Juega junto a tus amigos"
   },
   "room": {
     "players": "Jugadores",
