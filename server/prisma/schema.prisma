@@ -82,6 +82,12 @@ enum NotificationType {
   SYSTEM
 }
 
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
 enum VoteType {
   UP
   DOWN
@@ -150,6 +156,8 @@ model User {
   twoFactorSecret     String?       @map("two_factor_secret")
   twoFactorEnabled    Boolean       @default(false) @map("two_factor_enabled")
   isAdmin             Boolean       @default(false) @map("is_admin")
+  isBanned            Boolean       @default(false) @map("is_banned")
+  bannedAt            DateTime?     @map("banned_at")
   preferences         Json          @default("{}")
   lastDailyBonus      DateTime?     @map("last_daily_bonus")
   createdAt           DateTime      @default(now()) @map("created_at")
@@ -184,6 +192,8 @@ model User {
   createdGroups       GroupChat[]          @relation("GroupChatCreator")
   groupMemberships    GroupChatMember[]    @relation("GroupMemberOf")
   sentGroupMessages   GroupChatMessage[]   @relation("GroupChatMessageSender")
+  reportsMade         UserReport[]         @relation("ReportsBy")
+  reportsReceived     UserReport[]         @relation("ReportsAgainst")
 
   @@map("users")
 }
@@ -652,6 +662,25 @@ model CommunityLinkReport {
 
   @@unique([communityLinkId, userId])
   @@map("community_link_reports")
+}
+
+// ─── User Reports ────────────────────────────────
+model UserReport {
+  id             String       @id @default(uuid()) @db.Uuid
+  reporterId     String       @map("reporter_id") @db.Uuid
+  reportedUserId String       @map("reported_user_id") @db.Uuid
+  reason         String       @db.VarChar(500)
+  status         ReportStatus @default(OPEN)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  reporter       User         @relation("ReportsBy", fields: [reporterId], references: [id])
+  reportedUser   User         @relation("ReportsAgainst", fields: [reportedUserId], references: [id])
+
+  @@unique([reporterId, reportedUserId])
+  @@index([reportedUserId])
+  @@index([status])
+  @@map("user_reports")
 }
 
 // ─── P2P Multiplayer ─────────────────────────────
