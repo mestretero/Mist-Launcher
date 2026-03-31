@@ -20,8 +20,11 @@ interface RoomState {
     serverAddress?: string;
     discordLink?: string;
     description?: string;
-    visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
+    visibility?: "FRIENDS" | "SCHEDULED" | "PUBLIC";
     durationHours?: number;
+    language?: string;
+    scheduledStart?: string;
+    scheduledEnd?: string;
   }) => Promise<Room>;
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
@@ -70,6 +73,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
     set({ currentRoom: room, messages: [] });
 
+    // Load message history (in case host rejoins)
+    try {
+      const msgs = await api.rooms.getMessages(room.id);
+      set({ messages: msgs });
+    } catch { /* no history available */ }
+
     // Join via WS
     const { wsClient, wsConnected } = get();
     if (wsClient && wsConnected) {
@@ -83,6 +92,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     try {
       const room = await api.rooms.getById(roomId);
       set({ currentRoom: room, messages: [] });
+
+      // Load message history
+      try {
+        const msgs = await api.rooms.getMessages(roomId);
+        set({ messages: msgs });
+      } catch { /* no history available */ }
     } catch {
       /* will get state from WS */
     }

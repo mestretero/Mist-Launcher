@@ -12,11 +12,14 @@ export default async function roomRoutes(app: FastifyInstance) {
       gameName: string;
       name: string;
       maxPlayers?: number;
-      visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
+      visibility?: "FRIENDS" | "SCHEDULED" | "PUBLIC";
       serverAddress?: string;
       discordLink?: string;
       description?: string;
       durationHours?: number;
+      language?: string;
+      scheduledStart?: string;
+      scheduledEnd?: string;
     };
     const room = await roomService.createRoom(userId, body);
     return reply.status(201).send({ data: room });

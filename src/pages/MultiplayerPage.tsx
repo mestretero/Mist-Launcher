@@ -15,6 +15,7 @@ export default function MultiplayerPage({ onNavigate }: Props) {
   const { rooms, fetchRooms, createRoom } = useRoomStore();
   const [showCreate, setShowCreate] = useState(false);
   const [gameFilter, setGameFilter] = useState<string>("");
+  const [languageFilter, setLanguageFilter] = useState<string>("");
 
   useEffect(() => {
     fetchRooms();
@@ -26,16 +27,17 @@ export default function MultiplayerPage({ onNavigate }: Props) {
     [rooms]
   );
 
+  const languages = useMemo(
+    () => [...new Set(rooms.map((r) => (r.config as any)?.language).filter(Boolean))].sort() as string[],
+    [rooms]
+  );
+
   // Sorted list: newest first
   const filtered = useMemo(() => {
-    const list = gameFilter
-      ? rooms.filter((r) => r.gameName === gameFilter)
-      : rooms;
-    return [...list].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-  }, [rooms, gameFilter]);
+    let list = gameFilter ? rooms.filter((r) => r.gameName === gameFilter) : rooms;
+    if (languageFilter) list = list.filter((r) => (r.config as any)?.language === languageFilter);
+    return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [rooms, gameFilter, languageFilter]);
 
   async function handleCreate(data: any) {
     const room = await createRoom(data);
@@ -101,6 +103,22 @@ export default function MultiplayerPage({ onNavigate }: Props) {
                 }`}
               >
                 {gn}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ============ LANGUAGE FILTER PILLS ============ */}
+        {languages.length >= 2 && (
+          <div className="flex items-center gap-2 mb-6 flex-wrap">
+            <button onClick={() => setLanguageFilter("")}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${!languageFilter ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30" : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30"}`}>
+              {t("multiplayer.allLanguages", "Tüm Diller")}
+            </button>
+            {languages.map((lang) => (
+              <button key={lang} onClick={() => setLanguageFilter(lang === languageFilter ? "" : lang)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${languageFilter === lang ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30" : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30"}`}>
+                {lang}
               </button>
             ))}
           </div>
@@ -231,9 +249,16 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
     >
       {/* Top row: game badge + status */}
       <div className="flex items-center justify-between mb-3">
-        <span className="bg-[#1a9fff]/10 text-[#1a9fff] text-[10px] font-bold px-2 py-0.5 rounded-md truncate max-w-[140px]">
-          {room.gameName}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="bg-[#1a9fff]/10 text-[#1a9fff] text-[10px] font-bold px-2 py-0.5 rounded-md truncate max-w-[140px]">
+            {room.gameName}
+          </span>
+          {config.language && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38]">
+              {config.language}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-1.5">
           {hasServer && (
             <svg
@@ -276,6 +301,15 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
       <h3 className="text-[15px] font-bold text-white truncate mb-2.5 group-hover:text-[#1a9fff] transition-colors">
         {room.name}
       </h3>
+
+      {/* Scheduled time */}
+      {config.scheduledStart && (
+        <div className="flex items-center gap-1.5 mb-2 text-[11px] text-amber-400">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {new Date(config.scheduledStart as string).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+          {config.scheduledEnd && ` — ${new Date(config.scheduledEnd as string).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+        </div>
+      )}
 
       {/* Bottom row: players + host */}
       <div className="flex items-center justify-between">

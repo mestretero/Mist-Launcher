@@ -568,7 +568,12 @@
     "step2Desc": "Arkadaşların lobiyi görsün veya oda kodunu paylaş.",
     "step3Title": "Birlikte Oyna",
     "step3Desc": "Lobideki sunucu bilgisiyle oyuna bağlan.",
-    "subtitle": "Arkadaşlarınla birlikte oyna"
+    "subtitle": "Arkadaşlarınla birlikte oyna",
+    "language": "Dil",
+    "allLanguages": "Tüm Diller",
+    "lobbyType": "Lobi Türü",
+    "scheduledStart": "Başlangıç",
+    "scheduledEnd": "Bitiş"
   },
   "room": {
     "players": "Oyuncular",
@@ -595,7 +600,8 @@
     "visibility": {
       "public": "Herkes",
       "friends": "Arkadaşlar",
-      "invite": "Davetli"
+      "invite": "Davetli",
+      "scheduled": "Randevu"
     },
     "createdAgo": "{{time}} önce oluşturuldu",
     "playerCount": "{{current}} / {{max}} oyuncu",

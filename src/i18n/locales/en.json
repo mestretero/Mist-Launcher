@@ -568,7 +568,12 @@
     "step2Desc": "Let friends see your lobby or share the room code.",
     "step3Title": "Play Together",
     "step3Desc": "Connect to the game using the server info in the lobby.",
-    "subtitle": "Play together with friends"
+    "subtitle": "Play together with friends",
+    "language": "Language",
+    "allLanguages": "All Languages",
+    "lobbyType": "Lobby Type",
+    "scheduledStart": "Start Time",
+    "scheduledEnd": "End Time"
   },
   "room": {
     "players": "Players",
@@ -595,7 +600,8 @@
     "visibility": {
       "public": "Everyone",
       "friends": "Friends",
-      "invite": "Invite Only"
+      "invite": "Invite Only",
+      "scheduled": "Scheduled"
     },
     "createdAgo": "Created {{time}} ago",
     "playerCount": "{{current}} / {{max}} players",

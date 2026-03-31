@@ -249,8 +249,11 @@ export const api = {
       serverAddress?: string;
       discordLink?: string;
       description?: string;
-      visibility?: string;
+      visibility?: "FRIENDS" | "SCHEDULED" | "PUBLIC";
       durationHours?: number;
+      language?: string;
+      scheduledStart?: string;
+      scheduledEnd?: string;
     }) => request<Room>("/rooms", { method: "POST", body: JSON.stringify(data) }),
     close: (id: string) => request<void>(`/rooms/${id}`, { method: "DELETE" }),
     getMessages: (id: string, before?: string) => {

@@ -28,11 +28,14 @@ export async function createRoom(
     gameName: string;
     name: string;
     maxPlayers?: number;
-    visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
+    visibility?: "FRIENDS" | "SCHEDULED" | "PUBLIC";
     serverAddress?: string;
     discordLink?: string;
     description?: string;
     durationHours?: number;
+    language?: string;
+    scheduledStart?: string;
+    scheduledEnd?: string;
   },
 ) {
   const activeCount = await prisma.room.count({
@@ -55,6 +58,9 @@ export async function createRoom(
   if (data.discordLink) config.discordLink = data.discordLink;
   if (data.description) config.description = data.description;
   if (data.durationHours) config.durationHours = String(data.durationHours);
+  if (data.language) config.language = data.language;
+  if (data.scheduledStart) config.scheduledStart = data.scheduledStart;
+  if (data.scheduledEnd) config.scheduledEnd = data.scheduledEnd;
 
   const room = await prisma.room.create({
     data: {
@@ -346,8 +352,17 @@ export async function cleanupStaleRooms() {
   const expiredIds: string[] = [];
   for (const room of rooms) {
     const cfg = room.config as Record<string, any> | null;
-    const hours = Number(cfg?.durationHours) || 1;
-    const expiresAt = new Date(room.createdAt).getTime() + hours * 60 * 60 * 1000;
+    const durationHours = Number(cfg?.durationHours) || 1;
+    const scheduledEnd = cfg?.scheduledEnd ? new Date(cfg.scheduledEnd as string).getTime() : null;
+
+    // If scheduled room, expire after scheduledEnd
+    if (scheduledEnd && now > scheduledEnd) {
+      expiredIds.push(room.id);
+      continue;
+    }
+
+    // Otherwise use duration-based expiry
+    const expiresAt = new Date(room.createdAt).getTime() + durationHours * 60 * 60 * 1000;
     if (now > expiresAt) expiredIds.push(room.id);
   }
 

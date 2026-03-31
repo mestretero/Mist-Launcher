@@ -5,11 +5,14 @@ interface CreateRoomData {
   gameName: string;
   name: string;
   maxPlayers: number;
-  visibility: "PUBLIC" | "FRIENDS" | "INVITE";
+  visibility: "PUBLIC" | "FRIENDS" | "SCHEDULED";
   serverAddress?: string;
   discordLink?: string;
   description?: string;
   durationHours: number;
+  language: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
 }
 
 interface CreateRoomModalProps {
@@ -18,6 +21,8 @@ interface CreateRoomModalProps {
 }
 
 const DURATION_OPTIONS = [1, 2, 4, 8, 24];
+
+const LANGUAGE_OPTIONS = ["TR", "EN", "ES", "DE", "FR", "RU", "PT", "JP", "KR", "ZH"];
 
 export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
   const { t } = useTranslation();
@@ -28,8 +33,11 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
   const [serverAddress, setServerAddress] = useState("");
   const [discordLink, setDiscordLink] = useState("");
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS" | "INVITE">("PUBLIC");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS" | "SCHEDULED">("PUBLIC");
   const [durationHours, setDurationHours] = useState(4);
+  const [language, setLanguage] = useState("TR");
+  const [scheduledStart, setScheduledStart] = useState("");
+  const [scheduledEnd, setScheduledEnd] = useState("");
 
   const canSubmit = gameName.trim().length > 0 && name.trim().length > 0;
 
@@ -52,13 +60,16 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
       discordLink: discordLink.trim() || undefined,
       description: description.trim() || undefined,
       durationHours,
+      language,
+      scheduledStart: visibility === "SCHEDULED" && scheduledStart ? new Date(scheduledStart).toISOString() : undefined,
+      scheduledEnd: visibility === "SCHEDULED" && scheduledEnd ? new Date(scheduledEnd).toISOString() : undefined,
     });
   }
 
-  const visibilityOptions: { key: "PUBLIC" | "FRIENDS" | "INVITE"; label: string }[] = [
+  const visibilityOptions: { key: "PUBLIC" | "FRIENDS" | "SCHEDULED"; label: string }[] = [
     { key: "PUBLIC", label: t("room.visibility.public", "Herkes") },
     { key: "FRIENDS", label: t("room.visibility.friends", "Arkadaşlar") },
-    { key: "INVITE", label: t("room.visibility.invite", "Davetli") },
+    { key: "SCHEDULED", label: t("room.visibility.scheduled", "Randevu") },
   ];
 
   const inputCls =
@@ -67,6 +78,12 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
   const labelCls =
     "block text-[10px] font-black uppercase tracking-widest text-[#67707b] mb-1.5";
 
+  const activePillCls =
+    "bg-[#1a9fff]/20 border border-[#1a9fff]/40 text-[#1a9fff] shadow-sm shadow-[#1a9fff]/10";
+
+  const inactivePillCls =
+    "bg-[#20232c]/80 border border-[#3d4450] text-[#8f98a0] hover:border-[#67707b] hover:text-[#c6d4df]";
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -74,9 +91,9 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg mx-4 bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl shadow-xl ring-1 ring-white/5 overflow-hidden">
+      <div className="w-full max-w-lg mx-4 bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl shadow-xl ring-1 ring-white/5 overflow-hidden max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="px-6 pt-6 pb-1">
+        <div className="px-6 pt-6 pb-1 shrink-0">
           <h2 className="text-lg font-bold text-[#c6d4df]">
             {t("multiplayer.createRoom", "Lobi Oluştur")}
           </h2>
@@ -85,8 +102,8 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
           </p>
         </div>
 
-        {/* Form */}
-        <div className="px-6 py-4 space-y-3.5">
+        {/* Form — scrollable */}
+        <div className="px-6 py-4 space-y-3.5 overflow-y-auto min-h-0">
           {/* Row 1: Game name + Lobby name */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -117,8 +134,8 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
           </div>
 
           {/* Row 2: Max players + Server address */}
-          <div className="grid grid-cols-[100px_1fr] gap-3">
-            <div>
+          <div className="flex gap-3">
+            <div className="w-[100px] shrink-0">
               <label className={labelCls}>{t("multiplayer.maxPlayers", "Kişi")}</label>
               <input
                 type="number"
@@ -131,7 +148,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
                 className={inputCls}
               />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <label className={labelCls}>{t("multiplayer.serverAddress", "Sunucu Adresi")}</label>
               <input
                 value={serverAddress}
@@ -169,7 +186,26 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
             />
           </div>
 
-          {/* Row 5: Duration selector */}
+          {/* Row 5: Language selector */}
+          <div>
+            <label className={labelCls}>{t("multiplayer.language", "Dil")}</label>
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-[#3d4450] scrollbar-track-transparent">
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setLanguage(lang)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-150 ${
+                    language === lang ? activePillCls : inactivePillCls
+                  }`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 6: Duration selector */}
           <div>
             <label className={labelCls}>{t("multiplayer.duration", "Süre")}</label>
             <div className="flex gap-2">
@@ -179,9 +215,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
                   type="button"
                   onClick={() => setDurationHours(h)}
                   className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all duration-150 ${
-                    durationHours === h
-                      ? "bg-[#1a9fff]/20 border border-[#1a9fff]/40 text-[#1a9fff] shadow-sm shadow-[#1a9fff]/10"
-                      : "bg-[#20232c]/80 border border-[#3d4450] text-[#8f98a0] hover:border-[#67707b] hover:text-[#c6d4df]"
+                    durationHours === h ? activePillCls : inactivePillCls
                   }`}
                 >
                   {h}{t("multiplayer.hours", "s")}
@@ -193,10 +227,10 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
             </p>
           </div>
 
-          {/* Row 6: Visibility selector */}
+          {/* Row 7: Visibility / Type selector */}
           <div>
             <label className={labelCls}>
-              {t("multiplayer.visibility", "Kimler Katılabilir?")}
+              {t("multiplayer.lobbyType", "Tür")}
             </label>
             <div className="flex gap-2">
               {visibilityOptions.map((opt) => (
@@ -205,9 +239,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
                   type="button"
                   onClick={() => setVisibility(opt.key)}
                   className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
-                    visibility === opt.key
-                      ? "bg-[#1a9fff]/20 border border-[#1a9fff]/40 text-[#1a9fff] shadow-sm shadow-[#1a9fff]/10"
-                      : "bg-[#20232c]/80 border border-[#3d4450] text-[#8f98a0] hover:border-[#67707b] hover:text-[#c6d4df]"
+                    visibility === opt.key ? activePillCls : inactivePillCls
                   }`}
                 >
                   {opt.label}
@@ -215,10 +247,38 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
               ))}
             </div>
           </div>
+
+          {/* Row 8: Scheduled time fields (conditional) */}
+          {visibility === "SCHEDULED" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>
+                  {t("multiplayer.scheduledStart", "Başlangıç")}
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledStart}
+                  onChange={(e) => setScheduledStart(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className={labelCls}>
+                  {t("multiplayer.scheduledEnd", "Bitiş")}
+                </label>
+                <input
+                  type="datetime-local"
+                  value={scheduledEnd}
+                  onChange={(e) => setScheduledEnd(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Row 7: Actions */}
-        <div className="flex gap-3 px-6 py-5 border-t border-[#2a2e38]">
+        {/* Row 9: Actions */}
+        <div className="flex gap-3 px-6 py-5 border-t border-[#2a2e38] shrink-0">
           <button
             onClick={onClose}
             className="flex-1 py-2.5 rounded-lg text-sm font-semibold bg-[#20232c]/80 border border-[#3d4450] text-[#8f98a0] hover:text-white hover:border-[#1a9fff]/40 transition-colors"

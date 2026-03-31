@@ -91,7 +91,7 @@ enum VoteType {
 
 enum RoomVisibility {
   FRIENDS
-  INVITE
+  SCHEDULED
   PUBLIC
 
   @@map("room_visibility")

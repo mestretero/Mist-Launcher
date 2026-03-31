@@ -568,7 +568,12 @@
     "step2Desc": "Freunde sehen deine Lobby oder teile den Raumcode.",
     "step3Title": "Zusammen spielen",
     "step3Desc": "Verbinde dich über die Server-Info in der Lobby zum Spiel.",
-    "subtitle": "Spiele zusammen mit Freunden"
+    "subtitle": "Spiele zusammen mit Freunden",
+    "language": "Sprache",
+    "allLanguages": "Alle Sprachen",
+    "lobbyType": "Lobby-Typ",
+    "scheduledStart": "Startzeit",
+    "scheduledEnd": "Endzeit"
   },
   "room": {
     "players": "Spieler",
@@ -595,7 +600,8 @@
     "visibility": {
       "public": "Alle",
       "friends": "Freunde",
-      "invite": "Nur Eingeladene"
+      "invite": "Nur Eingeladene",
+      "scheduled": "Geplant"
     },
     "createdAgo": "Vor {{time}} erstellt",
     "playerCount": "{{current}} / {{max}} Spieler",

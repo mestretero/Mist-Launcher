@@ -568,7 +568,12 @@
     "step2Desc": "Tus amigos verán el lobby o comparte el código de sala.",
     "step3Title": "Jugar Juntos",
     "step3Desc": "Conéctate al juego usando la info del servidor en el lobby.",
-    "subtitle": "Juega junto a tus amigos"
+    "subtitle": "Juega junto a tus amigos",
+    "language": "Idioma",
+    "allLanguages": "Todos los Idiomas",
+    "lobbyType": "Tipo de Lobby",
+    "scheduledStart": "Hora de Inicio",
+    "scheduledEnd": "Hora de Fin"
   },
   "room": {
     "players": "Jugadores",
@@ -595,7 +600,8 @@
     "visibility": {
       "public": "Todos",
       "friends": "Amigos",
-      "invite": "Solo Invitados"
+      "invite": "Solo Invitados",
+      "scheduled": "Programado"
     },
     "createdAgo": "Creado hace {{time}}",
     "playerCount": "{{current}} / {{max}} jugadores",

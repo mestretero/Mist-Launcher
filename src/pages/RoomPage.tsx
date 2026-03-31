@@ -116,8 +116,11 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   const discordLink = config.discordLink as string | undefined;
   const description = config.description as string | undefined;
   const durationHours = config.durationHours as number | undefined;
+  const scheduledStart = config.scheduledStart as string | undefined;
+  const scheduledEnd = config.scheduledEnd as string | undefined;
+  const language = config.language as string | undefined;
   const hasInfo = Boolean(
-    serverAddress || discordLink || description || durationHours
+    serverAddress || discordLink || description || durationHours || scheduledStart || language
   );
 
   function renderSystemMessage(msg: RoomMessage) {
@@ -231,7 +234,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
                   ? t("room.visibility.public")
                   : currentRoom.visibility === "FRIENDS"
                   ? t("room.visibility.friends")
-                  : t("room.visibility.invite")}
+                  : t("room.visibility.scheduled")}
               </span>
             </div>
             <span className="text-xs text-[#67707b]">
@@ -384,6 +387,26 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
                 </span>
               ) : null}
             </div>
+          )}
+
+          {/* Scheduled time */}
+          {scheduledStart && (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span className="text-[11px] text-amber-400 font-medium">
+                {new Date(scheduledStart).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                {scheduledEnd && ` — ${new Date(scheduledEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+              </span>
+            </div>
+          )}
+
+          {/* Language badge */}
+          {language && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] flex-shrink-0">
+              {language}
+            </span>
           )}
         </div>
       )}
