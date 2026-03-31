@@ -22,6 +22,7 @@ import { MarketplacePage } from "./pages/MarketplacePage";
 import MultiplayerPage from "./pages/MultiplayerPage";
 import RoomPage from "./pages/RoomPage";
 import { ToastContainer } from "./components/ToastContainer";
+import { ChatPanel } from "./components/ChatPanel";
 
 function App() {
   const { isAuthenticated, isLoading, loadSession } = useAuthStore();
@@ -165,6 +166,7 @@ function App() {
         <UserProfilePage username={gameSlug} onNavigate={navigate} />
       )}
       <ToastContainer />
+      <ChatPanel />
     </Layout>
   );
 }

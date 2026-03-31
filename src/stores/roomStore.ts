@@ -272,6 +272,12 @@ function handleWsMessage(
       break;
     }
 
+    case "dm:message":
+      import("./dmStore").then(({ useDmStore }) => {
+        useDmStore.getState().receiveMessage(payload);
+      });
+      break;
+
     case "error":
       console.error("WebSocket error:", payload.message);
       break;

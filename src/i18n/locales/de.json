@@ -609,6 +609,15 @@
     "expiresIn": "Schließt in",
     "expired": "Zeit abgelaufen"
   },
+  "chat": {
+    "friendsAndChat": "Freunde & Chat",
+    "friends": "Freunde",
+    "online": "Online",
+    "offline": "Offline",
+    "noFriends": "Noch keine Freunde",
+    "noMessages": "Noch keine Nachrichten",
+    "messagePlaceholder": "Nachricht eingeben..."
+  },
   "gameDetail": {
     "back": "Zurück",
     "about": "Über das Spiel",

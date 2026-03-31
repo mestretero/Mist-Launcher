@@ -179,6 +179,8 @@ model User {
   hostedRooms            Room[]        @relation("hostedRooms")
   roomPlayers            RoomPlayer[]
   roomMessages           RoomMessage[]
+  sentDirectMessages     DirectMessage[] @relation("DMSender")
+  receivedDirectMessages DirectMessage[] @relation("DMReceiver")
 
   @@map("users")
 }
@@ -725,4 +727,20 @@ model GameHostingProfile {
 
   @@index([gameId])
   @@map("game_hosting_profiles")
+}
+
+// ─── Direct Messages ────────────────────────────
+
+model DirectMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  senderId   String   @map("sender_id") @db.Uuid
+  sender     User     @relation("DMSender", fields: [senderId], references: [id])
+  receiverId String   @map("receiver_id") @db.Uuid
+  receiver   User     @relation("DMReceiver", fields: [receiverId], references: [id])
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, createdAt])
+  @@map("direct_messages")
 }

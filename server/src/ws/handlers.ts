@@ -26,6 +26,8 @@ export async function handleMessage(
       return handleStartGame(client, payload as RoomIdPayload);
     case "room:kick":
       return handleKick(client, payload as KickPayload);
+    case "dm:send":
+      return handleDmSend(client, payload as DmSendPayload);
     default:
       throw new Error(`Unknown message type: ${type}`);
   }
@@ -54,6 +56,11 @@ interface SendMessagePayload {
 interface KickPayload {
   roomId: string;
   targetUserId: string;
+}
+
+interface DmSendPayload {
+  friendId: string;
+  content: string;
 }
 
 // ── Handlers ────────────────────────────────────────
@@ -155,5 +162,25 @@ async function handleKick(client: Client, payload: KickPayload) {
   broadcastToRoom(roomId, {
     type: "room:player-kicked",
     payload: { userId: targetUserId },
+  });
+}
+
+async function handleDmSend(client: Client, payload: DmSendPayload) {
+  const { friendId, content } = payload;
+  if (!content?.trim()) return;
+
+  const dmService = await import("../services/dm.service.js");
+  const message = await dmService.sendMessage(client.userId, friendId, content.trim());
+
+  // Send to the receiver if they're online
+  sendToUser(friendId, {
+    type: "dm:message",
+    payload: message,
+  });
+
+  // Also confirm back to sender
+  sendToUser(client.userId, {
+    type: "dm:message",
+    payload: message,
   });
 }

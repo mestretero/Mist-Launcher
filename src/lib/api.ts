@@ -239,6 +239,12 @@ export const api = {
     purchase: (themeId: string) =>
       request<{ success: boolean; newBalance: number }>(`/marketplace/themes/${themeId}/purchase`, { method: "POST" }),
   },
+  dm: {
+    conversations: () => request<any[]>("/dm/conversations"),
+    messages: (friendId: string) => request<any[]>(`/dm/${friendId}/messages`),
+    send: (friendId: string, content: string) =>
+      request<any>(`/dm/${friendId}`, { method: "POST", body: JSON.stringify({ content }) }),
+  },
   rooms: {
     list: () => request<Room[]>("/rooms"),
     getById: (id: string) => request<Room>(`/rooms/${id}`),

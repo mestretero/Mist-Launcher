@@ -609,6 +609,15 @@
     "expiresIn": "Kapanmaya kalan",
     "expired": "Süre doldu"
   },
+  "chat": {
+    "friendsAndChat": "Arkadaşlar ve Sohbet",
+    "friends": "Arkadaşlar",
+    "online": "Çevrimiçi",
+    "offline": "Çevrimdışı",
+    "noFriends": "Henüz arkadaşın yok",
+    "noMessages": "Henüz mesaj yok",
+    "messagePlaceholder": "Mesaj yaz..."
+  },
   "gameDetail": {
     "back": "Geri",
     "about": "Hakkında",
