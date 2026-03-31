@@ -62,11 +62,26 @@ function App() {
     if (isAuthenticated) {
       useNotificationStore.getState().startPolling();
       useCartStore.getState().fetch();
+      // Connect WebSocket for multiplayer
+      import("@tauri-apps/api/core").then(({ invoke }) => {
+        invoke<string | null>("get_token", { key: "access_token" }).then((token) => {
+          if (token) {
+            import("./stores/roomStore").then(({ useRoomStore }) => {
+              useRoomStore.getState().connect(token);
+            });
+          }
+        });
+      }).catch(() => {});
       // Sync local games to server for profile display
       import("./stores/localGameStore").then(({ useLocalGameStore }) => {
         useLocalGameStore.getState().loadGames().then(() => {
           useLocalGameStore.getState().syncToServer();
         });
+      }).catch(() => {});
+    } else {
+      // Disconnect WebSocket on logout
+      import("./stores/roomStore").then(({ useRoomStore }) => {
+        useRoomStore.getState().disconnect();
       }).catch(() => {});
     }
     return () => { useNotificationStore.getState().stopPolling(); };

@@ -82,8 +82,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   createRoom: async (data) => {
     const room = await api.rooms.create(data);
-    const [privateKey, publicKey] =
-      await invoke<[string, string]>("generate_keypair");
+    // Generate keypair — fallback to dummy if Tauri command unavailable
+    let privateKey = "dummy-private-key";
+    let publicKey = "dummy-public-key";
+    try {
+      [privateKey, publicKey] = await invoke<[string, string]>("generate_keypair");
+    } catch { /* Phase 1: tunnel is scaffold, dummy keys OK */ }
     set({
       currentRoom: room,
       messages: [],
@@ -91,15 +95,35 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       privateKey,
       virtualIp: "10.13.37.1",
     });
-    get().wsClient?.send("room:join", { roomId: room.id, publicKey });
+    // Only send WS join if connected
+    const { wsClient, wsConnected } = get();
+    if (wsClient && wsConnected) {
+      wsClient.send("room:join", { roomId: room.id, publicKey });
+    }
     return room;
   },
 
   joinRoom: async (roomId) => {
-    const [privateKey, publicKey] =
-      await invoke<[string, string]>("generate_keypair");
+    // Generate keypair — fallback to dummy if Tauri command unavailable
+    let privateKey = "dummy-private-key";
+    let publicKey = "dummy-public-key";
+    try {
+      [privateKey, publicKey] = await invoke<[string, string]>("generate_keypair");
+    } catch { /* Phase 1: tunnel is scaffold, dummy keys OK */ }
     set({ publicKey, privateKey });
-    get().wsClient?.send("room:join", { roomId, publicKey });
+    // Fetch room data via REST as fallback
+    try {
+      const room = await api.rooms.getById(roomId);
+      set({ currentRoom: room, messages: [] });
+      // Find our player entry for virtualIp
+      const myPlayer = room.players?.find((p: any) => p.publicKey === publicKey);
+      if (myPlayer) set({ virtualIp: myPlayer.virtualIp });
+    } catch { /* will get state from WS */ }
+    // Join via WebSocket for real-time updates
+    const { wsClient, wsConnected } = get();
+    if (wsClient && wsConnected) {
+      wsClient.send("room:join", { roomId, publicKey });
+    }
   },
 
   leaveRoom: () => {
@@ -243,6 +267,7 @@ function handleWsMessage(
     }
 
     case "room:closed":
+    case "room:kicked":
       invoke("destroy_tunnel", {
         roomId: get().currentRoom?.id || "",
       }).catch(() => {});
@@ -253,6 +278,18 @@ function handleWsMessage(
         virtualIp: null,
       });
       break;
+
+    case "room:player-kicked": {
+      const room2 = get().currentRoom;
+      if (!room2) return;
+      set({
+        currentRoom: {
+          ...room2,
+          players: room2.players.filter((p) => p.userId !== payload.userId),
+        },
+      });
+      break;
+    }
 
     case "peer:signal":
       handlePeerSignal(payload, set, get);

@@ -58,10 +58,9 @@ export async function createRoom(
       hostType: data.hostType || "LAN_HOST",
       port: data.port || null,
     },
-    include: roomInclude,
   });
 
-  // Auto-join the host as the first player
+  // Auto-join the host as the first player BEFORE returning
   await prisma.roomPlayer.create({
     data: {
       roomId: room.id,
@@ -72,7 +71,11 @@ export async function createRoom(
     },
   });
 
-  return room;
+  // Re-fetch with players included so host shows in response
+  return prisma.room.findUnique({
+    where: { id: room.id },
+    include: roomInclude,
+  });
 }
 
 // ── List (friends-only, excluding blocked) ───────
