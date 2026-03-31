@@ -14,7 +14,8 @@
     "profile": "Profile",
     "settings": "Settings",
     "logout": "Log Out",
-    "multiplayer": "Multiplayer"
+    "multiplayer": "Multiplayer",
+    "admin": "Admin"
   },
   "marketplace": {
     "title": "Theme Marketplace",
@@ -721,5 +722,31 @@
         "reportConfirm": "Are you sure you want to report this link as a virus?"
       }
     }
+  },
+  "admin": {
+    "title": "Admin Panel",
+    "users": "Users",
+    "reportedUsers": "Reported Users",
+    "reportedLinks": "Reported Links",
+    "search": "Search...",
+    "ban": "Ban",
+    "unban": "Unban",
+    "banned": "Banned",
+    "active": "Active",
+    "hide": "Hide",
+    "delete": "Delete",
+    "resolve": "Resolve",
+    "dismiss": "Dismiss",
+    "viewReports": "View Reports",
+    "stats": "Dashboard",
+    "totalUsers": "Total Users",
+    "bannedUsers": "Banned Users",
+    "openReports": "Open Reports",
+    "reportedLinksCount": "Reported Links",
+    "noResults": "No results",
+    "reportReason": "Reason",
+    "reportDate": "Date",
+    "confirmBan": "Ban this user?",
+    "confirmDelete": "Delete this link permanently?"
   }
 }

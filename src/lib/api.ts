@@ -283,4 +283,27 @@ export const api = {
       return request<RoomMessage[]>(`/rooms/${id}/messages${params}`);
     },
   },
+  admin: {
+    stats: () =>
+      request<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number }>("/admin/stats"),
+    listUsers: (search?: string, page = 1, limit = 20) => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (search) params.set("search", search);
+      return request<{ users: any[]; total: number; page: number; limit: number }>(`/admin/users?${params}`);
+    },
+    banUser: (id: string) => request<{ success: boolean }>(`/admin/users/${id}/ban`, { method: "POST" }),
+    unbanUser: (id: string) => request<{ success: boolean }>(`/admin/users/${id}/unban`, { method: "POST" }),
+    reportedUsers: (page = 1, limit = 20) =>
+      request<{ users: any[]; total: number }>(`/admin/reported-users?page=${page}&limit=${limit}`),
+    getUserReports: (userId: string) =>
+      request<any[]>(`/admin/reported-users/${userId}/reports`),
+    resolveReport: (reportId: string, status: "RESOLVED" | "DISMISSED") =>
+      request<any>(`/admin/reports/${reportId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    reportedLinks: (page = 1, limit = 20) =>
+      request<{ links: any[]; total: number }>(`/admin/reported-links?page=${page}&limit=${limit}`),
+    hideLink: (linkId: string) =>
+      request<any>(`/admin/links/${linkId}/hide`, { method: "POST" }),
+    deleteLink: (linkId: string) =>
+      request<void>(`/admin/links/${linkId}`, { method: "DELETE" }),
+  },
 };

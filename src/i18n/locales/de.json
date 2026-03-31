@@ -14,7 +14,8 @@
     "profile": "Profil",
     "settings": "Einstellungen",
     "logout": "Abmelden",
-    "multiplayer": "Mehrspieler"
+    "multiplayer": "Mehrspieler",
+    "admin": "Admin"
   },
   "marketplace": {
     "title": "Themen-Marktplatz",
@@ -721,5 +722,31 @@
         "reportConfirm": "Möchten Sie diesen Link wirklich als Virus melden?"
       }
     }
+  },
+  "admin": {
+    "title": "Admin-Panel",
+    "users": "Benutzer",
+    "reportedUsers": "Gemeldete Benutzer",
+    "reportedLinks": "Gemeldete Links",
+    "search": "Suchen...",
+    "ban": "Sperren",
+    "unban": "Entsperren",
+    "banned": "Gesperrt",
+    "active": "Aktiv",
+    "hide": "Verbergen",
+    "delete": "Löschen",
+    "resolve": "Lösen",
+    "dismiss": "Ablehnen",
+    "viewReports": "Meldungen ansehen",
+    "stats": "Übersicht",
+    "totalUsers": "Gesamtbenutzer",
+    "bannedUsers": "Gesperrte Benutzer",
+    "openReports": "Offene Meldungen",
+    "reportedLinksCount": "Gemeldete Links",
+    "noResults": "Keine Ergebnisse",
+    "reportReason": "Grund",
+    "reportDate": "Datum",
+    "confirmBan": "Diesen Benutzer sperren?",
+    "confirmDelete": "Diesen Link dauerhaft löschen?"
   }
 }

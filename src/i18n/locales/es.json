@@ -14,7 +14,8 @@
     "profile": "Perfil",
     "settings": "Ajustes",
     "logout": "Cerrar sesión",
-    "multiplayer": "Multijugador"
+    "multiplayer": "Multijugador",
+    "admin": "Admin"
   },
   "marketplace": {
     "title": "Mercado de Temas",
@@ -721,5 +722,31 @@
         "reportConfirm": "¿Estás seguro de que quieres reportar este enlace como virus?"
       }
     }
+  },
+  "admin": {
+    "title": "Panel de Administración",
+    "users": "Usuarios",
+    "reportedUsers": "Usuarios Reportados",
+    "reportedLinks": "Enlaces Reportados",
+    "search": "Buscar...",
+    "ban": "Banear",
+    "unban": "Desbanear",
+    "banned": "Baneado",
+    "active": "Activo",
+    "hide": "Ocultar",
+    "delete": "Eliminar",
+    "resolve": "Resolver",
+    "dismiss": "Descartar",
+    "viewReports": "Ver Reportes",
+    "stats": "Panel",
+    "totalUsers": "Total Usuarios",
+    "bannedUsers": "Usuarios Baneados",
+    "openReports": "Reportes Abiertos",
+    "reportedLinksCount": "Enlaces Reportados",
+    "noResults": "Sin resultados",
+    "reportReason": "Motivo",
+    "reportDate": "Fecha",
+    "confirmBan": "¿Banear a este usuario?",
+    "confirmDelete": "¿Eliminar este enlace permanentemente?"
   }
 }

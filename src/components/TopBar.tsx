@@ -49,6 +49,7 @@ export function TopBar({ currentPage, onNavigate, onRefresh, canGoBack, canGoFor
     { id: "scanner", label: t("nav.scanner") },
     { id: "multiplayer", label: t("nav.multiplayer") },
     { id: "marketplace", label: t("nav.marketplace") },
+    ...(user?.isAdmin ? [{ id: "admin", label: t("nav.admin") }] : []),
   ];
 
   const noDrag = { WebkitAppRegion: "no-drag" } as React.CSSProperties;

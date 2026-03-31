@@ -75,6 +75,8 @@ export async function loginUser(input: LoginInput) {
   const valid = await verify(user.passwordHash, input.password);
   if (!valid) throw unauthorized("Invalid credentials");
 
+  if (user.isBanned) throw unauthorized("This account has been banned");
+
   if (user.twoFactorEnabled) {
     return { requires2FA: true as const, userId: user.id };
   }
@@ -121,7 +123,8 @@ export async function refreshTokens(refreshToken: string) {
 
   await prisma.refreshToken.delete({ where: { id: stored.id } });
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { isAdmin: true } });
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { isAdmin: true, isBanned: true } });
+  if (user?.isBanned) throw unauthorized("This account has been banned");
   return createTokens(payload.userId, payload.email, user?.isAdmin ?? false);
 }
 

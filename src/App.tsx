@@ -18,6 +18,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import GameScannerPage from "./pages/GameScannerPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import { AdminPage } from "./pages/AdminPage";
 import { MarketplacePage } from "./pages/MarketplacePage";
 import MultiplayerPage from "./pages/MultiplayerPage";
 import RoomPage from "./pages/RoomPage";
@@ -164,6 +165,7 @@ function App() {
       {page === "user-profile" && gameSlug && (
         <UserProfilePage username={gameSlug} onNavigate={navigate} />
       )}
+      {page === "admin" && <AdminPage />}
       <ToastContainer />
       <ChatPanel onNavigate={navigate} />
     </Layout>

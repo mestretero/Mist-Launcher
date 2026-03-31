@@ -14,7 +14,8 @@
     "profile": "Profil",
     "settings": "Ayarlar",
     "logout": "Çıkış Yap",
-    "multiplayer": "Çok Oyunculu"
+    "multiplayer": "Çok Oyunculu",
+    "admin": "Admin"
   },
   "marketplace": {
     "title": "Tema Pazarı",
@@ -721,5 +722,31 @@
         "reportConfirm": "Bu linki virüs olarak bildirmek istediğinize emin misiniz?"
       }
     }
+  },
+  "admin": {
+    "title": "Admin Paneli",
+    "users": "Kullanıcılar",
+    "reportedUsers": "Şikayet Edilenler",
+    "reportedLinks": "Şikayet Edilen Linkler",
+    "search": "Ara...",
+    "ban": "Yasakla",
+    "unban": "Yasağı Kaldır",
+    "banned": "Yasaklı",
+    "active": "Aktif",
+    "hide": "Gizle",
+    "delete": "Sil",
+    "resolve": "Çöz",
+    "dismiss": "Kapat",
+    "viewReports": "Şikayetleri Gör",
+    "stats": "Özet",
+    "totalUsers": "Toplam Kullanıcı",
+    "bannedUsers": "Yasaklı Kullanıcı",
+    "openReports": "Açık Şikayet",
+    "reportedLinksCount": "Şikayet Edilen Link",
+    "noResults": "Sonuç bulunamadı",
+    "reportReason": "Sebep",
+    "reportDate": "Tarih",
+    "confirmBan": "Bu kullanıcıyı yasaklamak istiyor musunuz?",
+    "confirmDelete": "Bu linki kalıcı olarak silmek istiyor musunuz?"
   }
 }
