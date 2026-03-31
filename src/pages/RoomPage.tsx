@@ -100,9 +100,36 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
       );
       if (match?.exe_path) {
         const config = (currentRoom.config || {}) as Record<string, any>;
-        const template = isHost ? config.hostLaunchArgs : config.clientLaunchArgs;
         const ip = config.hostVirtualIp || "10.13.37.1";
         const port = config.gamePort || currentRoom.port || 0;
+
+        // Host: launch dedicated server binary first (if configured)
+        if (isHost && config.serverFileName) {
+          try {
+            const serverPath = await invoke<string>("find_server_binary", {
+              gameExePath: match.exe_path,
+              serverFileName: config.serverFileName,
+            });
+            const serverArgs = buildLaunchArgs(config.hostLaunchArgs, ip, port);
+            await invoke("start_dedicated_server", {
+              gameId: match.id,
+              exePath: serverPath,
+              args: serverArgs,
+              port: port,
+            });
+            // Give server a moment to start
+            await new Promise((r) => setTimeout(r, 2000));
+          } catch {
+            // Server binary not found — game will launch without auto-server
+          }
+        }
+
+        // Launch game client
+        const template = isHost && !config.serverFileName
+          ? config.hostLaunchArgs
+          : isHost
+            ? config.clientLaunchArgs  // Host with dedicated server connects as client
+            : config.clientLaunchArgs;
         const args = buildLaunchArgs(template, ip, port);
         await invoke("launch_game", { gameId: match.id, exePath: match.exe_path, args });
       }

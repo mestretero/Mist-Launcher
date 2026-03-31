@@ -157,6 +157,7 @@ async function handleStartGame(client: Client, payload: RoomIdPayload) {
       hostVirtualIp: "10.13.37.1",
       hostLaunchArgs: config.hostLaunchArgs || null,
       clientLaunchArgs: config.clientLaunchArgs || null,
+      serverFileName: config.serverFileName || null,
     },
   });
 }

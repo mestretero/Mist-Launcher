@@ -5,7 +5,7 @@ import type { GameHostingProfile } from "../lib/types";
 
 interface CreateRoomModalProps {
   onClose: () => void;
-  onCreate: (data: { gameName: string; name: string; maxPlayers: number; hostType: "LAN_HOST" | "DEDICATED"; port?: number; visibility?: "FRIENDS" | "INVITE" | "PUBLIC"; hostLaunchArgs?: string; clientLaunchArgs?: string; }) => void;
+  onCreate: (data: { gameName: string; name: string; maxPlayers: number; hostType: "LAN_HOST" | "DEDICATED"; port?: number; visibility?: "FRIENDS" | "INVITE" | "PUBLIC"; hostLaunchArgs?: string; clientLaunchArgs?: string; serverFileName?: string; }) => void;
 }
 
 export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
@@ -40,6 +40,7 @@ export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
       visibility,
       hostLaunchArgs: selectedProfile?.hostLaunchArgs || undefined,
       clientLaunchArgs: selectedProfile?.clientLaunchArgs || undefined,
+      serverFileName: selectedProfile?.serverFileName || undefined,
     });
   }
 

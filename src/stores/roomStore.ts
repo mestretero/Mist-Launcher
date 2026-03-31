@@ -323,6 +323,7 @@ function handleWsMessage(
             clientLaunchArgs: payload.clientLaunchArgs,
             hostVirtualIp: payload.hostVirtualIp,
             gamePort: payload.port,
+            serverFileName: payload.serverFileName,
           },
         },
       });

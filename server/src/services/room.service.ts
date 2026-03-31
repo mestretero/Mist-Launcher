@@ -33,6 +33,7 @@ export async function createRoom(
     visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
     hostLaunchArgs?: string;
     clientLaunchArgs?: string;
+    serverFileName?: string;
   },
 ) {
   const activeCount = await prisma.room.count({
@@ -53,6 +54,7 @@ export async function createRoom(
   const config: Record<string, string> = {};
   if (data.hostLaunchArgs) config.hostLaunchArgs = data.hostLaunchArgs;
   if (data.clientLaunchArgs) config.clientLaunchArgs = data.clientLaunchArgs;
+  if (data.serverFileName) config.serverFileName = data.serverFileName;
 
   const room = await prisma.room.create({
     data: {

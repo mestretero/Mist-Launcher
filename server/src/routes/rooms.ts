@@ -17,6 +17,7 @@ export default async function roomRoutes(app: FastifyInstance) {
       visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
       hostLaunchArgs?: string;
       clientLaunchArgs?: string;
+      serverFileName?: string;
     };
     const room = await roomService.createRoom(userId, body);
     return reply.status(201).send({ data: room });

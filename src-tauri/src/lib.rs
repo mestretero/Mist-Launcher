@@ -55,6 +55,7 @@ pub fn run() {
             commands::tunnel::get_tunnel_listen_port,
             commands::server_manager::start_dedicated_server,
             commands::server_manager::stop_dedicated_server,
+            commands::server_manager::find_server_binary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
