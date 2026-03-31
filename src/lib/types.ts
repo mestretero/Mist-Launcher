@@ -191,3 +191,34 @@ export interface RoomMessage {
   createdAt: string;
 }
 
+export interface GroupMember {
+  groupId: string;
+  userId: string;
+  joinedAt: string;
+  user: { id: string; username: string; avatarUrl?: string };
+}
+
+export interface GroupMessage {
+  id: string;
+  groupId: string;
+  senderId: string;
+  content: string;
+  sender: { id: string; username: string; avatarUrl?: string };
+  createdAt: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  creatorId: string;
+  createdAt: string;
+  members: GroupMember[];
+  lastMessage?: GroupMessage | null;
+}
+
+export interface GroupMemberUpdate {
+  groupId: string;
+  userId?: string;
+  member?: GroupMember;
+}
+
