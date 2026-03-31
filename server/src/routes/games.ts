@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { gameListSchema, searchSchema } from "../schemas/game.schema.js";
 import * as gameService from "../services/game.service.js";
 import { searchAndAutoAdd, searchSteamGames } from "../services/steam.service.js";
+import { prisma } from "../lib/prisma.js";
 
 export default async function gameRoutes(app: FastifyInstance) {
   app.get("/games", async (request, reply) => {
@@ -41,7 +42,6 @@ export default async function gameRoutes(app: FastifyInstance) {
   app.post("/games/request", { preHandler: [app.authenticate] }, async (request, reply) => {
     const { gameTitle, reason } = request.body as { gameTitle: string; reason: string };
     if (!gameTitle || gameTitle.length < 2) return reply.code(400).send({ error: "Game title required" });
-    const { prisma } = await import("../lib/prisma.js");
     const existing = await prisma.gameRequest.findFirst({
       where: { userId: request.user!.userId, gameTitle: { equals: gameTitle, mode: "insensitive" } },
     });
