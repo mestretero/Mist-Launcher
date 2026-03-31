@@ -61,7 +61,7 @@ function App() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      useNotificationStore.getState().startPolling();
+      useNotificationStore.getState().fetch();
       useCartStore.getState().fetch();
       // Connect WebSocket for multiplayer
       import("./lib/api").then(({ getAccessToken }) => {
@@ -85,7 +85,6 @@ function App() {
         useRoomStore.getState().disconnect();
       }).catch(() => {});
     }
-    return () => { useNotificationStore.getState().stopPolling(); };
   }, [isAuthenticated]);
 
   if (isLoading) {

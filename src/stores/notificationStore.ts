@@ -9,11 +9,8 @@ interface NotificationState {
   fetch: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
   markAllRead: () => Promise<void>;
-  startPolling: () => void;
-  stopPolling: () => void;
+  receiveNotification: (notification: Notification) => void;
 }
-
-let pollInterval: ReturnType<typeof setInterval> | null = null;
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
@@ -24,7 +21,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const token = await invoke<string | null>("get_token", { key: "access_token" });
-      if (!token) return; // not logged in, skip
+      if (!token) return;
       const data = await api.notifications.list();
       set({ notifications: data.notifications, unreadCount: data.unreadCount });
     } catch {}
@@ -46,13 +43,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }));
   },
 
-  startPolling: () => {
-    get().fetch();
-    if (pollInterval) clearInterval(pollInterval);
-    pollInterval = setInterval(() => get().fetch(), 30000);
-  },
-
-  stopPolling: () => {
-    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  receiveNotification: (notification) => {
+    set((s) => ({
+      notifications: [notification, ...s.notifications].slice(0, 50),
+      unreadCount: s.unreadCount + 1,
+    }));
   },
 }));
