@@ -9,7 +9,7 @@ export default async function friendRoutes(app: FastifyInstance) {
     const friends = await friendshipService.getFriends(request.user!.userId);
     const enriched = friends.map((f: any) => ({
       ...f,
-      online: isUserOnline(f.id),
+      online: isUserOnline(f.friend?.id || f.id),
     }));
     return { data: enriched };
   });

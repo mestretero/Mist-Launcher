@@ -62,7 +62,14 @@ export const useDmStore = create<DmState>((set, get) => ({
   loadFriends: async () => {
     try {
       const res = await api.friends.list();
-      set({ friends: res });
+      // API returns { friendshipId, friend: { id, username, avatarUrl }, online }
+      const mapped = res.map((f: any) => ({
+        id: f.friend?.id || f.id,
+        username: f.friend?.username || f.username,
+        avatarUrl: f.friend?.avatarUrl || f.avatarUrl,
+        online: f.online ?? false,
+      }));
+      set({ friends: mapped });
     } catch { /* */ }
   },
 
