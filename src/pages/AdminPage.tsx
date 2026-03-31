@@ -8,6 +8,11 @@ export function AdminPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("users");
   const [stats, setStats] = useState<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number; gameRequests: number } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; resolve: (v: boolean) => void } | null>(null);
+
+  const confirm = useCallback((message: string) => new Promise<boolean>((resolve) => {
+    setConfirmDialog({ message, resolve });
+  }), []);
 
   const refreshStats = useCallback(() => {
     api.admin.stats().then(setStats).catch(() => {});
@@ -18,7 +23,7 @@ export function AdminPage() {
   }, [refreshStats]);
 
   return (
-    <div className="min-h-screen bg-brand-950 text-brand-100 p-6 font-sans">
+    <div className="min-h-screen bg-brand-950 text-brand-100 p-6 font-sans relative">
       <h1 className="text-xl font-black uppercase tracking-widest text-white mb-6">{t("admin.title")}</h1>
 
       {/* Stats bar */}
@@ -59,17 +64,43 @@ export function AdminPage() {
         ))}
       </div>
 
-      {tab === "users" && <UsersTab onStatsChange={refreshStats} />}
-      {tab === "reportedUsers" && <ReportedUsersTab onStatsChange={refreshStats} />}
-      {tab === "reportedLinks" && <ReportedLinksTab onStatsChange={refreshStats} />}
-      {tab === "gameRequests" && <GameRequestsTab onStatsChange={refreshStats} />}
+      {tab === "users" && <UsersTab onStatsChange={refreshStats} confirm={confirm} />}
+      {tab === "reportedUsers" && <ReportedUsersTab onStatsChange={refreshStats} confirm={confirm} />}
+      {tab === "reportedLinks" && <ReportedLinksTab onStatsChange={refreshStats} confirm={confirm} />}
+      {tab === "gameRequests" && <GameRequestsTab onStatsChange={refreshStats} confirm={confirm} />}
+
+      {/* Confirm Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-brand-900 border border-brand-800 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-6 py-5">
+              <p className="text-sm text-brand-100 font-medium">{confirmDialog.message}</p>
+            </div>
+            <div className="flex border-t border-brand-800">
+              <button
+                onClick={() => { confirmDialog.resolve(false); setConfirmDialog(null); }}
+                className="flex-1 py-3 text-xs font-bold text-brand-400 hover:text-white hover:bg-brand-800 transition-colors uppercase tracking-widest cursor-pointer"
+              >
+                {t("common.cancel")}
+              </button>
+              <div className="w-px bg-brand-800" />
+              <button
+                onClick={() => { confirmDialog.resolve(true); setConfirmDialog(null); }}
+                className="flex-1 py-3 text-xs font-bold text-red-400 hover:text-white hover:bg-red-500/20 transition-colors uppercase tracking-widest cursor-pointer"
+              >
+                {t("common.confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Users Tab ──────────────────────────────────────────────────────────────
 
-function UsersTab({ onStatsChange }: { onStatsChange: () => void }) {
+function UsersTab({ onStatsChange, confirm }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean> }) {
   const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [users, setUsers] = useState<any[]>([]);
@@ -90,7 +121,7 @@ function UsersTab({ onStatsChange }: { onStatsChange: () => void }) {
   useEffect(() => { load(1); }, []);
 
   async function handleBan(id: string, isBanned: boolean) {
-    if (!window.confirm(isBanned ? t("admin.unban") + "?" : t("admin.confirmBan"))) return;
+    if (!await confirm(isBanned ? t("admin.unban") + "?" : t("admin.confirmBan"))) return;
     try {
       if (isBanned) await api.admin.unbanUser(id);
       else await api.admin.banUser(id);
@@ -161,7 +192,7 @@ function UsersTab({ onStatsChange }: { onStatsChange: () => void }) {
 
 // ── Reported Users Tab ─────────────────────────────────────────────────────
 
-function ReportedUsersTab({ onStatsChange }: { onStatsChange: () => void }) {
+function ReportedUsersTab({ onStatsChange, confirm }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean> }) {
   const { t } = useTranslation();
   const [users, setUsers] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -191,7 +222,7 @@ function ReportedUsersTab({ onStatsChange }: { onStatsChange: () => void }) {
   }
 
   async function handleBan(userId: string) {
-    if (!window.confirm(t("admin.confirmBan"))) return;
+    if (!await confirm(t("admin.confirmBan"))) return;
     await api.admin.banUser(userId);
     load(page);
     onStatsChange();
@@ -265,7 +296,7 @@ function ReportedUsersTab({ onStatsChange }: { onStatsChange: () => void }) {
 
 // ── Reported Links Tab ─────────────────────────────────────────────────────
 
-function ReportedLinksTab({ onStatsChange }: { onStatsChange: () => void }) {
+function ReportedLinksTab({ onStatsChange, confirm }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean> }) {
   const { t } = useTranslation();
   const [links, setLinks] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -291,7 +322,7 @@ function ReportedLinksTab({ onStatsChange }: { onStatsChange: () => void }) {
   }
 
   async function handleDelete(linkId: string) {
-    if (!window.confirm(t("admin.confirmDelete"))) return;
+    if (!await confirm(t("admin.confirmDelete"))) return;
     await api.admin.deleteLink(linkId);
     load(page);
     onStatsChange();
@@ -355,7 +386,7 @@ function ReportedLinksTab({ onStatsChange }: { onStatsChange: () => void }) {
 
 // ── Game Requests Tab ─────────────────────────────────────────────────────
 
-function GameRequestsTab({ onStatsChange }: { onStatsChange: () => void }) {
+function GameRequestsTab({ onStatsChange, confirm }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean> }) {
   const { t } = useTranslation();
   const [requests, setRequests] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -381,7 +412,7 @@ function GameRequestsTab({ onStatsChange }: { onStatsChange: () => void }) {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm(t("admin.confirmDelete"))) return;
+    if (!await confirm(t("admin.confirmDelete"))) return;
     await api.admin.deleteGameRequest(id);
     load(page);
     onStatsChange();
