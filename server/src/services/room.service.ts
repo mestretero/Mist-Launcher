@@ -210,12 +210,7 @@ export async function leaveRoom(roomId: string, userId: string) {
   });
   if (!room) throw notFound("Room not found");
 
-  if (room.hostId === userId) {
-    // Host left — hard delete the room (cascade deletes players + messages)
-    await prisma.room.delete({ where: { id: roomId } });
-    return { closed: true };
-  }
-
+  // Remove the player from the room (host or not)
   await prisma.roomPlayer.deleteMany({ where: { roomId, userId } });
   return { closed: false };
 }

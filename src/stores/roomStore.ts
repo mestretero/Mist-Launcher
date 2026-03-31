@@ -27,7 +27,8 @@ interface RoomState {
     scheduledEnd?: string;
   }) => Promise<Room>;
   joinRoom: (roomId: string) => Promise<void>;
-  leaveRoom: () => Promise<void>;
+  leaveRoom: () => void;
+  closeRoom: () => Promise<void>;
   sendMessage: (content: string) => void;
   toggleReady: (ready: boolean) => void;
   startGame: () => void;
@@ -109,7 +110,19 @@ export const useRoomStore = create<RoomState>((set, get) => ({
     }
   },
 
-  leaveRoom: async () => {
+  leaveRoom: () => {
+    const { wsClient, currentRoom } = get();
+    if (!currentRoom) return;
+
+    // Notify other players via WS — just leave, don't delete the room
+    if (wsClient) {
+      wsClient.send("room:leave", { roomId: currentRoom.id });
+    }
+
+    set({ currentRoom: null, messages: [] });
+  },
+
+  closeRoom: async () => {
     const { wsClient, currentRoom } = get();
     if (!currentRoom) return;
 
@@ -118,11 +131,11 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       wsClient.send("room:leave", { roomId: currentRoom.id });
     }
 
-    // Host: also call REST DELETE to guarantee room deletion
+    // Actually delete the room via REST
     try {
       await api.rooms.close(currentRoom.id);
     } catch {
-      // Non-host or already deleted — that's fine
+      // Already deleted — fine
     }
 
     set({ currentRoom: null, messages: [] });

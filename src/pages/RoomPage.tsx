@@ -17,6 +17,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     messages,
     joinRoom,
     leaveRoom,
+    closeRoom,
     sendMessage,
     toggleReady,
     kickPlayer,
@@ -92,8 +93,13 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     }
   }
 
-  async function handleLeave() {
-    await leaveRoom();
+  function handleLeave() {
+    leaveRoom();
+    onNavigate("multiplayer");
+  }
+
+  async function handleClose() {
+    await closeRoom();
     onNavigate("multiplayer");
   }
 
@@ -476,7 +482,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
             )}
             {isHost ? (
               <button
-                onClick={handleLeave}
+                onClick={handleClose}
                 className="w-full py-2.5 rounded-xl text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 transition-all duration-200"
               >
                 {t("room.closeRoom")}

@@ -311,6 +311,11 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
         </div>
       )}
 
+      {/* Description */}
+      {config.description && (
+        <p className="text-[11px] text-[#67707b] italic truncate mb-2">{config.description}</p>
+      )}
+
       {/* Bottom row: players + host */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 text-xs text-[#8f98a0]">
