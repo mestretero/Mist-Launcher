@@ -28,6 +28,7 @@ import communityLinkRoutes from "./routes/communityLinks.js";
 import roomRoutes from "./routes/rooms.js";
 import hostingProfileRoutes from "./routes/hosting-profiles.js";
 import dmRoutes from "./routes/dm.js";
+import groupRoutes from "./routes/groups.js";
 import { AppError } from "./lib/errors.js";
 import { ZodError } from "zod";
 
@@ -99,6 +100,7 @@ export async function buildApp() {
   await app.register(roomRoutes);
   await app.register(hostingProfileRoutes);
   await app.register(dmRoutes);
+  await app.register(groupRoutes);
 
   return app;
 }
