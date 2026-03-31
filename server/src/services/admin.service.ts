@@ -160,13 +160,40 @@ export async function deleteCommunityLink(linkId: string) {
   return { success: true };
 }
 
+export async function getGameRequests(page: number, limit: number) {
+  const [requests, total] = await Promise.all([
+    prisma.gameRequest.findMany({
+      include: { user: { select: { id: true, username: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.gameRequest.count(),
+  ]);
+  return { requests, total, page, limit };
+}
+
+export async function resolveGameRequest(requestId: string, status: "APPROVED" | "REJECTED") {
+  const req = await prisma.gameRequest.findUnique({ where: { id: requestId } });
+  if (!req) throw notFound("Game request not found");
+  return prisma.gameRequest.update({ where: { id: requestId }, data: { status } });
+}
+
+export async function deleteGameRequest(requestId: string) {
+  const req = await prisma.gameRequest.findUnique({ where: { id: requestId } });
+  if (!req) throw notFound("Game request not found");
+  await prisma.gameRequest.delete({ where: { id: requestId } });
+  return { success: true };
+}
+
 export async function getDashboardStats() {
-  const [totalUsers, bannedUsers, openReports, reportedLinks] = await Promise.all([
+  const [totalUsers, bannedUsers, openReports, reportedLinks, gameRequests] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { isBanned: true } }),
     prisma.userReport.count({ where: { status: "OPEN" } }),
     prisma.communityLink.count({ where: { virusReports: { gt: 0 } } }),
+    prisma.gameRequest.count({ where: { status: "PENDING" } }),
   ]);
 
-  return { totalUsers, bannedUsers, openReports, reportedLinks };
+  return { totalUsers, bannedUsers, openReports, reportedLinks, gameRequests };
 }

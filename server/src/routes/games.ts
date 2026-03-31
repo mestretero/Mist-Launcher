@@ -37,6 +37,21 @@ export default async function gameRoutes(app: FastifyInstance) {
     return reply.send({ data: results });
   });
 
+  // Submit game request (authenticated users)
+  app.post("/games/request", { preHandler: [app.authenticate] }, async (request, reply) => {
+    const { gameTitle, reason } = request.body as { gameTitle: string; reason: string };
+    if (!gameTitle || gameTitle.length < 2) return reply.code(400).send({ error: "Game title required" });
+    const { prisma } = await import("../lib/prisma.js");
+    const existing = await prisma.gameRequest.findFirst({
+      where: { userId: request.user!.userId, gameTitle: { equals: gameTitle, mode: "insensitive" } },
+    });
+    if (existing) return reply.code(409).send({ error: "You already submitted a request for this game" });
+    const req = await prisma.gameRequest.create({
+      data: { userId: request.user!.userId, gameTitle, reason: reason || "" },
+    });
+    return reply.code(201).send({ data: req });
+  });
+
   // Shared cache for Steam description lookups
   const descCache = new Map<string, { data: any; expiry: number }>();
   const DESC_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours

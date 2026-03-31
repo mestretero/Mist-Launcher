@@ -755,6 +755,11 @@
     "reportReason": "Grund",
     "reportDate": "Datum",
     "confirmBan": "Diesen Benutzer sperren?",
-    "confirmDelete": "Diesen Link dauerhaft löschen?"
+    "confirmDelete": "Dies dauerhaft löschen?",
+    "gameRequests": "Spielanfragen",
+    "gameRequestsCount": "Spielanfragen",
+    "requestedBy": "Angefragt von",
+    "approve": "Genehmigen",
+    "reject": "Ablehnen"
   }
 }

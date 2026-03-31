@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 
-type Tab = "users" | "reportedUsers" | "reportedLinks";
+type Tab = "users" | "reportedUsers" | "reportedLinks" | "gameRequests";
 
 export function AdminPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("users");
-  const [stats, setStats] = useState<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number } | null>(null);
+  const [stats, setStats] = useState<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number; gameRequests: number } | null>(null);
 
   const refreshStats = useCallback(() => {
     api.admin.stats().then(setStats).catch(() => {});
@@ -23,12 +23,13 @@ export function AdminPage() {
 
       {/* Stats bar */}
       {stats && (
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-5 gap-4 mb-6">
           {[
             { label: t("admin.totalUsers"), value: stats.totalUsers },
             { label: t("admin.bannedUsers"), value: stats.bannedUsers, red: true },
             { label: t("admin.openReports"), value: stats.openReports, red: stats.openReports > 0 },
             { label: t("admin.reportedLinksCount"), value: stats.reportedLinks, red: stats.reportedLinks > 0 },
+            { label: t("admin.gameRequestsCount"), value: stats.gameRequests, red: stats.gameRequests > 0 },
           ].map((s) => (
             <div key={s.label} className="bg-brand-900 border border-brand-800 rounded-lg p-4 text-center">
               <p className={`text-2xl font-black ${s.red ? "text-red-400" : "text-white"}`}>{s.value}</p>
@@ -44,6 +45,7 @@ export function AdminPage() {
           { id: "users", label: t("admin.users") },
           { id: "reportedUsers", label: t("admin.reportedUsers") },
           { id: "reportedLinks", label: t("admin.reportedLinks") },
+          { id: "gameRequests", label: t("admin.gameRequests") },
         ] as { id: Tab; label: string }[]).map((item) => (
           <button
             key={item.id}
@@ -60,6 +62,7 @@ export function AdminPage() {
       {tab === "users" && <UsersTab onStatsChange={refreshStats} />}
       {tab === "reportedUsers" && <ReportedUsersTab onStatsChange={refreshStats} />}
       {tab === "reportedLinks" && <ReportedLinksTab onStatsChange={refreshStats} />}
+      {tab === "gameRequests" && <GameRequestsTab onStatsChange={refreshStats} />}
     </div>
   );
 }
@@ -333,6 +336,107 @@ function ReportedLinksTab({ onStatsChange }: { onStatsChange: () => void }) {
                       {t("admin.delete")}
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {total > 20 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <button onClick={() => load(page - 1)} disabled={page === 1} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">←</button>
+          <span className="text-xs text-brand-500 self-center">{page} / {Math.ceil(total / 20)}</span>
+          <button onClick={() => load(page + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">→</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Game Requests Tab ─────────────────────────────────────────────────────
+
+function GameRequestsTab({ onStatsChange }: { onStatsChange: () => void }) {
+  const { t } = useTranslation();
+  const [requests, setRequests] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (p = 1) => {
+    setLoading(true);
+    try {
+      const res = await api.admin.gameRequests(p, 20);
+      setRequests(res.requests);
+      setTotal(res.total);
+      setPage(p);
+    } catch {} finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(1); }, []);
+
+  async function handleResolve(id: string, status: "APPROVED" | "REJECTED") {
+    await api.admin.resolveGameRequest(id, status);
+    load(page);
+    onStatsChange();
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm(t("admin.confirmDelete"))) return;
+    await api.admin.deleteGameRequest(id);
+    load(page);
+    onStatsChange();
+  }
+
+  return (
+    <div>
+      {loading ? (
+        <div className="text-center py-10 text-brand-500 text-sm">Loading...</div>
+      ) : requests.length === 0 ? (
+        <div className="text-center py-10 text-brand-500 text-sm">{t("admin.noResults")}</div>
+      ) : (
+        <div className="space-y-2">
+          {requests.map((req) => (
+            <div key={req.id} className="bg-brand-900 border border-brand-800 rounded-lg px-4 py-3">
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-bold text-white">{req.gameTitle}</p>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      req.status === "PENDING" ? "bg-yellow-400/20 text-yellow-400" :
+                      req.status === "APPROVED" ? "bg-emerald-400/20 text-emerald-400" :
+                      "bg-red-400/20 text-red-400"
+                    }`}>
+                      {req.status}
+                    </span>
+                  </div>
+                  {req.reason && <p className="text-xs text-brand-400 mt-0.5">"{req.reason}"</p>}
+                  <p className="text-xs text-brand-600 mt-1">
+                    {t("admin.requestedBy")} <span className="text-brand-400">{req.user?.username}</span> · {new Date(req.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {req.status === "PENDING" && (
+                    <>
+                      <button
+                        onClick={() => handleResolve(req.id, "APPROVED")}
+                        className="text-xs px-3 py-1.5 rounded bg-emerald-400/20 text-emerald-400 hover:bg-emerald-400/30 transition-colors cursor-pointer font-bold"
+                      >
+                        {t("admin.approve")}
+                      </button>
+                      <button
+                        onClick={() => handleResolve(req.id, "REJECTED")}
+                        className="text-xs px-3 py-1.5 rounded bg-red-400/20 text-red-400 hover:bg-red-400/30 transition-colors cursor-pointer font-bold"
+                      >
+                        {t("admin.reject")}
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => handleDelete(req.id)}
+                    className="text-xs px-3 py-1.5 rounded bg-brand-800 hover:bg-brand-700 transition-colors cursor-pointer"
+                  >
+                    {t("admin.delete")}
+                  </button>
                 </div>
               </div>
             </div>

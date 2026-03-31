@@ -108,4 +108,24 @@ export default async function adminRoutes(app: FastifyInstance) {
     await adminService.deleteCommunityLink(id);
     return reply.status(204).send();
   });
+
+  // ── Game requests ─────────────────────────────────
+  app.get("/admin/game-requests", async (request) => {
+    const { page = "1", limit = "20" } = request.query as { page?: string; limit?: string };
+    const result = await adminService.getGameRequests(parseInt(page), parseInt(limit));
+    return { data: result };
+  });
+
+  app.patch("/admin/game-requests/:id", async (request) => {
+    const { id } = request.params as { id: string };
+    const { status } = request.body as { status: "APPROVED" | "REJECTED" };
+    const result = await adminService.resolveGameRequest(id, status);
+    return { data: result };
+  });
+
+  app.delete("/admin/game-requests/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await adminService.deleteGameRequest(id);
+    return reply.status(204).send();
+  });
 }

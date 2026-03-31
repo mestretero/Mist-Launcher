@@ -755,6 +755,11 @@
     "reportReason": "Sebep",
     "reportDate": "Tarih",
     "confirmBan": "Bu kullanıcıyı yasaklamak istiyor musunuz?",
-    "confirmDelete": "Bu linki kalıcı olarak silmek istiyor musunuz?"
+    "confirmDelete": "Bunu kalıcı olarak silmek istiyor musunuz?",
+    "gameRequests": "Oyun Talepleri",
+    "gameRequestsCount": "Oyun Talepleri",
+    "requestedBy": "Talep eden",
+    "approve": "Onayla",
+    "reject": "Reddet"
   }
 }

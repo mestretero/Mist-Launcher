@@ -755,6 +755,11 @@
     "reportReason": "Motivo",
     "reportDate": "Fecha",
     "confirmBan": "¿Banear a este usuario?",
-    "confirmDelete": "¿Eliminar este enlace permanentemente?"
+    "confirmDelete": "¿Eliminar esto permanentemente?",
+    "gameRequests": "Solicitudes de juegos",
+    "gameRequestsCount": "Solicitudes",
+    "requestedBy": "Solicitado por",
+    "approve": "Aprobar",
+    "reject": "Rechazar"
   }
 }

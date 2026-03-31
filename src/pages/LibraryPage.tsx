@@ -892,12 +892,18 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                 </button>
                 <button
                   onClick={async () => {
+                    if (!selectedLocalGame) return;
                     setRequestSending(true);
-                    await new Promise(r => setTimeout(r, 500));
-                    setRequestSending(false);
-                    setShowRequestModal(false);
-                    setRequestText("");
-                    addToast(t("library.requestSent"), "success");
+                    try {
+                      await api.games.submitRequest(selectedLocalGame.title, requestText);
+                      addToast(t("library.requestSent"), "success");
+                    } catch (err: any) {
+                      addToast(err?.message || t("common.error"), "error");
+                    } finally {
+                      setRequestSending(false);
+                      setShowRequestModal(false);
+                      setRequestText("");
+                    }
                   }}
                   disabled={requestSending}
                   className="flex-1 py-2 text-xs font-bold text-white bg-[#1a9fff] hover:bg-[#47bfff] disabled:opacity-50 rounded transition-colors uppercase tracking-widest cursor-pointer"

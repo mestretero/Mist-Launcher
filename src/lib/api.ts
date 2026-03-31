@@ -132,6 +132,8 @@ export const api = {
     getDescription: (slug: string, lang: string) => request<{ description: string; shortDescription?: string }>(`/games/${slug}/description?lang=${lang}`),
     localizedDescription: (title: string, lang: string) => request<{ description: string | null }>(`/games/localized-description?title=${encodeURIComponent(title)}&lang=${lang}`),
     dlcs: (slug: string) => request<any[]>(`/games/${slug}/dlcs`),
+    submitRequest: (gameTitle: string, reason: string) =>
+      request<any>("/games/request", { method: "POST", body: JSON.stringify({ gameTitle, reason }) }),
   },
   library: {
     list: () => request<any[]>("/library"),
@@ -306,5 +308,11 @@ export const api = {
       request<any>(`/admin/links/${linkId}/hide`, { method: "POST" }),
     deleteLink: (linkId: string) =>
       request<void>(`/admin/links/${linkId}`, { method: "DELETE" }),
+    gameRequests: (page = 1, limit = 20) =>
+      request<{ requests: any[]; total: number }>(`/admin/game-requests?page=${page}&limit=${limit}`),
+    resolveGameRequest: (id: string, status: "APPROVED" | "REJECTED") =>
+      request<any>(`/admin/game-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    deleteGameRequest: (id: string) =>
+      request<void>(`/admin/game-requests/${id}`, { method: "DELETE" }),
   },
 };

@@ -194,6 +194,7 @@ model User {
   sentGroupMessages   GroupChatMessage[]   @relation("GroupChatMessageSender")
   reportsMade         UserReport[]         @relation("ReportsBy")
   reportsReceived     UserReport[]         @relation("ReportsAgainst")
+  gameRequests        GameRequest[]
 
   @@map("users")
 }
@@ -812,4 +813,27 @@ model GroupChatMessage {
 
   @@index([groupId, createdAt])
   @@map("group_chat_messages")
+}
+
+// ─── Game Requests ──────────────────────────────
+
+enum GameRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model GameRequest {
+  id        String            @id @default(uuid()) @db.Uuid
+  userId    String            @map("user_id") @db.Uuid
+  user      User              @relation(fields: [userId], references: [id])
+  gameTitle String            @map("game_title") @db.VarChar(200)
+  reason    String            @db.VarChar(1000)
+  status    GameRequestStatus @default(PENDING)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("game_requests")
 }

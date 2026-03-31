@@ -755,6 +755,11 @@
     "reportReason": "Reason",
     "reportDate": "Date",
     "confirmBan": "Ban this user?",
-    "confirmDelete": "Delete this link permanently?"
+    "confirmDelete": "Delete this permanently?",
+    "gameRequests": "Game Requests",
+    "gameRequestsCount": "Game Requests",
+    "requestedBy": "Requested by",
+    "approve": "Approve",
+    "reject": "Reject"
   }
 }
