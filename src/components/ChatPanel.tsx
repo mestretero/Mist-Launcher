@@ -49,36 +49,34 @@ export function ChatPanel() {
 
   return (
     <>
-      {/* ═══ Toggle Button ═══ */}
-      <button
-        onClick={togglePanel}
-        className={`fixed bottom-0 right-6 z-50 flex items-center gap-2.5 px-5 py-2 rounded-t-lg text-[13px] font-semibold transition-all shadow-xl shadow-black/30 ${
-          panelOpen
-            ? "bg-[#1a9fff] text-white"
-            : "bg-[#1a1c23] border border-b-0 border-[#2a2e38] text-[#c6d4df] hover:bg-[#20232c]"
-        }`}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        {t("chat.friendsAndChat")}
-        {!panelOpen && onlineCount > 0 && (
-          <span className="text-emerald-400 text-[11px]">({onlineCount})</span>
-        )}
-        {!panelOpen && unreadCount > 0 && (
-          <span className="bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-            {unreadCount}
-          </span>
-        )}
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className={`transition-transform ${panelOpen ? "rotate-180" : ""}`}>
-          <polyline points="18 15 12 9 6 15" />
-        </svg>
-      </button>
+      {/* ═══ Toggle Button — hidden when panel is open ═══ */}
+      {!panelOpen && (
+        <button
+          onClick={togglePanel}
+          className="fixed bottom-0 right-6 z-50 flex items-center gap-2.5 px-5 py-2 rounded-t-lg text-[13px] font-semibold bg-[#1a1c23] border border-b-0 border-[#2a2e38] text-[#c6d4df] hover:bg-[#20232c] transition-all shadow-xl shadow-black/30"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#1a9fff]">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          {t("chat.friendsAndChat")}
+          {onlineCount > 0 && (
+            <span className="text-emerald-400 text-[11px]">({onlineCount})</span>
+          )}
+          {unreadCount > 0 && (
+            <span className="bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+              {unreadCount}
+            </span>
+          )}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+        </button>
+      )}
 
       {/* ═══ Panel ═══ */}
       <div
-        className={`fixed right-6 z-40 flex transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          panelOpen ? "bottom-9 opacity-100" : "-bottom-[500px] opacity-0 pointer-events-none"
+        className={`fixed right-6 z-50 flex transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          panelOpen ? "bottom-0 opacity-100" : "-bottom-[500px] opacity-0 pointer-events-none"
         }`}
       >
         {/* ─── Chat (left side, conditional) ─── */}
@@ -164,11 +162,19 @@ export function ChatPanel() {
         {/* ─── Friends List (right side, always visible) ─── */}
         <div className={`w-[280px] flex flex-col bg-[#1a1c23] border border-[#2a2e38] overflow-hidden ${activeChatFriend ? "rounded-tr-2xl" : "rounded-t-2xl"}`} style={{ height: 440 }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#1a1c23] border-b border-[#2a2e38]">
+          <div className="flex items-center justify-between px-4 py-2.5 bg-[#1a1c23] border-b border-[#2a2e38]">
             <div className="flex items-center gap-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#1a9fff]">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
               <span className="text-[11px] font-black uppercase tracking-widest text-[#67707b]">{t("chat.friends")}</span>
               <span className="text-[10px] font-bold text-[#8f98a0] bg-[#20232c] px-1.5 py-0.5 rounded">{friends.length}</span>
             </div>
+            <button onClick={togglePanel} className="p-1 rounded-lg hover:bg-[#2a2e38] text-[#67707b] hover:text-white transition-colors">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
           </div>
 
           {/* Online section */}
