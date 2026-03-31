@@ -35,13 +35,12 @@ export function ChatPanel() {
 
   // Panel always renders, animated via CSS
   return (
-    <div className="fixed bottom-0 right-6 z-50 flex items-end">
-      {/* ─── Chat (left, slides in) — same height as friends panel ─── */}
+    <div className="fixed bottom-0 right-0 z-50 flex" style={{ height: panelOpen ? 440 : 36 }}>
+      {/* ─── Chat (left, slides in) ─── */}
       <div
         className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{
           width: panelOpen && activeChatFriend ? 340 : 0,
-          height: panelOpen ? 440 : 36,
           opacity: panelOpen && activeChatFriend ? 1 : 0,
         }}
       >
@@ -122,9 +121,7 @@ export function ChatPanel() {
         className={`w-[280px] bg-[#1a1c23] border border-[#2a2e38] overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           activeChatFriend && panelOpen ? "rounded-tr-2xl" : "rounded-t-2xl"
         }`}
-        style={{
-          maxHeight: panelOpen ? 440 : 36,
-        }}
+        style={{ height: "100%" }}
       >
         {/* Header — always visible, acts as the toggle button */}
         <button
@@ -149,7 +146,7 @@ export function ChatPanel() {
         </button>
 
         {/* Friends list */}
-        <div className="border-t border-[#2a2e38] overflow-y-auto" style={{ maxHeight: 404 }}>
+        <div className="border-t border-[#2a2e38] overflow-y-auto flex-1">
           {onlineCount > 0 && (
             <div className="px-3 pt-2.5 pb-1">
               <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400/60">{t("chat.online")} — {onlineCount}</span>
