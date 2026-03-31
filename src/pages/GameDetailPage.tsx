@@ -29,6 +29,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
   const [inWishlist, setInWishlist] = useState(false);
   const [reviews, setReviews] = useState<any>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [editingReview, setEditingReview] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState("");
   const [activeTab, setActiveTab] = useState<"about" | "reviews" | "links">("about");
@@ -57,7 +58,12 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
     try { return typeof game.screenshots === "string" ? JSON.parse(game.screenshots) : (game.screenshots || []); } catch { return []; }
   })();
   const requirements = (() => {
-    try { return typeof game.minRequirements === "string" ? JSON.parse(game.minRequirements) : (game.minRequirements || {}); } catch { return {}; }
+    try {
+      const raw = typeof game.minRequirements === "string" ? JSON.parse(game.minRequirements) : (game.minRequirements || {});
+      // If it's an HTML string (from Steam), skip it
+      if (typeof raw === "string") return {};
+      return raw;
+    } catch { return {}; }
   })();
   const releaseDate = game.releaseDate ? new Date(game.releaseDate).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : null;
   const heroImg = screenshots.length > 0 ? screenshots[0] : game.coverImageUrl;
@@ -82,6 +88,28 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
       const updated = await api.reviews.list(slug);
       setReviews(updated);
       addToast(t("gameDetail.reviewDeleted", "Review deleted"), "success");
+    } catch (err: any) {
+      addToast(err.message || t("common.error"), "error");
+    }
+  };
+
+  const handleEditReview = (review: any) => {
+    setReviewRating(review.rating);
+    setReviewContent(review.content || "");
+    setEditingReview(true);
+    setShowReviewForm(true);
+  };
+
+  const handleUpdateReview = async () => {
+    try {
+      await api.reviews.update(slug, { rating: reviewRating, content: reviewContent });
+      const updated = await api.reviews.list(slug);
+      setReviews(updated);
+      setShowReviewForm(false);
+      setEditingReview(false);
+      setReviewContent("");
+      setReviewRating(5);
+      addToast(t("gameDetail.reviewUpdated", "Review updated"), "success");
     } catch (err: any) {
       addToast(err.message || t("common.error"), "error");
     }
@@ -254,7 +282,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                 </div>
 
                 {/* System Requirements */}
-                {requirements && Object.keys(requirements).length > 0 && (
+                {requirements && typeof requirements === "object" && !Array.isArray(requirements) && typeof requirements !== "string" && Object.keys(requirements).length > 0 && !Object.keys(requirements).every((k) => !isNaN(Number(k))) && (
                   <div className="bg-[#1a1c23] border border-[#2a2e38] rounded-xl p-6">
                     <h2 className="text-xs font-black text-[#8f98a0] uppercase tracking-widest mb-4">{t("gameDetail.minRequirements")}</h2>
                     <div className="grid grid-cols-2 gap-4">
@@ -309,10 +337,10 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                         />
                         {/* Buttons */}
                         <div className="flex gap-2 mt-3">
-                          <button onClick={handleSubmitReview} className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors">
-                            {t("gameDetail.submit")}
+                          <button onClick={editingReview ? handleUpdateReview : handleSubmitReview} className="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors">
+                            {editingReview ? t("common.edit") : t("gameDetail.submit")}
                           </button>
-                          <button onClick={() => setShowReviewForm(false)} className="px-4 py-2.5 rounded-lg text-xs font-semibold text-[#5e6673] hover:text-white hover:bg-[#1e2128] transition-colors">
+                          <button onClick={() => { setShowReviewForm(false); setEditingReview(false); setReviewContent(""); setReviewRating(5); }} className="px-4 py-2.5 rounded-lg text-xs font-semibold text-[#5e6673] hover:text-white hover:bg-[#1e2128] transition-colors">
                             {t("common.cancel")}
                           </button>
                         </div>
@@ -346,15 +374,24 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                               {new Date(review.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" })}
                             </span>
                           </div>
-                          {/* Delete button for own review */}
+                          {/* Edit + Delete for own review */}
                           {user && review.user?.id === user.id && (
-                            <button
-                              onClick={handleDeleteReview}
-                              className="flex items-center gap-1.5 text-[#3e4450] hover:text-red-400 text-xs font-medium px-2 py-1 rounded hover:bg-red-400/10 transition-colors flex-shrink-0"
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                              {t("common.delete")}
-                            </button>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <button
+                                onClick={() => handleEditReview(review)}
+                                className="flex items-center gap-1.5 text-[#3e4450] hover:text-white text-xs font-medium px-2 py-1 rounded hover:bg-[#1e2128] transition-colors"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                {t("common.edit")}
+                              </button>
+                              <button
+                                onClick={handleDeleteReview}
+                                className="flex items-center gap-1.5 text-[#3e4450] hover:text-red-400 text-xs font-medium px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
+                              >
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                {t("common.delete")}
+                              </button>
+                            </div>
                           )}
                         </div>
                         {review.content && (
