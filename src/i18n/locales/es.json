@@ -38,7 +38,14 @@
   "notifications": {
     "title": "Notificaciones",
     "empty": "No hay notificaciones nuevas",
-    "unread": "{{count}} notificaciones sin leer"
+    "unread": "{{count}} notificaciones sin leer",
+    "markAllRead": "Marcar todo como leído"
+  },
+  "time": {
+    "justNow": "Ahora mismo",
+    "minutesAgo": "hace {{count}}m",
+    "hoursAgo": "hace {{count}}h",
+    "daysAgo": "hace {{count}}d"
   },
   "scanner": {
     "title": "Escáner de juegos",
@@ -633,6 +640,7 @@
     "members": "Miembros",
     "creator": "Creador",
     "creatorLeaveWarning": "Eres el creador. Si te vas, el grupo se eliminará para todos.",
+    "confirmKick": "¿Eliminar a este miembro del grupo?",
     "selectFriends": "Selecciona amigos para añadir",
     "atLeastOneMember": "Selecciona al menos un amigo",
     "searchFriends": "Buscar amigos..."

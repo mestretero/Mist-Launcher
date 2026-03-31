@@ -350,6 +350,12 @@ function handleWsMessage(
       });
       break;
 
+    case "notification:new":
+      import("./notificationStore").then(({ useNotificationStore }) => {
+        useNotificationStore.getState().receiveNotification(payload as any);
+      });
+      break;
+
     case "error":
       console.error("WebSocket error:", payload.message);
       break;

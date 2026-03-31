@@ -38,7 +38,14 @@
   "notifications": {
     "title": "Notifications",
     "empty": "No new notifications",
-    "unread": "{{count}} unread notifications"
+    "unread": "{{count}} unread notifications",
+    "markAllRead": "Mark all as read"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   },
   "scanner": {
     "title": "Game Scanner",
@@ -633,6 +640,7 @@
     "members": "Members",
     "creator": "Creator",
     "creatorLeaveWarning": "You are the creator. Leaving will delete the group for everyone.",
+    "confirmKick": "Remove this member from the group?",
     "selectFriends": "Select friends to add",
     "atLeastOneMember": "Select at least one friend",
     "searchFriends": "Search friends..."

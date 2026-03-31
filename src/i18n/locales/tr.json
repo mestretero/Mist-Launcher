@@ -38,7 +38,14 @@
   "notifications": {
     "title": "Bildirimler",
     "empty": "Yeni bildirim yok",
-    "unread": "{{count}} okunmamış bildirim"
+    "unread": "{{count}} okunmamış bildirim",
+    "markAllRead": "Tümünü okundu işaretle"
+  },
+  "time": {
+    "justNow": "Az önce",
+    "minutesAgo": "{{count}}dk önce",
+    "hoursAgo": "{{count}}sa önce",
+    "daysAgo": "{{count}}g önce"
   },
   "scanner": {
     "title": "Oyun Tarayıcı",
@@ -633,6 +640,7 @@
     "members": "Üyeler",
     "creator": "Kurucu",
     "creatorLeaveWarning": "Siz kurucusunuz. Ayrılırsanız grup herkes için silinir.",
+    "confirmKick": "Bu üyeyi gruptan çıkarmak istediğinize emin misiniz?",
     "selectFriends": "Eklenecek arkadaşları seçin",
     "atLeastOneMember": "En az bir arkadaş seçin",
     "searchFriends": "Arkadaş ara..."
