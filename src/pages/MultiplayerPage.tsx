@@ -88,71 +88,56 @@ export default function MultiplayerPage({ onNavigate }: Props) {
           </button>
         </div>
 
-        {/* ============ GAME FILTER PILLS ============ */}
-        {gameNames.length >= 2 && (
-          <div className="flex items-center gap-2 mb-6 flex-wrap">
-            <button
-              onClick={() => setGameFilter("")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                !gameFilter
-                  ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30 shadow-sm shadow-[#1a9fff]/10"
-                  : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30 hover:text-[#c6d4df]"
-              }`}
-            >
-              {t("multiplayer.allGames")}
-            </button>
-            {gameNames.map((gn) => (
-              <button
-                key={gn}
-                onClick={() => setGameFilter(gn === gameFilter ? "" : gn)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                  gameFilter === gn
-                    ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30 shadow-sm shadow-[#1a9fff]/10"
-                    : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30 hover:text-[#c6d4df]"
-                }`}
-              >
-                {gn}
+        {/* ============ FILTER BAR ============ */}
+        <div className="flex items-center gap-4 mb-6 p-3 bg-[#1a1c23]/40 border border-[#2a2e38] rounded-xl overflow-x-auto">
+          {/* Visibility */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-[9px] font-black uppercase tracking-widest text-[#67707b] mr-1">{t("multiplayer.lobbyType", "Tür")}</span>
+            {(["", "PUBLIC", "SCHEDULED", "FRIENDS"] as const).map((key) => (
+              <button key={key} onClick={() => setVisibilityFilter(key === visibilityFilter ? "" : key)}
+                className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all ${visibilityFilter === key ? "bg-[#1a9fff]/20 text-[#1a9fff]" : "text-[#8f98a0] hover:text-[#c6d4df] hover:bg-[#20232c]"}`}>
+                {key === "" ? t("multiplayer.allGames") : key === "PUBLIC" ? t("room.visibility.public") : key === "SCHEDULED" ? t("room.visibility.scheduled") : t("room.visibility.friends")}
               </button>
             ))}
           </div>
-        )}
 
-        {/* ============ LANGUAGE FILTER PILLS ============ */}
-        {languages.length >= 1 && (
-          <div className="flex items-center gap-2 mb-6 flex-wrap">
-            <button onClick={() => setLanguageFilter("")}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${!languageFilter ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30" : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30"}`}>
-              {t("multiplayer.allLanguages", "Tüm Diller")}
-            </button>
-            {languages.map((lang) => (
-              <button key={lang} onClick={() => setLanguageFilter(lang === languageFilter ? "" : lang)}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${languageFilter === lang ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30" : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30"}`}>
-                {lang}
+          {/* Divider */}
+          <div className="w-px h-5 bg-[#2a2e38] flex-shrink-0" />
+
+          {/* Game */}
+          {gameNames.length >= 2 && (<>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#67707b] mr-1">{t("multiplayer.gameName", "Oyun")}</span>
+              <button onClick={() => setGameFilter("")}
+                className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all ${!gameFilter ? "bg-[#1a9fff]/20 text-[#1a9fff]" : "text-[#8f98a0] hover:text-[#c6d4df] hover:bg-[#20232c]"}`}>
+                {t("multiplayer.allGames")}
               </button>
-            ))}
-          </div>
-        )}
+              {gameNames.map((gn) => (
+                <button key={gn} onClick={() => setGameFilter(gn === gameFilter ? "" : gn)}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all ${gameFilter === gn ? "bg-[#1a9fff]/20 text-[#1a9fff]" : "text-[#8f98a0] hover:text-[#c6d4df] hover:bg-[#20232c]"}`}>
+                  {gn}
+                </button>
+              ))}
+            </div>
+            <div className="w-px h-5 bg-[#2a2e38] flex-shrink-0" />
+          </>)}
 
-        {/* ============ VISIBILITY FILTER ============ */}
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
-          {([
-            { key: "", label: t("multiplayer.allGames") },
-            { key: "PUBLIC", label: t("room.visibility.public") },
-            { key: "SCHEDULED", label: t("room.visibility.scheduled") },
-            { key: "FRIENDS", label: t("room.visibility.friends") },
-          ]).map((opt) => (
-            <button
-              key={opt.key}
-              onClick={() => setVisibilityFilter(opt.key === visibilityFilter ? "" : opt.key)}
-              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
-                visibilityFilter === opt.key
-                  ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30 shadow-sm shadow-[#1a9fff]/10"
-                  : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30 hover:text-[#c6d4df]"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+          {/* Language */}
+          {languages.length >= 1 && (
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[9px] font-black uppercase tracking-widest text-[#67707b] mr-1">{t("multiplayer.language", "Dil")}</span>
+              <button onClick={() => setLanguageFilter("")}
+                className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all ${!languageFilter ? "bg-[#1a9fff]/20 text-[#1a9fff]" : "text-[#8f98a0] hover:text-[#c6d4df] hover:bg-[#20232c]"}`}>
+                {t("multiplayer.allGames")}
+              </button>
+              {languages.map((lang) => (
+                <button key={lang} onClick={() => setLanguageFilter(lang === languageFilter ? "" : lang)}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all ${languageFilter === lang ? "bg-[#1a9fff]/20 text-[#1a9fff]" : "text-[#8f98a0] hover:text-[#c6d4df] hover:bg-[#20232c]"}`}>
+                  {lang}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ============ ROOM GRID ============ */}
@@ -395,19 +380,10 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
           </div>
         </div>
 
-        {/* Chevron */}
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          className="text-[#2a2e38] group-hover:text-[#1a9fff]/60 transition-colors flex-shrink-0"
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
+        {/* Join button */}
+        <span className="text-[10px] font-bold text-[#1a9fff] bg-[#1a9fff]/10 px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+          {t("multiplayer.joinRoom")}
+        </span>
       </div>
     </button>
   );

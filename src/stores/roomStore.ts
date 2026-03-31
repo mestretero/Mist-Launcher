@@ -180,7 +180,7 @@ function handleWsMessage(
 ) {
   switch (type) {
     case "room:state":
-      set({ currentRoom: payload, messages: [] });
+      set({ currentRoom: payload });
       break;
 
     case "room:player-joined": {

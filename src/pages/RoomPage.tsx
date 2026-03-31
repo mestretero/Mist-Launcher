@@ -19,7 +19,6 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     leaveRoom,
     closeRoom,
     sendMessage,
-    toggleReady,
     kickPlayer,
   } = useRoomStore();
 
@@ -114,9 +113,6 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
   }
 
   const isHost = currentRoom?.hostId === user?.id;
-  const myPlayer = currentRoom?.players.find((p) => p.userId === user?.id);
-  const isReady = myPlayer?.status === "READY";
-
   const config = (currentRoom?.config || {}) as Record<string, any>;
   const serverAddress = config.serverAddress as string | undefined;
   const discordLink = config.discordLink as string | undefined;
@@ -467,19 +463,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           </div>
 
           {/* Bottom actions */}
-          <div className="p-3 border-t border-[#2a2e38] space-y-2">
-            {!isHost && (
-              <button
-                onClick={() => toggleReady(!isReady)}
-                className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 ${
-                  isReady
-                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 shadow-sm shadow-emerald-500/10"
-                    : "bg-[#1a1c23] border border-[#2a2e38] text-[#8f98a0] hover:border-[#1a9fff]/40 hover:text-[#c6d4df]"
-                }`}
-              >
-                {isReady ? t("room.ready") : t("room.notReady")}
-              </button>
-            )}
+          <div className="p-3 border-t border-[#2a2e38]">
             {isHost ? (
               <button
                 onClick={handleClose}
@@ -490,7 +474,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
             ) : (
               <button
                 onClick={handleLeave}
-                className="w-full py-2 rounded-xl text-xs font-semibold text-[#67707b] hover:text-[#8f98a0] hover:bg-[#1a1c23] transition-all duration-200"
+                className="w-full py-2.5 rounded-xl text-xs font-semibold text-[#67707b] hover:text-[#8f98a0] hover:bg-[#1a1c23] border border-[#2a2e38] transition-all duration-200"
               >
                 {t("room.leave")}
               </button>
