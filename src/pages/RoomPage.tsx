@@ -17,6 +17,7 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     currentRoom,
     messages,
     tunnelActive,
+    wsConnected,
     joinRoom,
     leaveRoom,
     sendMessage,
@@ -179,11 +180,19 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
         </div>
         <div className="flex items-center gap-3">
           {/* Connection status */}
-          <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${tunnelActive ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-gray-600"}`} />
-            <span className="text-[10px] text-brand-500">
-              {tunnelActive ? t("room.connected") : t("room.connecting")}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-2 h-2 rounded-full ${wsConnected ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-gray-600"}`} />
+              <span className="text-[10px] text-brand-500">
+                {wsConnected ? t("room.connected") : t("room.connecting")}
+              </span>
+            </div>
+            {tunnelActive && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-400 shadow-sm shadow-blue-400/50" />
+                <span className="text-[10px] text-brand-500">VPN</span>
+              </div>
+            )}
           </div>
           {/* Close room (host only) */}
           {isHost && (
