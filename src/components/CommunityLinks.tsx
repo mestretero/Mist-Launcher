@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
 import { CommunityLinkModal } from "./CommunityLinkModal";
@@ -77,7 +78,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
   };
 
   const handleOpenUrl = (url: string) => {
-    window.open(url, "_blank");
+    openUrl(url).catch(() => window.open(url, "_blank"));
   };
 
   const formatDate = (dateStr: string) => {
@@ -116,12 +117,12 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
             </span>
           )}
         </div>
-        {user && (
+        {user && !links.some((l) => l.user.username === user.username) && (
           <button
             onClick={() => setShowModal(true)}
-            className="bg-[#1a9fff] hover:bg-[#1580d0] text-white px-4 py-2 rounded-md text-sm font-semibold"
+            className="bg-[#2a2d35] hover:bg-[#353840] text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold border border-[#3a3d45] transition-colors"
           >
-            {t("gameDetail.communityLinks.share")}
+            + {t("gameDetail.communityLinks.share")}
           </button>
         )}
       </div>
@@ -130,13 +131,13 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
       {links.length === 0 && (
         <div className="text-center py-12 bg-[#12151a] border border-[#1e2128] rounded-lg">
           <p className="text-gray-400 mb-2">{t("gameDetail.communityLinks.empty")}</p>
-          {user ? (
-            <button onClick={() => setShowModal(true)} className="text-[#1a9fff] hover:underline text-sm">
+          {!user ? (
+            <p className="text-gray-500 text-sm">{t("gameDetail.communityLinks.loginRequired")}</p>
+          ) : !links.some((l) => l.user.username === user.username) ? (
+            <button onClick={() => setShowModal(true)} className="text-gray-300 hover:underline text-sm">
               {t("gameDetail.communityLinks.emptyAction")}
             </button>
-          ) : (
-            <p className="text-gray-500 text-sm">{t("gameDetail.communityLinks.loginRequired")}</p>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -170,15 +171,15 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
               <h3 className="text-white font-semibold text-[15px] truncate">{link.title}</h3>
               <div className="flex items-center gap-2 mt-1 text-xs text-gray-400 flex-wrap">
                 {link.size && (
-                  <span className="bg-[#1a9fff22] text-[#1a9fff] px-2 py-0.5 rounded text-[11px]">{link.size} GB</span>
+                  <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded text-[11px] font-medium">{link.size} GB</span>
                 )}
                 {link.crackInfo && (
-                  <span className="bg-[#1a9fff11] text-[#1a9fff99] px-2 py-0.5 rounded text-[11px]">{link.crackInfo}</span>
+                  <span className="bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded text-[11px] font-medium">{link.crackInfo}</span>
                 )}
                 <span>•</span>
                 <button
                   onClick={() => onNavigateToUser?.(link.user.username)}
-                  className={`hover:underline ${link.isAdminPost ? "text-[#d4a843]" : "text-[#1a9fff]"}`}
+                  className={`hover:underline ${link.isAdminPost ? "text-[#d4a843]" : "text-gray-300"}`}
                 >
                   {link.user.username}
                 </button>
@@ -191,7 +192,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
             <div className="flex items-center gap-2 bg-[#1a1d23] rounded-lg px-3 py-1.5 shrink-0">
               <button
                 onClick={() => handleVote(link.id, "UP")}
-                className={`text-sm transition-colors ${link.userVote === "UP" ? "text-[#1a9fff]" : "text-gray-500 hover:text-[#1a9fff]"}`}
+                className={`text-sm transition-colors ${link.userVote === "UP" ? "text-emerald-400" : "text-gray-500 hover:text-emerald-400"}`}
                 disabled={!user}
               >
                 ▲
@@ -218,7 +219,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
               <button
                 key={mirror.id}
                 onClick={() => handleOpenUrl(mirror.url)}
-                className="flex items-center gap-2 bg-[#1a9fff15] hover:bg-[#1a9fff25] border border-[#1a9fff33] text-[#1a9fff] px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:scale-[1.02]"
+                className="flex items-center gap-2 bg-[#1e2128] hover:bg-[#282c34] border border-[#2e323a] text-gray-200 px-4 py-2 rounded-lg text-sm font-semibold transition-all hover:border-[#4a4e56] cursor-pointer"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                 {mirror.sourceName}
@@ -254,13 +255,6 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
                 </button>
               )}
             </div>
-            <button
-              onClick={() => handleOpenUrl(link.mirrors[0]?.url)}
-              className="flex items-center gap-2 bg-gradient-to-r from-[#1a9fff] to-[#0d7fd4] hover:from-[#3aafff] hover:to-[#1a9fff] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all shadow-lg shadow-[#1a9fff]/20 hover:shadow-[#1a9fff]/30 hover:scale-[1.02]"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              {t("gameDetail.communityLinks.download")}
-            </button>
           </div>
         </div>
       ))}
