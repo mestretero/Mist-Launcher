@@ -1,141 +1,202 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../lib/api";
-import type { GameHostingProfile } from "../lib/types";
+
+interface CreateRoomData {
+  gameName: string;
+  name: string;
+  maxPlayers: number;
+  visibility: "PUBLIC" | "FRIENDS" | "INVITE";
+  serverAddress?: string;
+  discordLink?: string;
+  description?: string;
+}
 
 interface CreateRoomModalProps {
   onClose: () => void;
-  onCreate: (data: { gameName: string; name: string; maxPlayers: number; hostType: "LAN_HOST" | "DEDICATED"; port?: number; visibility?: "FRIENDS" | "INVITE" | "PUBLIC"; hostLaunchArgs?: string; clientLaunchArgs?: string; serverFileName?: string; }) => void;
+  onCreate: (data: CreateRoomData) => void;
 }
 
 export function CreateRoomModal({ onClose, onCreate }: CreateRoomModalProps) {
   const { t } = useTranslation();
-  const [profiles, setProfiles] = useState<GameHostingProfile[]>([]);
+
   const [gameName, setGameName] = useState("");
   const [name, setName] = useState("");
   const [maxPlayers, setMaxPlayers] = useState(8);
-  const [hostType, setHostType] = useState<"LAN_HOST" | "DEDICATED">("LAN_HOST");
-  const [port, setPort] = useState<number | undefined>();
-  const [visibility, setVisibility] = useState<"FRIENDS" | "INVITE" | "PUBLIC">("FRIENDS");
-  const [selectedProfile, setSelectedProfile] = useState<GameHostingProfile | null>(null);
+  const [serverAddress, setServerAddress] = useState("");
+  const [discordLink, setDiscordLink] = useState("");
+  const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"PUBLIC" | "FRIENDS" | "INVITE">("PUBLIC");
 
-  useEffect(() => { api.hostingProfiles.list().then(setProfiles).catch(() => {}); }, []);
-
-  function handleProfileSelect(profile: GameHostingProfile) {
-    setSelectedProfile(profile);
-    setGameName(profile.gameName);
-    setPort(profile.port);
-    setHostType(profile.hostType);
-    setName(`${profile.gameName} Lobby`);
-  }
+  const canSubmit = gameName.trim().length > 0 && name.trim().length > 0;
 
   function handleSubmit() {
-    if (!gameName.trim() || !name.trim()) return;
+    if (!canSubmit) return;
     onCreate({
       gameName: gameName.trim(),
       name: name.trim(),
       maxPlayers,
-      hostType,
-      port,
       visibility,
-      hostLaunchArgs: selectedProfile?.hostLaunchArgs || undefined,
-      clientLaunchArgs: selectedProfile?.clientLaunchArgs || undefined,
-      serverFileName: selectedProfile?.serverFileName || undefined,
+      serverAddress: serverAddress.trim() || undefined,
+      discordLink: discordLink.trim() || undefined,
+      description: description.trim() || undefined,
     });
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-xl bg-brand-950 border border-brand-800 p-6">
-        <h2 className="text-lg font-bold text-brand-100 mb-4">{t("multiplayer.createRoom")}</h2>
+  const visibilityOptions: { key: "PUBLIC" | "FRIENDS" | "INVITE"; label: string }[] = [
+    { key: "PUBLIC", label: t("room.visibility.public", "Herkes") },
+    { key: "FRIENDS", label: t("room.visibility.friends", "Arkada\u015Flar") },
+    { key: "INVITE", label: t("room.visibility.invite", "Davetli") },
+  ];
 
-        {/* Quick select profiles */}
-        {profiles.length > 0 && (
-          <div className="mb-4">
-            <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-2">{t("multiplayer.selectGame")}</label>
-            <div className="flex flex-wrap gap-2">
-              {profiles.map((p) => (
-                <button key={p.id} onClick={() => handleProfileSelect(p)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${selectedProfile?.id === p.id ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-300 border border-brand-800 hover:border-brand-600"}`}>
-                  {p.gameName}
+  const inputCls =
+    "w-full px-3 py-2.5 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 placeholder:text-brand-600 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 outline-none transition-colors";
+
+  const labelCls =
+    "block text-[10px] font-bold uppercase tracking-widest text-brand-500 mb-1.5";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") onClose();
+      }}
+    >
+      <div className="w-full max-w-md mx-4 rounded-2xl bg-brand-950 border border-brand-800/60 shadow-2xl shadow-black/50 overflow-hidden">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-1">
+          <h2 className="text-lg font-bold text-brand-100">
+            {t("multiplayer.createRoom", "Lobi Olu\u015Ftur")}
+          </h2>
+          <p className="text-xs text-brand-500 mt-0.5">
+            {t("multiplayer.createRoomDesc", "Oyuncularla bulu\u015Fmak i\u00E7in yeni bir lobi olu\u015Ftur.")}
+          </p>
+        </div>
+
+        {/* Form */}
+        <div className="px-6 py-4 space-y-3.5">
+          {/* Row: Game name + Lobby name */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>
+                {t("multiplayer.gameName", "Oyun Ad\u0131")}
+                <span className="text-red-400 ml-0.5">*</span>
+              </label>
+              <input
+                value={gameName}
+                onChange={(e) => setGameName(e.target.value)}
+                className={inputCls}
+                placeholder="Minecraft, Terraria..."
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className={labelCls}>
+                {t("multiplayer.roomName", "Lobi Ad\u0131")}
+                <span className="text-red-400 ml-0.5">*</span>
+              </label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputCls}
+                placeholder="Survival oynayalim"
+              />
+            </div>
+          </div>
+
+          {/* Row: Max players + Server address */}
+          <div className="grid grid-cols-[100px_1fr] gap-3">
+            <div>
+              <label className={labelCls}>{t("multiplayer.maxPlayers", "Max Oyuncu")}</label>
+              <input
+                type="number"
+                value={maxPlayers}
+                onChange={(e) =>
+                  setMaxPlayers(Math.min(32, Math.max(2, Number(e.target.value) || 2)))
+                }
+                min={2}
+                max={32}
+                className={inputCls}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>{t("multiplayer.serverAddress", "Sunucu Adresi")}</label>
+              <input
+                value={serverAddress}
+                onChange={(e) => setServerAddress(e.target.value)}
+                className={inputCls}
+                placeholder="192.168.1.5:25565"
+              />
+            </div>
+          </div>
+
+          {/* Discord link */}
+          <div>
+            <label className={labelCls}>{t("multiplayer.discordLink", "Discord Linki")}</label>
+            <input
+              value={discordLink}
+              onChange={(e) => setDiscordLink(e.target.value)}
+              className={inputCls}
+              placeholder="https://discord.gg/..."
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className={labelCls}>{t("multiplayer.description", "A\u00E7\u0131klama")}</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+              maxLength={300}
+              className={`${inputCls} resize-none`}
+              placeholder={t(
+                "multiplayer.descriptionPlaceholder",
+                "Level 10+ T\u00FCrk\u00E7e bilen aran\u0131yor"
+              )}
+            />
+          </div>
+
+          {/* Visibility */}
+          <div>
+            <label className={labelCls}>
+              {t("multiplayer.visibility", "Kimler Kat\u0131labilir?")}
+            </label>
+            <div className="flex gap-2">
+              {visibilityOptions.map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => setVisibility(opt.key)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all duration-150 ${
+                    visibility === opt.key
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/25"
+                      : "bg-brand-900 text-brand-400 border border-brand-800 hover:border-brand-600 hover:text-brand-300"
+                  }`}
+                >
+                  {opt.label}
                 </button>
               ))}
             </div>
           </div>
-        )}
-
-        {/* Game name */}
-        <div className="mb-3">
-          <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.gameName")}</label>
-          <input value={gameName} onChange={(e) => setGameName(e.target.value)}
-            className="w-full px-3 py-2 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 focus:border-indigo-500 outline-none" placeholder="Minecraft, Terraria..." />
         </div>
-
-        {/* Room name */}
-        <div className="mb-3">
-          <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.roomName")}</label>
-          <input value={name} onChange={(e) => setName(e.target.value)}
-            className="w-full px-3 py-2 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 focus:border-indigo-500 outline-none" placeholder="Survival birlikte oynayalım" />
-        </div>
-
-        {/* Max players + Port */}
-        <div className="flex gap-3 mb-3">
-          <div className="flex-1">
-            <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.maxPlayers")}</label>
-            <input type="number" value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))} min={2} max={32}
-              className="w-full px-3 py-2 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 focus:border-indigo-500 outline-none" />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.port")}</label>
-            <input type="number" value={port || ""} onChange={(e) => setPort(e.target.value ? Number(e.target.value) : undefined)}
-              className="w-full px-3 py-2 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 focus:border-indigo-500 outline-none" placeholder="25565" />
-          </div>
-        </div>
-
-        {/* Host type */}
-        <div className="mb-4">
-          <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.hostType")}</label>
-          <div className="flex gap-2">
-            <button onClick={() => setHostType("LAN_HOST")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${hostType === "LAN_HOST" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
-              {t("room.hostType.lan")}
-            </button>
-            <button onClick={() => setHostType("DEDICATED")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${hostType === "DEDICATED" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
-              {t("room.hostType.dedicated")}
-            </button>
-          </div>
-        </div>
-
-        {/* Visibility */}
-        <div className="mb-4">
-          <label className="block text-xs font-bold uppercase tracking-widest text-brand-500 mb-1">{t("multiplayer.visibility", "Kimler Katılabilir?")}</label>
-          <div className="flex gap-2">
-            <button onClick={() => setVisibility("PUBLIC")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${visibility === "PUBLIC" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
-              {t("room.visibility.public", "Herkes")}
-            </button>
-            <button onClick={() => setVisibility("FRIENDS")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${visibility === "FRIENDS" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
-              {t("room.visibility.friends", "Arkadaşlar")}
-            </button>
-            <button onClick={() => setVisibility("INVITE")} className={`flex-1 py-2 rounded-lg text-sm font-semibold ${visibility === "INVITE" ? "bg-indigo-600 text-white" : "bg-brand-900 text-brand-400 border border-brand-800"}`}>
-              {t("room.visibility.invite", "Davetli")}
-            </button>
-          </div>
-        </div>
-
-        {/* Setup instructions */}
-        {selectedProfile?.setupInstructions && (
-          <div className="mb-4 p-3 bg-brand-900/50 border border-brand-800 rounded-lg">
-            <p className="text-xs text-brand-400">{selectedProfile.setupInstructions}</p>
-          </div>
-        )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-brand-400 bg-brand-900 border border-brand-800 hover:border-brand-600 transition-colors">
-            {t("common.cancel")}
+        <div className="flex gap-3 px-6 py-5 border-t border-brand-800/40">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-brand-400 bg-brand-900 border border-brand-800 hover:border-brand-600 hover:text-brand-300 transition-colors"
+          >
+            {t("common.cancel", "\u0130ptal")}
           </button>
-          <button onClick={handleSubmit} disabled={!gameName.trim() || !name.trim()}
-            className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            {t("multiplayer.create")}
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm shadow-indigo-600/25"
+          >
+            {t("multiplayer.create", "Olu\u015Ftur")}
           </button>
         </div>
       </div>

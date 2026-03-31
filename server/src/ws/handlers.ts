@@ -26,10 +26,6 @@ export async function handleMessage(
       return handleStartGame(client, payload as RoomIdPayload);
     case "room:kick":
       return handleKick(client, payload as KickPayload);
-    case "peer:offer":
-      return handlePeerOffer(client, payload as SignalPayload);
-    case "peer:answer":
-      return handlePeerAnswer(client, payload as SignalPayload);
     default:
       throw new Error(`Unknown message type: ${type}`);
   }
@@ -39,7 +35,6 @@ export async function handleMessage(
 
 interface JoinPayload {
   roomId: string;
-  publicKey?: string;
 }
 
 interface RoomIdPayload {
@@ -61,22 +56,12 @@ interface KickPayload {
   targetUserId: string;
 }
 
-interface SignalPayload {
-  targetUserId: string;
-  sdp?: unknown;
-  candidate?: unknown;
-}
-
 // ── Handlers ────────────────────────────────────────
 
 async function handleJoin(client: Client, payload: JoinPayload) {
-  const { roomId, publicKey } = payload;
+  const { roomId } = payload;
 
-  const player = await roomService.joinRoom(
-    roomId,
-    client.userId,
-    publicKey || "",
-  );
+  const player = await roomService.joinRoom(roomId, client.userId);
 
   setClientRoom(client.userId, roomId);
 
@@ -145,20 +130,11 @@ async function handleSendMessage(client: Client, payload: SendMessagePayload) {
 
 async function handleStartGame(client: Client, payload: RoomIdPayload) {
   const { roomId } = payload;
-  const room = await roomService.startGame(roomId, client.userId);
-  const config = (room.config as Record<string, unknown>) || {};
+  await roomService.startGame(roomId, client.userId);
 
   broadcastToRoom(roomId, {
     type: "room:game-starting",
-    payload: {
-      roomId,
-      hostType: room.hostType,
-      port: room.port,
-      hostVirtualIp: "10.13.37.1",
-      hostLaunchArgs: config.hostLaunchArgs || null,
-      clientLaunchArgs: config.clientLaunchArgs || null,
-      serverFileName: config.serverFileName || null,
-    },
+    payload: { roomId, status: "PLAYING" },
   });
 }
 
@@ -179,21 +155,5 @@ async function handleKick(client: Client, payload: KickPayload) {
   broadcastToRoom(roomId, {
     type: "room:player-kicked",
     payload: { userId: targetUserId },
-  });
-}
-
-async function handlePeerOffer(client: Client, payload: SignalPayload) {
-  const { targetUserId, ...signal } = payload;
-  sendToUser(targetUserId, {
-    type: "peer:offer",
-    payload: { fromUserId: client.userId, ...signal },
-  });
-}
-
-async function handlePeerAnswer(client: Client, payload: SignalPayload) {
-  const { targetUserId, ...signal } = payload;
-  sendToUser(targetUserId, {
-    type: "peer:answer",
-    payload: { fromUserId: client.userId, ...signal },
   });
 }

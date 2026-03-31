@@ -12,12 +12,10 @@ export default async function roomRoutes(app: FastifyInstance) {
       gameName: string;
       name: string;
       maxPlayers?: number;
-      hostType?: "LAN_HOST" | "DEDICATED";
-      port?: number;
       visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
-      hostLaunchArgs?: string;
-      clientLaunchArgs?: string;
-      serverFileName?: string;
+      serverAddress?: string;
+      discordLink?: string;
+      description?: string;
     };
     const room = await roomService.createRoom(userId, body);
     return reply.status(201).send({ data: room });

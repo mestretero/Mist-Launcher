@@ -166,8 +166,6 @@ export interface Room {
   visibility: "FRIENDS" | "INVITE" | "PUBLIC";
   status: "WAITING" | "PLAYING" | "CLOSED";
   maxPlayers: number;
-  hostType: "LAN_HOST" | "DEDICATED";
-  port?: number;
   config?: Record<string, any>;
   createdAt: string;
   closedAt?: string;
@@ -178,8 +176,6 @@ export interface RoomPlayer {
   id: string;
   userId: string;
   user: { id: string; username: string; avatarUrl?: string };
-  virtualIp: string;
-  publicKey: string;
   status: "CONNECTING" | "CONNECTED" | "READY" | "DISCONNECTED";
   joinedAt: string;
 }
@@ -193,17 +189,3 @@ export interface RoomMessage {
   createdAt: string;
 }
 
-export interface GameHostingProfile {
-  id: string;
-  gameId?: string;
-  gameName: string;
-  port: number;
-  protocol: "TCP" | "UDP" | "BOTH";
-  hostType: "LAN_HOST" | "DEDICATED";
-  serverFileUrl?: string;
-  serverFileName?: string;
-  setupInstructions?: string;
-  hostLaunchArgs?: string;
-  clientLaunchArgs?: string;
-  isOfficial: boolean;
-}

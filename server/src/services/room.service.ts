@@ -28,12 +28,10 @@ export async function createRoom(
     gameName: string;
     name: string;
     maxPlayers?: number;
-    hostType?: "LAN_HOST" | "DEDICATED";
-    port?: number;
     visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
-    hostLaunchArgs?: string;
-    clientLaunchArgs?: string;
-    serverFileName?: string;
+    serverAddress?: string;
+    discordLink?: string;
+    description?: string;
   },
 ) {
   const activeCount = await prisma.room.count({
@@ -52,9 +50,9 @@ export async function createRoom(
   if (attempts >= 5) throw badRequest("Could not generate unique room code");
 
   const config: Record<string, string> = {};
-  if (data.hostLaunchArgs) config.hostLaunchArgs = data.hostLaunchArgs;
-  if (data.clientLaunchArgs) config.clientLaunchArgs = data.clientLaunchArgs;
-  if (data.serverFileName) config.serverFileName = data.serverFileName;
+  if (data.serverAddress) config.serverAddress = data.serverAddress;
+  if (data.discordLink) config.discordLink = data.discordLink;
+  if (data.description) config.description = data.description;
 
   const room = await prisma.room.create({
     data: {
@@ -64,9 +62,7 @@ export async function createRoom(
       name: data.name,
       code: code!,
       maxPlayers: data.maxPlayers || 8,
-      hostType: data.hostType || "LAN_HOST",
       visibility: data.visibility || "FRIENDS",
-      port: data.port || null,
       ...(Object.keys(config).length > 0 && { config }),
     },
   });
@@ -76,7 +72,7 @@ export async function createRoom(
     data: {
       roomId: room.id,
       userId: hostId,
-      virtualIp: "10.13.37.1",
+      virtualIp: "",
       publicKey: "",
       status: "CONNECTED",
     },
@@ -160,11 +156,7 @@ export async function getRoomById(roomId: string) {
 
 // ── Join ─────────────────────────────────────────
 
-export async function joinRoom(
-  roomId: string,
-  userId: string,
-  publicKey: string,
-) {
+export async function joinRoom(roomId: string, userId: string) {
   const room = await prisma.room.findUnique({
     where: { id: roomId },
     include: { players: true },
@@ -187,20 +179,13 @@ export async function joinRoom(
   });
   if (isBlocked) throw forbidden("Cannot join this room");
 
-  const usedIps = room.players.map((p) => p.virtualIp);
-  let nextOctet = 2;
-  while (usedIps.includes(`10.13.37.${nextOctet}`) && nextOctet < 255) {
-    nextOctet++;
-  }
-  if (nextOctet >= 255) throw badRequest("No available IP addresses");
-
   return prisma.roomPlayer.create({
     data: {
       roomId,
       userId,
-      virtualIp: `10.13.37.${nextOctet}`,
-      publicKey,
-      status: "CONNECTING",
+      virtualIp: "",
+      publicKey: "",
+      status: "CONNECTED",
     },
     include: {
       user: { select: { id: true, username: true, avatarUrl: true } },
@@ -277,7 +262,7 @@ export async function updatePlayerStatus(
 export async function startGame(roomId: string, hostId: string) {
   const room = await prisma.room.findUnique({
     where: { id: roomId },
-    select: { hostId: true, status: true, config: true },
+    select: { hostId: true, status: true },
   });
   if (!room) throw notFound("Room not found");
   if (room.hostId !== hostId) throw forbidden("Only host can start the game");

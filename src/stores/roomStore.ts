@@ -1,8 +1,7 @@
 import { create } from "zustand";
-import { invoke } from "@tauri-apps/api/core";
 import { WsClient } from "../lib/wsClient";
 import { api } from "../lib/api";
-import type { Room, RoomPlayer, RoomMessage } from "../lib/types";
+import type { Room, RoomMessage } from "../lib/types";
 
 interface RoomState {
   wsConnected: boolean;
@@ -10,24 +9,18 @@ interface RoomState {
   currentRoom: Room | null;
   rooms: Room[];
   messages: RoomMessage[];
-  tunnelActive: boolean;
-  virtualIp: string | null;
-  publicKey: string | null;
-  privateKey: string | null;
 
   connect: (token: string) => void;
   disconnect: () => void;
   fetchRooms: () => Promise<void>;
   createRoom: (data: {
-    gameId?: string;
     gameName: string;
     name: string;
     maxPlayers?: number;
-    hostType?: string;
-    port?: number;
+    serverAddress?: string;
+    discordLink?: string;
+    description?: string;
     visibility?: "FRIENDS" | "INVITE" | "PUBLIC";
-    hostLaunchArgs?: string;
-    clientLaunchArgs?: string;
   }) => Promise<Room>;
   joinRoom: (roomId: string) => Promise<void>;
   leaveRoom: () => Promise<void>;
@@ -43,10 +36,6 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   currentRoom: null,
   rooms: [],
   messages: [],
-  tunnelActive: false,
-  virtualIp: null,
-  publicKey: null,
-  privateKey: null,
 
   connect: (token) => {
     const existing = get().wsClient;
@@ -62,20 +51,12 @@ export const useRoomStore = create<RoomState>((set, get) => ({
   },
 
   disconnect: () => {
-    const { wsClient, currentRoom } = get();
+    const { wsClient } = get();
     if (wsClient) {
       wsClient.disconnect();
       set({ wsClient: null, wsConnected: false });
     }
-    if (currentRoom) {
-      invoke("destroy_tunnel", { roomId: currentRoom.id }).catch(() => {});
-      set({
-        currentRoom: null,
-        messages: [],
-        tunnelActive: false,
-        virtualIp: null,
-      });
-    }
+    set({ currentRoom: null, messages: [] });
   },
 
   fetchRooms: async () => {
@@ -85,72 +66,30 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   createRoom: async (data) => {
     const room = await api.rooms.create(data);
-    // Generate keypair
-    let privateKey = "";
-    let publicKey = "";
-    try {
-      [privateKey, publicKey] = await invoke<[string, string]>("generate_keypair");
-    } catch (e) {
-      console.error("Keypair generation failed:", e);
-    }
 
-    // Host creates tunnel immediately (no peers yet, will add as they join)
-    let publicEndpoint = "";
-    if (privateKey) {
-      try {
-        const tunnelInfo = await invoke<any>("create_tunnel", {
-          roomId: room.id,
-          virtualIp: "10.13.37.1",
-          privateKey,
-          peers: [],
-        });
-        publicEndpoint = tunnelInfo.public_endpoint || "";
-        set({ tunnelActive: true });
-      } catch (e) {
-        console.warn("Tunnel creation failed (will work without VPN):", e);
-      }
-    }
+    set({ currentRoom: room, messages: [] });
 
-    set({
-      currentRoom: room,
-      messages: [],
-      publicKey,
-      privateKey,
-      virtualIp: "10.13.37.1",
-    });
-
-    // Join via WS — include public endpoint from STUN discovery
+    // Join via WS
     const { wsClient, wsConnected } = get();
     if (wsClient && wsConnected) {
-      wsClient.send("room:join", {
-        roomId: room.id,
-        publicKey,
-        endpoint: publicEndpoint,
-      });
+      wsClient.send("room:join", { roomId: room.id, publicKey: "" });
     }
     return room;
   },
 
   joinRoom: async (roomId) => {
-    // Generate keypair — fallback to dummy if Tauri command unavailable
-    let privateKey = "dummy-private-key";
-    let publicKey = "dummy-public-key";
-    try {
-      [privateKey, publicKey] = await invoke<[string, string]>("generate_keypair");
-    } catch { /* Phase 1: tunnel is scaffold, dummy keys OK */ }
-    set({ publicKey, privateKey });
-    // Fetch room data via REST as fallback
+    // Fetch room data via REST
     try {
       const room = await api.rooms.getById(roomId);
       set({ currentRoom: room, messages: [] });
-      // Find our player entry for virtualIp
-      const myPlayer = room.players?.find((p: any) => p.publicKey === publicKey);
-      if (myPlayer) set({ virtualIp: myPlayer.virtualIp });
-    } catch { /* will get state from WS */ }
+    } catch {
+      /* will get state from WS */
+    }
+
     // Join via WebSocket for real-time updates
     const { wsClient, wsConnected } = get();
     if (wsClient && wsConnected) {
-      wsClient.send("room:join", { roomId, publicKey });
+      wsClient.send("room:join", { roomId });
     }
   },
 
@@ -170,13 +109,7 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       // Non-host or already deleted — that's fine
     }
 
-    invoke("destroy_tunnel", { roomId: currentRoom.id }).catch(() => {});
-    set({
-      currentRoom: null,
-      messages: [],
-      tunnelActive: false,
-      virtualIp: null,
-    });
+    set({ currentRoom: null, messages: [] });
   },
 
   sendMessage: (content) => {
@@ -220,10 +153,6 @@ function handleWsMessage(
   switch (type) {
     case "room:state":
       set({ currentRoom: payload, messages: [] });
-      const myPlayer = payload.players?.find(
-        (p: RoomPlayer) => p.publicKey === get().publicKey,
-      );
-      if (myPlayer) set({ virtualIp: myPlayer.virtualIp });
       break;
 
     case "room:player-joined": {
@@ -242,35 +171,12 @@ function handleWsMessage(
                 username: payload.username,
                 avatarUrl: payload.avatarUrl,
               },
-              virtualIp: payload.virtualIp,
-              publicKey: payload.publicKey,
-              status: "CONNECTING" as const,
+              status: "CONNECTED" as const,
               joinedAt: new Date().toISOString(),
             },
           ],
         },
       });
-      const { wsClient, publicKey } = get();
-      if (wsClient && publicKey) {
-        // Get our tunnel's public endpoint (from STUN discovery) to share with the peer
-        invoke<any>("get_tunnel_status", { roomId: room.id })
-          .then((status) => {
-            wsClient.send("peer:offer", {
-              roomId: room.id,
-              targetUserId: payload.userId,
-              publicKey,
-              endpoint: status?.public_endpoint || "",
-            });
-          })
-          .catch(() => {
-            wsClient.send("peer:offer", {
-              roomId: room.id,
-              targetUserId: payload.userId,
-              publicKey,
-              endpoint: "",
-            });
-          });
-      }
       break;
     }
 
@@ -313,34 +219,17 @@ function handleWsMessage(
 
     case "room:game-starting": {
       const room = get().currentRoom;
-      if (room) set({
-        currentRoom: {
-          ...room,
-          status: "PLAYING" as const,
-          config: {
-            ...room.config,
-            hostLaunchArgs: payload.hostLaunchArgs,
-            clientLaunchArgs: payload.clientLaunchArgs,
-            hostVirtualIp: payload.hostVirtualIp,
-            gamePort: payload.port,
-            serverFileName: payload.serverFileName,
-          },
-        },
-      });
+      if (room) {
+        set({
+          currentRoom: { ...room, status: "PLAYING" as const },
+        });
+      }
       break;
     }
 
     case "room:closed":
     case "room:kicked":
-      invoke("destroy_tunnel", {
-        roomId: get().currentRoom?.id || "",
-      }).catch(() => {});
-      set({
-        currentRoom: null,
-        messages: [],
-        tunnelActive: false,
-        virtualIp: null,
-      });
+      set({ currentRoom: null, messages: [] });
       break;
 
     case "room:player-kicked": {
@@ -355,56 +244,8 @@ function handleWsMessage(
       break;
     }
 
-    case "peer:signal":
-      handlePeerSignal(payload, set, get);
-      break;
-
-    case "peer:connected": {
-      const r = get().currentRoom;
-      if (r) {
-        set({
-          currentRoom: {
-            ...r,
-            players: r.players.map((p) =>
-              p.userId === payload.userId
-                ? { ...p, status: "CONNECTED" as const }
-                : p,
-            ),
-          },
-        });
-      }
-      break;
-    }
-
     case "error":
       console.error("WebSocket error:", payload.message);
       break;
-  }
-}
-
-async function handlePeerSignal(
-  payload: { fromUserId: string; publicKey: string; endpoint: string },
-  set: any,
-  get: () => RoomState,
-) {
-  const { currentRoom, privateKey, virtualIp } = get();
-  if (!currentRoom || !privateKey || !virtualIp) return;
-
-  try {
-    await invoke("create_tunnel", {
-      roomId: currentRoom.id,
-      virtualIp,
-      privateKey,
-      peers: [
-        {
-          public_key: payload.publicKey,
-          endpoint: payload.endpoint,
-          virtual_ip: "",
-        },
-      ],
-    });
-    set({ tunnelActive: true });
-  } catch (err) {
-    console.error("Tunnel creation failed:", err);
   }
 }

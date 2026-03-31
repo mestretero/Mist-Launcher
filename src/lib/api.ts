@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Room, RoomMessage, GameHostingProfile } from "./types";
+import type { Room, RoomMessage } from "./types";
 
 export const API_URL = "http://localhost:3001";
 
@@ -243,26 +243,18 @@ export const api = {
     list: () => request<Room[]>("/rooms"),
     getById: (id: string) => request<Room>(`/rooms/${id}`),
     create: (data: {
-      gameId?: string;
       gameName: string;
       name: string;
       maxPlayers?: number;
-      hostType?: string;
-      port?: number;
+      serverAddress?: string;
+      discordLink?: string;
+      description?: string;
       visibility?: string;
-      hostLaunchArgs?: string;
-      clientLaunchArgs?: string;
     }) => request<Room>("/rooms", { method: "POST", body: JSON.stringify(data) }),
     close: (id: string) => request<void>(`/rooms/${id}`, { method: "DELETE" }),
     getMessages: (id: string, before?: string) => {
       const params = before ? `?before=${before}` : "";
       return request<RoomMessage[]>(`/rooms/${id}/messages${params}`);
-    },
-  },
-  hostingProfiles: {
-    list: (gameId?: string) => {
-      const params = gameId ? `?gameId=${gameId}` : "";
-      return request<GameHostingProfile[]>(`/hosting-profiles${params}`);
     },
   },
 };
