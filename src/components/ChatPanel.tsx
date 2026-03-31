@@ -69,7 +69,7 @@ export function ChatPanel({ onNavigate }: Props) {
             {/* Clickable profile link */}
             <button
               onClick={() => { onNavigate("user-profile", activeChatFriend?.username); togglePanel(); }}
-              className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+              className="flex items-center gap-2.5 cursor-pointer hover:bg-[#20232c] rounded-lg px-1.5 py-1 -mx-1.5 -my-1 transition-colors"
             >
               <div className="relative">
                 {activeChatFriend?.avatarUrl ? (
@@ -151,7 +151,7 @@ export function ChatPanel({ onNavigate }: Props) {
         style={{ height: panelOpen ? 440 : 36 }}
       >
         {/* Header toggle */}
-        <button onClick={togglePanel} className="w-full flex items-center justify-between px-4 py-2 hover:bg-[#20232c] transition-colors" style={{ height: 36 }}>
+        <button onClick={togglePanel} className="w-full flex items-center justify-between px-4 py-2 hover:bg-[#20232c] cursor-pointer transition-colors" style={{ height: 36 }}>
           <div className="flex items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#1a9fff]">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -199,14 +199,14 @@ export function ChatPanel({ onNavigate }: Props) {
         >
           <button
             onClick={() => { onNavigate("user-profile", contextMenu.friend.username); togglePanel(); setContextMenu(null); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c6d4df] hover:bg-[#1a9fff]/10 hover:text-[#1a9fff] transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c6d4df] hover:bg-[#1a9fff]/10 hover:text-[#1a9fff] cursor-pointer transition-colors text-left"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
             {t("chat.viewProfile", "Profili Görüntüle")}
           </button>
           <button
             onClick={() => { openChat(contextMenu.friend); setContextMenu(null); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c6d4df] hover:bg-[#1a9fff]/10 hover:text-[#1a9fff] transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] text-[#c6d4df] hover:bg-[#1a9fff]/10 hover:text-[#1a9fff] cursor-pointer transition-colors text-left"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
             {t("chat.sendMessage", "Mesaj Gönder")}
@@ -223,7 +223,7 @@ function FriendRow({ friend, isActive, onClick, onContextMenu }: {
   const initials = friend.username.slice(0, 2).toUpperCase();
   return (
     <button onClick={onClick} onContextMenu={onContextMenu}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left transition-all ${isActive ? "bg-[#1a9fff]/10 border-l-2 border-[#1a9fff]" : "hover:bg-[#20232c]/60 border-l-2 border-transparent"}`}>
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer transition-all ${isActive ? "bg-[#1a9fff]/10 border-l-2 border-[#1a9fff]" : "hover:bg-[#20232c]/60 border-l-2 border-transparent"}`}>
       <div className="relative flex-shrink-0">
         {friend.avatarUrl ? (
           <img src={friend.avatarUrl.startsWith("http") ? friend.avatarUrl : `http://localhost:3001${friend.avatarUrl}`} alt="" className="w-8 h-8 rounded-lg object-cover" />
