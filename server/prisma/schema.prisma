@@ -181,6 +181,9 @@ model User {
   roomMessages           RoomMessage[]
   sentDirectMessages     DirectMessage[] @relation("DMSender")
   receivedDirectMessages DirectMessage[] @relation("DMReceiver")
+  createdGroups       GroupChat[]          @relation("GroupChatCreator")
+  groupMemberships    GroupChatMember[]    @relation("GroupMemberOf")
+  sentGroupMessages   GroupChatMessage[]   @relation("GroupChatMessageSender")
 
   @@map("users")
 }
@@ -743,4 +746,41 @@ model DirectMessage {
   @@index([senderId, receiverId, createdAt])
   @@index([receiverId, createdAt])
   @@map("direct_messages")
+}
+
+model GroupChat {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  creatorId String   @map("creator_id") @db.Uuid
+  creator   User     @relation("GroupChatCreator", fields: [creatorId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members  GroupChatMember[]
+  messages GroupChatMessage[]
+
+  @@map("group_chats")
+}
+
+model GroupChatMember {
+  groupId  String    @map("group_id") @db.Uuid
+  group    GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String    @map("user_id") @db.Uuid
+  user     User      @relation("GroupMemberOf", fields: [userId], references: [id])
+  joinedAt DateTime  @default(now()) @map("joined_at")
+
+  @@id([groupId, userId])
+  @@map("group_chat_members")
+}
+
+model GroupChatMessage {
+  id        String    @id @default(uuid()) @db.Uuid
+  groupId   String    @map("group_id") @db.Uuid
+  group     GroupChat @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  senderId  String    @map("sender_id") @db.Uuid
+  sender    User      @relation("GroupChatMessageSender", fields: [senderId], references: [id])
+  content   String
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([groupId, createdAt])
+  @@map("group_chat_messages")
 }
