@@ -13,18 +13,6 @@ export async function getUserLibrary(userId: string) {
     orderBy: { purchasedAt: "desc" },
   });
 
-  // Fallback for demo showing purposes if DB reset corrupted token userIds
-  if (items.length === 0) {
-    return prisma.libraryItem.findMany({
-      include: {
-        game: {
-          include: { publisher: { select: { name: true, slug: true } } },
-        },
-      },
-      orderBy: { purchasedAt: "desc" },
-    });
-  }
-
   return items;
 }
 
@@ -52,7 +40,7 @@ export async function getDownloadUrl(userId: string, itemId: string) {
   if (!item) throw notFound("Library item not found");
   if (item.userId !== userId) throw forbidden("Not your library item");
 
-  const url = item.game.downloadUrl || `https://demo.stealike.com/downloads/${item.game.slug}.zip`;
+  const url = item.game.downloadUrl || `https://demo.mist.com/downloads/${item.game.slug}.zip`;
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
   return { url, expires_at: expiresAt.toISOString() };

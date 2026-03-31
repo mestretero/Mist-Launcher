@@ -6,7 +6,7 @@ pub type Db = Arc<Mutex<Connection>>;
 
 pub fn init_db(app_data_dir: &std::path::Path) -> Result<Db, String> {
     std::fs::create_dir_all(app_data_dir).map_err(|e| format!("Failed to create app data dir: {}", e))?;
-    let db_path = app_data_dir.join("stealike.db");
+    let db_path = app_data_dir.join("mist.db");
     let conn = Connection::open(&db_path)
         .map_err(|e| format!("Failed to open database: {}", e))?;
     run_migrations(&conn)?;

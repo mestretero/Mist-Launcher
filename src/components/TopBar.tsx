@@ -93,7 +93,7 @@ export function TopBar({ currentPage, onNavigate, onRefresh, canGoBack, canGoFor
           <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 9c-.83 0-1.5-.67-1.5-1.5S15.67 8 16.5 8 18 8.67 18 9.5 17.33 11 16.5 11zm-9 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3.5-2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
           </svg>
-          <span className="text-sm font-bold text-white tracking-widest hidden sm:inline">STEALIKE</span>
+          <span className="text-sm font-bold text-white tracking-widest hidden sm:inline">MIST</span>
         </button>
 
         {/* Main Nav */}

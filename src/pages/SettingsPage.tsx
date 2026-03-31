@@ -30,7 +30,7 @@ export function SettingsPage() {
   const { scanConfig, loadScanConfig, updateScanConfig } = useLocalGameStore();
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
-  const [downloadPath, setDownloadPath] = useState("C:/Games/Stealike");
+  const [downloadPath, setDownloadPath] = useState("C:/Games/MIST");
   const [bandwidthLimit, setBandwidthLimit] = useState("0");
 
   // Load preferences from user object on mount

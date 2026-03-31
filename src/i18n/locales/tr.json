@@ -96,7 +96,7 @@
     "viewInStore": "Mağazada Gör",
     "notInStore": "Bu oyun henüz mağazamızda yok.",
     "requestToStore": "Eklenmesini Talep Et",
-    "requestDesc": "\"{{title}}\" neden Stealike'ye eklenmeli?",
+    "requestDesc": "\"{{title}}\" neden MIST'ye eklenmeli?",
     "requestPlaceholder": "Bu oyunun neden harika bir ekleme olacağını bize anlat...",
     "requestSent": "Talebiniz iletildi! Teşekkür ederiz.",
     "send": "Gönder",

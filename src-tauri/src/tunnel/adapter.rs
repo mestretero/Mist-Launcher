@@ -25,8 +25,8 @@ pub async fn create_adapter(
     };
 
     // Step 2: Create virtual adapter
-    let adapter_name = format!("Stealike-{}", &room_id[..8.min(room_id.len())]);
-    let adapter = match wintun::Adapter::create(&wintun, "Stealike", &adapter_name, None) {
+    let adapter_name = format!("MIST-{}", &room_id[..8.min(room_id.len())]);
+    let adapter = match wintun::Adapter::create(&wintun, "MIST", &adapter_name, None) {
         Ok(a) => a,
         Err(e) => {
             return Err(format!(
@@ -253,7 +253,7 @@ pub async fn destroy_adapter(room_id: &str) -> Result<(), String> {
     }
 
     // Remove IP configuration
-    let adapter_name = format!("Stealike-{}", &room_id[..8.min(room_id.len())]);
+    let adapter_name = format!("MIST-{}", &room_id[..8.min(room_id.len())]);
     let _ = std::process::Command::new("netsh")
         .args([
             "interface",

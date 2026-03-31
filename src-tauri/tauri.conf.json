@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Stealike",
+  "productName": "MIST",
   "version": "0.1.0",
-  "identifier": "com.stealike.app",
+  "identifier": "com.mist.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Stealike",
+        "title": "MIST",
         "width": 1280,
         "height": 800,
         "minWidth": 1024,

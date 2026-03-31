@@ -17,7 +17,7 @@ const SUPPORTED_CODES = LANGUAGES.map(l => l.code);
 /** Detect best language from system/browser */
 function detectLanguage(): string {
   // Check localStorage for user preference
-  const saved = localStorage.getItem("stealike-language");
+  const saved = localStorage.getItem("mist-language");
   if (saved && SUPPORTED_CODES.includes(saved as any)) return saved;
 
   // Detect from browser/system
@@ -47,7 +47,7 @@ i18n.use(initReactI18next).init({
 /** Change language and persist */
 export function changeLanguage(code: string) {
   i18n.changeLanguage(code);
-  localStorage.setItem("stealike-language", code);
+  localStorage.setItem("mist-language", code);
 }
 
 export default i18n;

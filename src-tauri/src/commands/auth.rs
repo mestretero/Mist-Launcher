@@ -1,6 +1,6 @@
 use keyring::Entry;
 
-const SERVICE_NAME: &str = "stealike";
+const SERVICE_NAME: &str = "mist";
 
 #[tauri::command]
 pub async fn store_token(key: String, value: String) -> Result<(), String> {

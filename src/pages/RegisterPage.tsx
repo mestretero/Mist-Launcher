@@ -74,7 +74,7 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1a9fff] to-[#0066cc] flex items-center justify-center shadow-[0_4px_12px_rgba(26,159,255,0.3)]">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               </div>
-              <span className="text-lg font-black text-white tracking-[0.2em]">STEALIKE</span>
+              <span className="text-lg font-black text-white tracking-[0.2em]">MIST</span>
             </div>
 
             <form onSubmit={handleSubmit}>

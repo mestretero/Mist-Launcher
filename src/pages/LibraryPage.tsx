@@ -80,7 +80,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   // Reset tab when selecting a different game
   useEffect(() => { setActiveTab("overview"); setUninstallConfirm(null); setDlcs([]); }, [selectedItem?.id]);
 
-  // Check if local game exists in Stealike store
+  // Check if local game exists in MIST store
   useEffect(() => {
     if (!selectedLocalGame) { setStoreMatch(undefined); return; }
     setStoreMatch(undefined);
@@ -127,7 +127,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
     try {
       await invoke("launch_game", {
         gameId: item.gameId,
-        exePath: item.installPath || `C:/Games/Stealike/${item.game.slug}/game.exe`,
+        exePath: item.installPath || `C:/Games/MIST/${item.game.slug}/game.exe`,
       });
       addToast(t("collections.launching", { title: item.game.title }), "info");
     } catch (err: any) {
@@ -136,7 +136,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   };
 
   const handleVerifyFiles = async (item: LibraryItem) => {
-    const path = item.installPath || `C:/Games/Stealike/${item.game.slug}`;
+    const path = item.installPath || `C:/Games/MIST/${item.game.slug}`;
     const hash = item.game.fileHash || "";
     setVerifying(true);
     addToast(t("common.loading"), "info");
@@ -151,7 +151,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   };
 
   const handleUninstall = async (item: LibraryItem) => {
-    const path = item.installPath || `C:/Games/Stealike/${item.game.slug}`;
+    const path = item.installPath || `C:/Games/MIST/${item.game.slug}`;
     try {
       await invoke("uninstall_game", { gameId: item.gameId, path });
       addToast(t("common.gameRemoved", { title: item.game.title }), "success");
@@ -956,6 +956,6 @@ async function getDownloadDir(): Promise<string> {
     const { appDataDir } = await import("@tauri-apps/api/path");
     return `${await appDataDir()}/downloads`;
   } catch {
-    return "C:/Games/Stealike";
+    return "C:/Games/MIST";
   }
 }
