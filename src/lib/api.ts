@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Room, RoomMessage } from "./types";
+import type { Room, RoomMessage, Group, GroupMessage, GroupMember } from "./types";
 
 export const API_URL = "http://localhost:3001";
 
@@ -244,6 +244,22 @@ export const api = {
     messages: (friendId: string) => request<any[]>(`/dm/${friendId}/messages`),
     send: (friendId: string, content: string) =>
       request<any>(`/dm/${friendId}`, { method: "POST", body: JSON.stringify({ content }) }),
+  },
+  groups: {
+    list: () => request<Group[]>("/groups"),
+    messages: (groupId: string) => request<GroupMessage[]>(`/groups/${groupId}/messages`),
+    send: (groupId: string, content: string) =>
+      request<GroupMessage>(`/groups/${groupId}/messages`, { method: "POST", body: JSON.stringify({ content }) }),
+    create: (name: string, memberIds: string[]) =>
+      request<Group>("/groups", { method: "POST", body: JSON.stringify({ name, memberIds }) }),
+    addMember: (groupId: string, newUserId: string) =>
+      request<GroupMember>(`/groups/${groupId}/members`, { method: "POST", body: JSON.stringify({ newUserId }) }),
+    removeMember: (groupId: string, userId: string) =>
+      request<void>(`/groups/${groupId}/members/${userId}`, { method: "DELETE" }),
+    leave: (groupId: string) =>
+      request<void>(`/groups/${groupId}/leave`, { method: "DELETE" }),
+    delete: (groupId: string) =>
+      request<void>(`/groups/${groupId}`, { method: "DELETE" }),
   },
   rooms: {
     list: () => request<Room[]>("/rooms"),
