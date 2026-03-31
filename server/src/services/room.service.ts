@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { notFound, forbidden, badRequest } from "../lib/errors.js";
+import { getOnlineUserIds } from "../ws/gateway.js";
 import { customAlphabet } from "nanoid";
 
 const generateCode = customAlphabet(
@@ -126,7 +127,7 @@ export async function listRooms(userId: string) {
     (id) => !blockedIds.has(id),
   );
 
-  return prisma.room.findMany({
+  const rooms = await prisma.room.findMany({
     where: {
       status: { in: ["WAITING", "PLAYING"] },
       OR: [
@@ -143,6 +144,13 @@ export async function listRooms(userId: string) {
     include: roomInclude,
     orderBy: { createdAt: "desc" },
   });
+
+  // Enrich with host online status
+  const onlineIds = new Set(getOnlineUserIds());
+  return rooms.map((room) => ({
+    ...room,
+    hostOnline: onlineIds.has(room.hostId),
+  }));
 }
 
 // ── Get by ID ────────────────────────────────────

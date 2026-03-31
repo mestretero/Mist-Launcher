@@ -373,17 +373,22 @@ function RoomCard({ room, onClick }: { room: Room; onClick: () => void }) {
 
           {/* Host info */}
           <div className="flex items-center gap-1.5">
-            {room.host.avatarUrl ? (
-              <img
-                src={room.host.avatarUrl}
-                alt=""
-                className="w-4 h-4 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] flex items-center justify-center text-[7px] font-black text-[#c6d4df]">
-                {initials}
-              </div>
-            )}
+            <div className="relative flex-shrink-0">
+              {room.host.avatarUrl ? (
+                <img
+                  src={room.host.avatarUrl}
+                  alt=""
+                  className="w-4 h-4 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] flex items-center justify-center text-[7px] font-black text-[#c6d4df]">
+                  {initials}
+                </div>
+              )}
+              {room.hostOnline && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-[#1a1c23] shadow-[0_0_4px_rgba(52,211,153,0.5)]" />
+              )}
+            </div>
             <span className="text-[#8f98a0] truncate max-w-[100px]">
               {room.host.username}
             </span>

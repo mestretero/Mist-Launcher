@@ -167,6 +167,7 @@ export interface Room {
   status: "WAITING" | "PLAYING" | "CLOSED";
   maxPlayers: number;
   config?: Record<string, any>;
+  hostOnline?: boolean;
   createdAt: string;
   closedAt?: string;
   players: RoomPlayer[];

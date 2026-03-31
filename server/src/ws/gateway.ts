@@ -41,6 +41,14 @@ export function getClient(userId: string): ConnectedClient | undefined {
   return clients.get(userId);
 }
 
+export function getOnlineUserIds(): string[] {
+  return Array.from(clients.keys());
+}
+
+export function isUserOnline(userId: string): boolean {
+  return clients.has(userId);
+}
+
 export function setClientRoom(userId: string, roomId: string | null) {
   const client = clients.get(userId);
   if (client) client.roomId = roomId;
