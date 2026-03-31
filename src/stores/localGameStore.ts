@@ -1,5 +1,13 @@
 import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
+import { api } from "../lib/api";
+
+async function hashExePath(exePath: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(exePath);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 export interface LocalGame {
   id: string;
@@ -69,6 +77,8 @@ interface LocalGameState {
   fetchMetadata: (title: string) => Promise<GameMetadata | null>;
   clearMetadataCache: () => Promise<void>;
   refreshCovers: () => Promise<number>;
+  syncToServer: () => Promise<void>;
+  syncSingleGame: (exePath: string, playTimeMins: number, title: string) => Promise<void>;
 }
 
 export const useLocalGameStore = create<LocalGameState>((set, get) => ({
@@ -155,5 +165,38 @@ export const useLocalGameStore = create<LocalGameState>((set, get) => ({
     }
     await get().loadGames();
     return updated;
+  },
+
+  syncToServer: async () => {
+    try {
+      const { games } = get();
+      if (games.length === 0) return;
+      const payload = await Promise.all(
+        games.map(async (g) => ({
+          title: g.title,
+          coverUrl: g.cover_url || null,
+          playTimeMins: Math.floor(g.play_time / 60),
+          exePathHash: await hashExePath(g.exe_path),
+          lastPlayedAt: g.last_played || null,
+        }))
+      );
+      await api.profiles.syncGames(payload);
+    } catch {
+      // Silent failure — next startup will retry
+    }
+  },
+
+  syncSingleGame: async (exePath, playTimeMins, title) => {
+    try {
+      const exePathHash = await hashExePath(exePath);
+      await api.profiles.syncGame({
+        exePathHash,
+        playTimeMins,
+        lastPlayedAt: new Date().toISOString(),
+        title,
+      });
+    } catch {
+      // Silent failure — next bulk sync will catch up
+    }
   },
 }));

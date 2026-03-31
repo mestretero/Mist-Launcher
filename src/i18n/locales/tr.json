@@ -6,7 +6,7 @@
     "scanner": "Oyun Tara",
     "marketplace": "Pazar",
     "refresh": "Yenile",
-    "wishlist": "İstek Listesi",
+    "wishlist": "Favorilerim",
     "friends": "Arkadaşlar",
     "notifications": "Bildirimler",
     "cart": "Sepet",
@@ -281,11 +281,11 @@
     "coversError": "Görsel güncelleme hatası"
   },
   "wishlist": {
-    "title": "İstek Listesi",
+    "title": "Favorilerim",
     "gameCount": "OYUN",
-    "emptyTitle": "İstek listeniz boş",
-    "emptyHint": "Beğendiğiniz oyunları istek listenize ekleyerek takip edebilirsiniz.",
-    "remove": "Kaldır"
+    "emptyTitle": "Favorileriniz boş",
+    "emptyHint": "Beğendiğiniz oyunları favorilerinize ekleyerek takip edebilirsiniz.",
+    "remove": "Favorilerden Çıkar"
   },
   "friends": {
     "title": "Arkadaşlar",
@@ -608,11 +608,11 @@
     "releaseDate": "Çıkış Tarihi",
     "categories": "Kategoriler",
     "communityLinksTab": "İndirme Linkleri",
-    "inWishlist": "Listende",
-    "removeFromWishlist": "İstek Listesinden Çıkar",
-    "addToWishlist": "İstek Listesine Ekle",
-    "removedFromWishlist": "İstek listesinden çıkarıldı",
-    "addedToWishlist": "İstek listesine eklendi",
+    "inWishlist": "Favorilerde",
+    "removeFromWishlist": "Favorilerden Çıkar",
+    "addToWishlist": "Favorilere Ekle",
+    "removedFromWishlist": "Favorilerden çıkarıldı",
+    "addedToWishlist": "Favorilere eklendi",
     "purchased": "Satın Alındı!",
     "addedToLibraryConfirm": "Kütüphaneye Eklendi",
     "verifying3D": "3D Secure Doğrulanıyor...",

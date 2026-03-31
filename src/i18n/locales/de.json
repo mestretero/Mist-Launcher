@@ -6,7 +6,7 @@
     "scanner": "Spiele scannen",
     "marketplace": "Marktplatz",
     "refresh": "Aktualisieren",
-    "wishlist": "Wunschliste",
+    "wishlist": "Favoriten",
     "friends": "Freunde",
     "notifications": "Benachrichtigungen",
     "cart": "Warenkorb",
@@ -281,11 +281,11 @@
     "coversError": "Fehler beim Aktualisieren der Cover"
   },
   "wishlist": {
-    "title": "Wunschliste",
+    "title": "Favoriten",
     "gameCount": "SPIELE",
-    "emptyTitle": "Deine Wunschliste ist leer",
-    "emptyHint": "Füge Spiele, die dir gefallen, zu deiner Wunschliste hinzu.",
-    "remove": "Entfernen"
+    "emptyTitle": "Deine Favoriten sind leer",
+    "emptyHint": "Füge Spiele, die dir gefallen, zu deinen Favoriten hinzu.",
+    "remove": "Aus Favoriten entfernen"
   },
   "friends": {
     "title": "Freunde",
@@ -608,11 +608,11 @@
     "releaseDate": "Veröffentlichung",
     "categories": "Kategorien",
     "communityLinksTab": "Download-Links",
-    "inWishlist": "Auf Wunschliste",
-    "removeFromWishlist": "Aus Wunschliste entfernen",
-    "addToWishlist": "Zur Wunschliste hinzufügen",
-    "removedFromWishlist": "Aus der Wunschliste entfernt",
-    "addedToWishlist": "Zur Wunschliste hinzugefügt",
+    "inWishlist": "In Favoriten",
+    "removeFromWishlist": "Aus Favoriten entfernen",
+    "addToWishlist": "Zu Favoriten hinzufügen",
+    "removedFromWishlist": "Aus Favoriten entfernt",
+    "addedToWishlist": "Zu Favoriten hinzugefügt",
     "purchased": "Gekauft!",
     "addedToLibraryConfirm": "Zur Bibliothek hinzugefügt",
     "verifying3D": "3D Secure wird verifiziert...",

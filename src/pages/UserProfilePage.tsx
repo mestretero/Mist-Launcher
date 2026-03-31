@@ -2,15 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
-import { api } from "../lib/api";
+import { api, API_URL } from "../lib/api";
 import { BlockRenderer } from "../components/profile/BlockRenderer";
-
-const THEMES = [
-  { id: "default", url: "https://picsum.photos/seed/bg1/1920/1080" },
-  { id: "cyber", url: "https://picsum.photos/seed/bg2/1920/1080" },
-  { id: "nature", url: "https://picsum.photos/seed/bg3/1920/1080" },
-  { id: "mech", url: "https://picsum.photos/seed/bg4/1920/1080" },
-];
 
 interface UserProfilePageProps {
   username: string;
@@ -25,22 +18,28 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
   const [profileData, setProfileData] = useState<any>(null); // { user, profile }
   const [restricted, setRestricted] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
+  const [librarySummary, setLibrarySummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     setProfileData(null);
     setRestricted(null);
+    setLibrarySummary(null);
+
     api.profiles.get(username)
       .then((data: any) => {
         if (data?.restricted) {
           setRestricted(data.restricted);
         } else {
-          // API returns { user: {...}, profile: { blocks: [...] } } OR { profile: {...} }
           setProfileData({
             user: data.user || data.profile?.user || {},
             profile: data.profile || data,
           });
+          // Fetch library summary for block data
+          api.profiles.getLibrarySummary(username)
+            .then((summary: any) => setLibrarySummary(summary))
+            .catch(() => {});
         }
       })
       .catch(() => addToast(t("common.error"), "error"))
@@ -108,15 +107,18 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
 
   const user = profileUser || {};
   const blocks = (profile?.blocks || []).filter((b: any) => b.visible);
-  const bgTheme = THEMES.find(t => t.id === profile?.bannerTheme) || THEMES[0];
+  const bannerSlug = profile?.bannerTheme || "midnight-bus-stop";
+  const bgUrl = `${API_URL}/public/themes/${bannerSlug}.jpeg`;
+  const bgMirrored = profile?.bannerMirrored || false;
   const avatarUrl = user.avatarUrl ? (user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`) : null;
 
   const getExtraProps = (block: any) => {
     const extras: any = {};
     if (block.type === "COMMENT_WALL") {
       extras.username = username;
+      extras.profileOwnerId = profileUser?.id;
       extras.comments = comments.map((c: any) => ({
-        id: c.id, authorName: c.author?.username || "?", authorAvatar: c.author?.avatarUrl,
+        id: c.id, authorId: c.author?.id || c.authorId, authorName: c.author?.username || "?", authorAvatar: c.author?.avatarUrl,
         content: c.content, createdAt: c.createdAt,
       }));
       extras.allowComments = profile?.allowComments ?? false;
@@ -124,10 +126,11 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
       extras.onAddComment = handleAddComment;
       extras.onDeleteComment = handleDeleteComment;
     }
-    if (block.type === "STATS") extras.stats = { games: 0, hours: 0, achievements: 0 };
-    if (block.type === "ACTIVITY") extras.recentlyPlayed = [];
-    if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") extras.libraryItems = [];
+    if (block.type === "STATS") extras.stats = librarySummary?.stats || { games: 0, hours: 0, achievements: 0 };
+    if (block.type === "ACTIVITY") extras.recentlyPlayed = librarySummary?.recentlyPlayed || [];
+    if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") extras.libraryItems = librarySummary?.libraryItems || [];
     if (block.type === "ACHIEVEMENTS") extras.achievements = [];
+    if (block.type === "REFERRAL") extras.referralCode = user?.referralCode;
     return extras;
   };
 
@@ -135,8 +138,8 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
     <div className="relative h-full font-sans bg-[#0f1115] overflow-hidden flex flex-col">
       {/* Background */}
       <div className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000"
-        style={{ backgroundImage: `url(${bgTheme.url})`, filter: "brightness(0.3) saturate(1.2)" }} />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0f1115] via-[#0f1115]/80 to-transparent z-0" />
+        style={{ backgroundImage: `url(${bgUrl})`, filter: "brightness(0.4) saturate(1.3)", transform: bgMirrored ? "scaleX(-1)" : undefined }} />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0f1115]/70 via-[#0f1115]/40 to-transparent z-0" />
 
       {/* Content */}
       <div className="relative z-10 flex-1 flex flex-col lg:flex-row h-full max-w-[1400px] mx-auto w-full p-4 lg:p-8 gap-6 lg:gap-10 overflow-y-auto lg:overflow-hidden">
@@ -174,23 +177,33 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
               </p>
             )}
           </div>
+
+          {/* Sidebar Blocks */}
+          {blocks.filter((b: any) => b.config?.zone === "sidebar").map((block: any) => (
+            <div key={block.id} className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl ring-1 ring-white/5">
+              <BlockRenderer block={block} isEditing={false} onConfigChange={() => {}} extraProps={getExtraProps(block)} />
+            </div>
+          ))}
         </div>
 
         {/* Right Panel — Blocks */}
         <div className="flex-1 lg:overflow-y-auto lg:pr-4 pb-20 min-w-0">
           <div className="flex flex-col gap-6">
-            {blocks.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 py-16 text-center">
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
-                <p className="text-sm text-[#5e6673]">{t("profile.blocks.noBlocks", "No profile blocks yet.")}</p>
-              </div>
-            ) : (
-              blocks.map((block: any) => (
-                <div key={block.id} className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl">
-                  <BlockRenderer block={block} isEditing={false} onConfigChange={() => {}} extraProps={getExtraProps(block)} />
+            {(() => {
+              const mainBlocks = blocks.filter((b: any) => b.config?.zone !== "sidebar");
+              return mainBlocks.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-16 text-center">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6M9 12h6M9 15h4"/></svg>
+                  <p className="text-sm text-[#5e6673]">{t("profile.blocks.noBlocks", "No profile blocks yet.")}</p>
                 </div>
-              ))
-            )}
+              ) : (
+                mainBlocks.map((block: any) => (
+                  <div key={block.id} className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl">
+                    <BlockRenderer block={block} isEditing={false} onConfigChange={() => {}} extraProps={getExtraProps(block)} />
+                  </div>
+                ))
+              );
+            })()}
           </div>
         </div>
       </div>

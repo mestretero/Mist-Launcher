@@ -16,6 +16,7 @@ interface BlockProps {
   onConfigChange: (config: any) => void;
   // Extra props
   username?: string;
+  profileOwnerId?: string;
   comments?: Comment[];
   allowComments?: boolean;
   currentUserId?: string;
@@ -57,7 +58,8 @@ export function CommentWallBlock({
   config: _config,
   isEditing,
   onConfigChange: _onConfigChange,
-  username,
+  username: _username,
+  profileOwnerId,
   comments = [],
   allowComments = true,
   currentUserId,
@@ -135,8 +137,8 @@ export function CommentWallBlock({
       ) : (
         <div className="space-y-3">
           {comments.map((comment) => {
-            const isOwn = comment.authorId === currentUserId;
-            const isProfileOwner = username != null; // owner can delete any comment
+            const isOwn = !!currentUserId && comment.authorId === currentUserId;
+            const isProfileOwner = !!currentUserId && currentUserId === profileOwnerId;
 
             return (
               <div

@@ -6,7 +6,7 @@
     "scanner": "Scan Games",
     "marketplace": "Marketplace",
     "refresh": "Refresh",
-    "wishlist": "Wishlist",
+    "wishlist": "Favorites",
     "friends": "Friends",
     "notifications": "Notifications",
     "cart": "Cart",
@@ -281,11 +281,11 @@
     "coversError": "Cover update error"
   },
   "wishlist": {
-    "title": "Wishlist",
+    "title": "Favorites",
     "gameCount": "GAMES",
-    "emptyTitle": "Your wishlist is empty",
-    "emptyHint": "Add games you like to your wishlist to keep track of them.",
-    "remove": "Remove"
+    "emptyTitle": "Your favorites list is empty",
+    "emptyHint": "Add games you like to your favorites to keep track of them.",
+    "remove": "Remove from Favorites"
   },
   "friends": {
     "title": "Friends",
@@ -608,11 +608,11 @@
     "releaseDate": "Release Date",
     "categories": "Categories",
     "communityLinksTab": "Download Links",
-    "inWishlist": "In Wishlist",
-    "removeFromWishlist": "Remove from Wishlist",
-    "addToWishlist": "Add to Wishlist",
-    "removedFromWishlist": "Removed from wishlist",
-    "addedToWishlist": "Added to wishlist",
+    "inWishlist": "In Favorites",
+    "removeFromWishlist": "Remove from Favorites",
+    "addToWishlist": "Add to Favorites",
+    "removedFromWishlist": "Removed from favorites",
+    "addedToWishlist": "Added to favorites",
     "purchased": "Purchased!",
     "addedToLibraryConfirm": "Added to Library",
     "verifying3D": "Verifying 3D Secure...",

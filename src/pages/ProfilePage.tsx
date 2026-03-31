@@ -3,8 +3,6 @@ import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
 import { api } from "../lib/api";
-import type { LibraryItem } from "../lib/types";
-import { useLocalGameStore } from "../stores/localGameStore";
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { BlockRenderer } from "../components/profile/BlockRenderer";
@@ -12,12 +10,7 @@ import { BlockWrapper } from "../components/profile/BlockWrapper";
 import { BlockAddMenu } from "../components/profile/BlockAddMenu";
 import { EditToolbar } from "../components/profile/EditToolbar";
 
-const THEMES = [
-  { id: "default", nameKey: "profile.themeDarkGalaxy", url: "https://picsum.photos/seed/bg1/1920/1080" },
-  { id: "cyber", nameKey: "profile.themeCyberNeon", url: "https://picsum.photos/seed/bg2/1920/1080" },
-  { id: "nature", nameKey: "profile.themeMysticForest", url: "https://picsum.photos/seed/bg3/1920/1080" },
-  { id: "mech", nameKey: "profile.themeMetallicWar", url: "https://picsum.photos/seed/bg4/1920/1080" }
-];
+import { API_URL } from "../lib/api";
 
 interface ProfilePageProps {
   onNavigate?: (page: string) => void;
@@ -27,12 +20,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
-  const { games: localGames, loadGames: loadLocalGames } = useLocalGameStore();
-  const [bgIndex, setBgIndex] = useState(() => {
-    return user?.preferences?.profileThemeIndex ?? 0;
-  });
+  const [selectedThemeId, setSelectedThemeId] = useState<string>("midnight-bus-stop");
+  const [isMirrored, setIsMirrored] = useState(false);
   const [isEditingBg, setIsEditingBg] = useState(false);
-  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
+  const [allThemes, setAllThemes] = useState<any[]>([]);
+  const [ownedThemeIds, setOwnedThemeIds] = useState<string[]>([]);
+  const [librarySummary, setLibrarySummary] = useState<any>(null);
   const [editBio, setEditBio] = useState(user?.bio || "");
   const [savedBio, setSavedBio] = useState(user?.bio || "");
   const [editUsername, setEditUsername] = useState(user?.username || "");
@@ -49,10 +42,15 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [comments, setComments] = useState<any[]>([]);
 
   useEffect(() => {
-    api.library.list().then((data) => {
-      if (Array.isArray(data)) setLibraryItems(data);
-    }).catch(() => {});
-    loadLocalGames();
+    // Ensure we have the latest user data (avatarUrl, bio, etc.)
+    useAuthStore.getState().loadSession();
+
+    // Fetch library summary (merged store + local games)
+    if (user?.username) {
+      api.profiles.getLibrarySummary(user.username)
+        .then((data: any) => setLibrarySummary(data))
+        .catch(() => {});
+    }
 
     // Fetch profile blocks
     api.profiles.getMe().then((data: any) => {
@@ -61,6 +59,17 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       setEditVisibility(data.visibility || "PUBLIC");
       setEditAllowComments(data.allowComments ?? true);
       setEditCustomStatus(data.customStatus || "");
+      if (data.bannerTheme) setSelectedThemeId(data.bannerTheme);
+      if (data.bannerMirrored) setIsMirrored(true);
+    }).catch(() => {});
+
+    // Fetch themes + owned list
+    Promise.all([
+      api.marketplace.getThemes(),
+      api.marketplace.getMyThemes(),
+    ]).then(([themes, owned]) => {
+      setAllThemes(Array.isArray(themes) ? themes : []);
+      setOwnedThemeIds(Array.isArray(owned) ? owned : []);
     }).catch(() => {});
 
     // Fetch comments for comment wall
@@ -71,27 +80,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     }
   }, []);
 
-  // Sync theme index from preferences when user changes
-  useEffect(() => {
-    if (user?.preferences?.profileThemeIndex !== undefined) {
-      setBgIndex(user.preferences.profileThemeIndex);
-    }
-  }, [user?.preferences?.profileThemeIndex]);
-
   if (!user) return null;
-  const currentBg = THEMES[bgIndex].url;
-
-  // Derive stats from real library data
-  const totalGames = libraryItems.length;
-  const totalPlayTimeMins = libraryItems.reduce((sum, item) => sum + (item.playTimeMins || 0), 0);
-  const totalPlayTimeHours = Math.floor(totalPlayTimeMins / 60);
-
-  // Recently played games (sorted by lastPlayedAt)
-  const recentlyPlayed = [...libraryItems]
-    .filter(item => item.lastPlayedAt)
-    .sort((a, b) => new Date(b.lastPlayedAt!).getTime() - new Date(a.lastPlayedAt!).getTime())
-    .slice(0, 4);
-
+  const currentTheme = allThemes.find((t) => t.id === selectedThemeId);
+  const currentBg = currentTheme ? (currentTheme.imageUrl.startsWith("http") ? currentTheme.imageUrl : `${API_URL}${currentTheme.imageUrl}`) : `${API_URL}/public/themes/midnight-bus-stop.jpeg`;
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -137,28 +128,19 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const getExtraProps = (block: any) => {
     const extras: any = {};
     if (block.type === "STATS") {
-      const localHours = Math.floor(localGames.reduce((sum, g) => sum + g.play_time, 0) / 3600);
-      extras.stats = { games: totalGames + localGames.length, hours: totalPlayTimeHours + localHours, achievements: 0 };
+      extras.stats = librarySummary?.stats || { games: 0, hours: 0, achievements: 0 };
     }
-    if (block.type === "ACTIVITY") extras.recentlyPlayed = recentlyPlayed.map((i) => ({ title: i.game.title, coverUrl: i.game.coverImageUrl, playTime: i.playTimeMins, lastPlayed: i.lastPlayedAt }));
+    if (block.type === "ACTIVITY") {
+      extras.recentlyPlayed = librarySummary?.recentlyPlayed || [];
+    }
     if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") {
-      const storeItems = libraryItems.map((i) => ({
-        id: i.gameId || i.id,
-        title: i.game.title,
-        coverUrl: i.game.coverImageUrl,
-        playTime: i.playTimeMins,
-      }));
-      const localItems = localGames.map((g) => ({
-        id: g.id,
-        title: g.title,
-        coverUrl: g.cover_url || undefined,
-        playTime: Math.floor(g.play_time / 60),
-      }));
-      extras.libraryItems = [...storeItems, ...localItems];
+      extras.libraryItems = librarySummary?.libraryItems || [];
     }
     if (block.type === "ACHIEVEMENTS") extras.achievements = [];
+    if (block.type === "REFERRAL") extras.referralCode = user?.referralCode;
     if (block.type === "COMMENT_WALL") {
       extras.username = user?.username;
+      extras.profileOwnerId = user?.id;
       extras.comments = comments;
       extras.allowComments = profileData?.allowComments ?? true;
       extras.currentUserId = user?.id;
@@ -174,33 +156,61 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       {/* Absolute Background Wrapper */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
-        style={{ backgroundImage: `url(${currentBg})`, filter: "brightness(0.3) saturate(1.2)" }}
+        style={{ backgroundImage: `url(${currentBg})`, filter: "brightness(0.4) saturate(1.3)", transform: isMirrored ? "scaleX(-1)" : undefined }}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0f1115] via-[#0f1115]/80 to-transparent z-0" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0f1115]/70 via-[#0f1115]/40 to-transparent z-0" />
 
       {/* Quick Theme Selector */}
-      <div className="absolute top-6 right-8 z-50">
+      <div className="absolute top-6 right-8 z-50 flex items-center gap-2">
+        <button
+          onClick={() => {
+            const newVal = !isMirrored;
+            setIsMirrored(newVal);
+            api.profiles.updateMe({ bannerMirrored: newVal } as any).catch(() => {});
+          }}
+          className={`p-2 backdrop-blur border rounded-full transition-colors shadow-lg ${isMirrored ? "bg-[#1a9fff]/20 border-[#1a9fff]/40 text-[#1a9fff]" : "bg-[#20232c]/80 border-[#3d4450] text-[#c6d4df] hover:bg-[#2a2e38]"}`}
+          title={t("profile.mirrorBg")}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3M12 3v18"/></svg>
+        </button>
         <button
           onClick={() => setIsEditingBg(!isEditingBg)}
           className="flex items-center gap-2 px-4 py-2 bg-[#20232c]/80 hover:bg-[#2a2e38] backdrop-blur border border-[#3d4450] text-[#c6d4df] rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors shadow-lg"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M2 7h20M2 11h20"/></svg>
           {t("profile.chooseTheme")}
         </button>
 
         {isEditingBg && (
-          <div className="absolute top-12 right-0 w-64 bg-[#161920]/95 backdrop-blur-md border border-[#2a2e38] rounded shadow-2xl p-2">
+          <div className="absolute top-12 right-0 w-72 bg-[#161920]/95 backdrop-blur-md border border-[#2a2e38] rounded-xl shadow-2xl p-2 max-h-80 overflow-y-auto custom-scrollbar">
             <h4 className="text-[10px] font-black uppercase tracking-widest text-[#67707b] mb-2 px-2">{t("profile.libraryThemes")}</h4>
             <div className="flex flex-col gap-1">
-              {THEMES.map((theme, idx) => (
-                <button
-                  key={theme.id}
-                  onClick={() => { setBgIndex(idx); setIsEditingBg(false); api.auth.updatePreferences({ profileThemeIndex: idx }).catch(() => {}); }}
-                  className={`text-left px-3 py-2 text-sm font-semibold rounded transition-colors ${bgIndex === idx ? "bg-[#3d4450] text-white" : "text-[#8f98a0] hover:bg-[#2a2e38] hover:text-[#c6d4df]"}`}
-                >
-                  {t(theme.nameKey)}
-                </button>
-              ))}
+              {allThemes.map((theme) => {
+                const owned = ownedThemeIds.includes(theme.id);
+                const imgUrl = theme.imageUrl.startsWith("http") ? theme.imageUrl : `${API_URL}${theme.imageUrl}`;
+                return (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      if (!owned) { onNavigate?.("marketplace"); setIsEditingBg(false); return; }
+                      setSelectedThemeId(theme.id);
+                      setIsEditingBg(false);
+                      api.profiles.updateMe({ bannerTheme: theme.id }).catch(() => {});
+                    }}
+                    className={`flex items-center gap-3 text-left px-2 py-2 text-sm font-semibold rounded-lg transition-colors ${
+                      selectedThemeId === theme.id ? "bg-[#1a9fff]/20 text-white ring-1 ring-[#1a9fff]/40" :
+                      owned ? "text-[#8f98a0] hover:bg-[#2a2e38] hover:text-[#c6d4df]" :
+                      "text-[#5e6673] opacity-60"
+                    }`}
+                  >
+                    <img src={imgUrl} alt={theme.name} className="w-10 h-6 rounded object-cover flex-shrink-0" />
+                    <span className="truncate flex-1">{theme.name}</span>
+                    {!owned && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -210,7 +220,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       <div className="relative z-10 flex-1 flex flex-col lg:flex-row h-full max-w-[1400px] mx-auto w-full p-4 lg:p-8 gap-6 lg:gap-10 overflow-y-auto lg:overflow-hidden">
 
         {/* Left Sidebar - Profile Identity Card */}
-        <div className="w-full lg:w-[340px] flex-shrink-0 flex flex-col gap-6 lg:overflow-y-auto lg:pr-2 custom-scrollbar">
+        <div className="w-full lg:w-[340px] flex-shrink-0 flex flex-col gap-6 lg:overflow-y-auto lg:pr-2 custom-scrollbar pb-20">
 
           {/* Identity Box */}
           <div className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 flex flex-col items-center shadow-2xl ring-1 ring-white/5 relative overflow-hidden">
@@ -319,34 +329,53 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             </button>
           </div>
 
-          {/* Stats Widget */}
-          <div className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl ring-1 ring-white/5">
-            <h3 className="text-[10px] font-black text-[#8f98a0] uppercase tracking-widest mb-4">{t("profile.playerStats")}</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
-                <div className="text-2xl font-black text-white">{totalGames}</div>
-                <div className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("profile.games")}</div>
-              </div>
-              <div className="bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
-                <div className="text-2xl font-black text-white">{totalPlayTimeHours}</div>
-                <div className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("profile.hours")}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Referral Code Widget */}
-          <div className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl ring-1 ring-white/5 mb-8">
-            <h3 className="text-[10px] font-black text-[#8f98a0] uppercase tracking-widest mb-4">{t("profile.referralCode")}</h3>
-            <div className="flex items-center justify-between p-3 rounded bg-[#20232c]/50 border border-[#2a2e38]">
-              <span className="text-sm font-black text-[#47bfff] tracking-widest">{user.referralCode}</span>
-              <button
-                onClick={() => navigator.clipboard.writeText(user.referralCode)}
-                className="text-[10px] font-bold text-[#8f98a0] hover:text-white uppercase tracking-widest transition-colors"
-              >
-                {t("profile.copy")}
-              </button>
-            </div>
-          </div>
+          {/* Sidebar Blocks */}
+          {(() => {
+            const sidebarBlocks = (isEditingBlocks ? editBlocks : blocks).filter((b: any) => b.config?.zone === "sidebar" && (b.visible || isEditingBlocks));
+            return (
+              <>
+                {sidebarBlocks.map((block: any) => (
+                  <div key={block.id} className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-4 shadow-xl ring-1 ring-white/5">
+                    {isEditingBlocks && (
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-[9px] font-black text-[#5e6673] uppercase tracking-widest">{t("profile.blocks.sidebarBlock")}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => {
+                            const updated = editBlocks.map((b: any) => b.id === block.id ? { ...b, config: { ...b.config, zone: "main" } } : b);
+                            setEditBlocks(updated);
+                          }} className="text-[9px] text-[#5e6673] hover:text-[#1a9fff] uppercase tracking-widest transition-colors">
+                            {t("profile.blocks.moveToMain", "Move to main")}
+                          </button>
+                          <button onClick={() => {
+                            setEditBlocks((prev: any[]) => prev.filter((b: any) => b.id !== block.id));
+                          }} className="text-[#5e6673] hover:text-red-400 transition-colors p-0.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    <BlockRenderer block={block} isEditing={isEditingBlocks} onConfigChange={(cfg: any) => {
+                      setEditBlocks((prev: any[]) => prev.map((b: any) => b.id === block.id ? { ...b, config: { ...cfg, zone: "sidebar" } } : b));
+                    }} extraProps={getExtraProps(block)} />
+                  </div>
+                ))}
+                {isEditingBlocks && sidebarBlocks.length < 2 && (
+                  <BlockAddMenu
+                    onAddBlock={async (type: string) => {
+                      try {
+                        const block = await api.profiles.addBlock(type, { zone: "sidebar" });
+                        setEditBlocks((prev: any[]) => [...prev, block]);
+                        setBlocks((prev: any[]) => [...prev, block]);
+                      } catch (err: any) {
+                        addToast(err?.message || t("common.error"), "error");
+                      }
+                    }}
+                    currentBlockCount={sidebarBlocks.length}
+                  />
+                )}
+              </>
+            );
+          })()}
 
         </div>
 
@@ -368,9 +397,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
                 {isEditingBlocks ? (
                   <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={editBlocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext items={editBlocks.filter(b => b.config?.zone !== "sidebar").map(b => b.id)} strategy={verticalListSortingStrategy}>
                       <div className="space-y-3 mt-4">
-                        {editBlocks.map((block) => (
+                        {editBlocks.filter(b => b.config?.zone !== "sidebar").map((block) => (
                           <BlockWrapper
                             key={block.id}
                             block={block}
@@ -394,7 +423,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   </DndContext>
                 ) : (
                   <div className="space-y-4">
-                    {blocks.filter(b => b.visible).map((block) => (
+                    {blocks.filter(b => b.visible && b.config?.zone !== "sidebar").map((block) => (
                       <div key={block.id} className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl">
                         <BlockRenderer
                           block={block}

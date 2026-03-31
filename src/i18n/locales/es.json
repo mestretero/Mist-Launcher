@@ -6,7 +6,7 @@
     "scanner": "Escanear juegos",
     "marketplace": "Mercado",
     "refresh": "Actualizar",
-    "wishlist": "Lista de deseos",
+    "wishlist": "Favoritos",
     "friends": "Amigos",
     "notifications": "Notificaciones",
     "cart": "Carrito",
@@ -281,11 +281,11 @@
     "coversError": "Error al actualizar las portadas"
   },
   "wishlist": {
-    "title": "Lista de deseos",
+    "title": "Favoritos",
     "gameCount": "JUEGOS",
-    "emptyTitle": "Tu lista de deseos está vacía",
-    "emptyHint": "Añade juegos que te gusten a tu lista de deseos para seguirlos.",
-    "remove": "Eliminar"
+    "emptyTitle": "Tu lista de favoritos está vacía",
+    "emptyHint": "Añade juegos que te gusten a tus favoritos para seguirlos.",
+    "remove": "Quitar de Favoritos"
   },
   "friends": {
     "title": "Amigos",
@@ -608,11 +608,11 @@
     "releaseDate": "Fecha de lanzamiento",
     "categories": "Categorías",
     "communityLinksTab": "Enlaces de descarga",
-    "inWishlist": "En la lista",
-    "removeFromWishlist": "Quitar de la lista de deseos",
-    "addToWishlist": "Añadir a la lista de deseos",
-    "removedFromWishlist": "Eliminado de la lista de deseos",
-    "addedToWishlist": "Añadido a la lista de deseos",
+    "inWishlist": "En Favoritos",
+    "removeFromWishlist": "Quitar de Favoritos",
+    "addToWishlist": "Añadir a Favoritos",
+    "removedFromWishlist": "Eliminado de favoritos",
+    "addedToWishlist": "Añadido a favoritos",
     "purchased": "¡Comprado!",
     "addedToLibraryConfirm": "Añadido a la biblioteca",
     "verifying3D": "Verificando 3D Secure...",

@@ -8,6 +8,7 @@ import { SocialLinksBlock } from "./blocks/SocialLinksBlock";
 import { ScreenshotsBlock } from "./blocks/ScreenshotsBlock";
 import { AchievementsBlock } from "./blocks/AchievementsBlock";
 import { CommentWallBlock } from "./blocks/CommentWallBlock";
+import { ReferralBlock } from "./blocks/ReferralBlock";
 
 const BLOCK_MAP: Record<string, React.ComponentType<any>> = {
   TEXT: TextBlock,
@@ -19,6 +20,7 @@ const BLOCK_MAP: Record<string, React.ComponentType<any>> = {
   SCREENSHOTS: ScreenshotsBlock,
   ACHIEVEMENTS: AchievementsBlock,
   COMMENT_WALL: CommentWallBlock,
+  REFERRAL: ReferralBlock,
 };
 
 interface Props {

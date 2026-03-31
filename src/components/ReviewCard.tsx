@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Review } from "../lib/types";
 import { StarRating } from "./StarRating";
 
@@ -9,7 +10,7 @@ interface ReviewCardProps {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("tr-TR", {
+  return new Date(dateStr).toLocaleDateString(undefined, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -17,6 +18,7 @@ function formatDate(dateStr: string): string {
 }
 
 export function ReviewCard({ review, isOwn, onEdit, onDelete }: ReviewCardProps) {
+  const { t } = useTranslation();
   const initials = review.user.username.slice(0, 2).toUpperCase();
 
   return (
@@ -56,7 +58,7 @@ export function ReviewCard({ review, isOwn, onEdit, onDelete }: ReviewCardProps)
                 onClick={onEdit}
                 className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-widest text-brand-400 bg-brand-950 border border-brand-800 hover:text-brand-200 hover:border-brand-600 transition-colors"
               >
-                Duzenle
+                {t("common.edit", "Edit")}
               </button>
             )}
             {onDelete && (
@@ -64,7 +66,7 @@ export function ReviewCard({ review, isOwn, onEdit, onDelete }: ReviewCardProps)
                 onClick={onDelete}
                 className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-widest text-red-400 bg-brand-950 border border-red-900/50 hover:bg-red-900/30 transition-colors"
               >
-                Sil
+                {t("common.delete")}
               </button>
             )}
           </div>

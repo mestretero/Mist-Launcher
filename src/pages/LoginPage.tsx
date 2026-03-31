@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
 import { useAuthStore } from "../stores/authStore";
+import { useToastStore } from "../stores/toastStore";
 import { api, setAccessToken } from "../lib/api";
 import { WindowControls } from "../components/WindowControls";
 import { LANGUAGES, changeLanguage } from "../i18n";
@@ -34,6 +35,9 @@ export function LoginPage({ onSwitch, onForgotPassword }: { onSwitch: () => void
       try { await invoke("store_token", { key: "refresh_token", value: tokens!.refreshToken }); } catch {}
       setAccessToken(tokens!.accessToken);
       useAuthStore.setState({ user, isAuthenticated: true, isLoading: false });
+      if ((result as any).dailyBonusAwarded) {
+        useToastStore.getState().addToast(t("marketplace.dailyBonus"), "success");
+      }
     } catch (err: any) {
       setError(err.message || t("auth.loginFailed"));
     } finally {

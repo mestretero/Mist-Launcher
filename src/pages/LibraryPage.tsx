@@ -196,10 +196,28 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     }
   };
 
+  const [exePickerOptions, setExePickerOptions] = useState<string[] | null>(null);
+
   const handleAddManual = async () => {
-    const file = await open({ multiple: false, filters: [{ name: "Executable", extensions: ["exe"] }] });
-    if (!file) return;
-    const exePath = file as string;
+    const dir = await open({ multiple: false, directory: true, title: t("library.selectGameFolder", "Select game folder") });
+    if (!dir) return;
+    const dirPath = dir as string;
+    try {
+      const exes: string[] = await invoke("list_exe_files", { dirPath });
+      if (exes.length === 0) {
+        addToast(t("library.noExeFound", "No .exe files found in this folder."), "error");
+        return;
+      } else if (exes.length === 1) {
+        await addGameFromExe(exes[0]);
+      } else {
+        setExePickerOptions(exes);
+      }
+    } catch (err: any) {
+      addToast(t("common.error") + ": " + (err?.message || err), "error");
+    }
+  };
+
+  const addGameFromExe = async (exePath: string) => {
     const fileName = exePath.split(/[\\/]/).pop()?.replace(/\.exe$/i, "") || "Unknown Game";
     try {
       const meta = await fetchMetadata(fileName);
@@ -778,6 +796,38 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
           </div>
         )}
       </div>
+
+      {/* Exe Picker Modal */}
+      {exePickerOptions && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setExePickerOptions(null)}>
+          <div className="w-full max-w-md bg-[#1a1c23] border border-[#2a2e38] rounded-2xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-[#2a2e38]">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest">{t("library.pickExe", "Select executable")}</h3>
+              <p className="text-xs text-[#5e6673] mt-1">{t("library.pickExeDesc", "Multiple exe files found. Choose the main game executable.")}</p>
+            </div>
+            <div className="max-h-72 overflow-y-auto custom-scrollbar">
+              {exePickerOptions.map((exe) => {
+                const name = exe.split(/[\\/]/).pop() || exe;
+                return (
+                  <button
+                    key={exe}
+                    onClick={async () => { setExePickerOptions(null); await addGameFromExe(exe); }}
+                    className="w-full flex items-center gap-3 px-6 py-3 hover:bg-[#1a9fff]/10 transition-colors text-left group"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2" className="flex-shrink-0 group-hover:stroke-[#1a9fff]"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+                    <span className="text-sm text-[#c6d4df] group-hover:text-white font-medium truncate">{name}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-6 py-3 border-t border-[#2a2e38]">
+              <button onClick={() => setExePickerOptions(null)} className="w-full py-2 text-xs font-bold text-[#5e6673] hover:text-white uppercase tracking-widest transition-colors">
+                {t("common.cancel", "Cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -166,6 +166,8 @@ export function WishlistPage({ onGameClick }: WishlistPageProps) {
                         {t("wishlist.remove")}
                       </button>
 
+                      {/* Price hidden — all games are free */}
+                      {false && (
                       <div className="flex items-center gap-2">
                         {item.game.discountPercent > 0 && (
                           <span className="text-xs font-medium text-brand-600 line-through">
@@ -176,6 +178,7 @@ export function WishlistPage({ onGameClick }: WishlistPageProps) {
                           {discountedPrice.toFixed(0)} TL
                         </span>
                       </div>
+                      )}
                     </div>
                   </div>
                 </div>

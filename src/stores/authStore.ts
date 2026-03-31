@@ -20,11 +20,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
 
   login: async (email, password) => {
-    const { user, tokens } = await api.auth.login({ email, password });
+    const result = await api.auth.login({ email, password });
+    const { user, tokens } = result as any;
     await invoke("store_token", { key: "access_token", value: tokens.accessToken });
     await invoke("store_token", { key: "refresh_token", value: tokens.refreshToken });
     setAccessToken(tokens.accessToken);
     set({ user, isAuthenticated: true });
+    return result as any;
   },
 
   register: async (email, username, password) => {

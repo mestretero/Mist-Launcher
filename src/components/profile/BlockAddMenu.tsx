@@ -56,6 +56,12 @@ const BLOCK_TYPES = [
     nameKey: "profile.blocks.commentWall",
     descKey: "profile.blocks.commentWallDesc",
   },
+  {
+    type: "REFERRAL",
+    icon: "🎟️",
+    nameKey: "profile.referralCode",
+    descKey: "profile.blocks.referralDesc",
+  },
 ];
 
 interface BlockAddMenuProps {

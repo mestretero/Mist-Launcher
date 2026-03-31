@@ -83,11 +83,11 @@ export function GameCard({ game, onClick, variant = "default" }: GameCardProps) 
               )}
               {game.discountPercent > 0 && (
                 <span className="text-sm font-medium text-brand-600 line-through">
-                  {price.toFixed(0)} TL
+                  {price > 0 ? `${price.toFixed(0)} TL` : ""}
                 </span>
               )}
               <span className="text-xl font-bold text-brand-100">
-                {discountedPrice.toFixed(0)} TL
+                {discountedPrice > 0 ? `${discountedPrice.toFixed(0)} TL` : ""}
               </span>
             </div>
           </div>
@@ -146,11 +146,11 @@ export function GameCard({ game, onClick, variant = "default" }: GameCardProps) 
         <div className="mt-4 flex items-center justify-end gap-2 border-t border-brand-800 pt-3">
           {game.discountPercent > 0 && (
             <span className="text-xs font-medium text-brand-600 line-through">
-              {price.toFixed(0)} TL
+              {price > 0 ? `${price.toFixed(0)} TL` : ""}
             </span>
           )}
           <span className="text-base font-bold text-brand-100">
-            {discountedPrice.toFixed(0)} TL
+            {discountedPrice > 0 ? `${discountedPrice.toFixed(0)} TL` : ""}
           </span>
         </div>
       </div>
