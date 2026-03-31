@@ -14,7 +14,7 @@ import type { LibraryItem } from "../lib/types";
 
 type LibTab = "overview" | "dlc" | "community" | "discussions" | "workshop" | "guides" | "support";
 
-export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => void }) {
+export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?: string) => void }) {
   const { t } = useTranslation();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
@@ -29,6 +29,10 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
   const [activeTab, setActiveTab] = useState<LibTab>("overview");
   const [uninstallConfirm, setUninstallConfirm] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [storeMatch, setStoreMatch] = useState<{ slug: string; title: string } | null | undefined>(undefined);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestText, setRequestText] = useState("");
+  const [requestSending, setRequestSending] = useState(false);
   const [achievementStats, setAchievementStats] = useState({ total: 0, unlocked: 0 });
   const [achievements, setAchievements] = useState<any[]>([]);
   const [dlcs, setDlcs] = useState<any[]>([]);
@@ -74,6 +78,18 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
 
   // Reset tab when selecting a different game
   useEffect(() => { setActiveTab("overview"); setUninstallConfirm(null); setDlcs([]); }, [selectedItem?.id]);
+
+  // Check if local game exists in Stealike store
+  useEffect(() => {
+    if (!selectedLocalGame) { setStoreMatch(undefined); return; }
+    setStoreMatch(undefined);
+    api.games.search(selectedLocalGame.title)
+      .then((results) => {
+        const match = results.find((g: any) => g.title.toLowerCase() === selectedLocalGame.title.toLowerCase());
+        setStoreMatch(match ? { slug: match.slug, title: match.title } : null);
+      })
+      .catch(() => setStoreMatch(null));
+  }, [selectedLocalGame?.id]);
 
   const handleDownload = async (item: LibraryItem) => {
     const destDir = await getDownloadDir();
@@ -260,6 +276,16 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
     g => g.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const getLauncherLabel = (launcher: string | null) => {
+    if (!launcher || launcher === "none") return null;
+    const map: Record<string, string> = {
+      steam: "Steam", epic: "Epic Games", gog: "GOG",
+      origin: "EA App", uplay: "Ubisoft Connect",
+      battlenet: "Battle.net", itch: "itch.io",
+    };
+    return map[launcher.toLowerCase()] || launcher;
+  };
+
   const tabs: { id: LibTab; label: string }[] = [
     { id: "overview", label: t("library.tabs.overview") },
     { id: "dlc", label: t("library.tabs.dlc") },
@@ -385,7 +411,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                         }
                       </div>
                       <span className={`text-sm truncate font-medium flex-1 ${isLocalSelected ? "text-white font-bold" : ""}`}>{game.title}</span>
-                      {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">{t("library.scanned")}</span>}
+                      {game.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">{getLauncherLabel(game.launcher) ?? t("library.scanned")}</span>}
                       {game.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-0.5 rounded">{t("library.manual")}</span>}
                     </div>
                   );
@@ -421,38 +447,61 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
                   {selectedLocalGame.title}
                 </h1>
                 <div className="flex gap-2 mt-2">
-                  {selectedLocalGame.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">{t("library.scanned")}</span>}
+                  {selectedLocalGame.source === "scan" && <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded">{getLauncherLabel(selectedLocalGame.launcher) ?? t("library.scanned")}</span>}
                   {selectedLocalGame.source === "manual" && <span className="text-xs bg-green-500/20 text-green-300 px-2 py-1 rounded">{t("library.manual")}</span>}
-                  {selectedLocalGame.launcher && selectedLocalGame.launcher !== "none" && (
-                    <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded capitalize">{selectedLocalGame.launcher}</span>
-                  )}
                 </div>
               </div>
             </div>
 
             <div className="px-10 pb-10 -mt-4 z-20 relative">
               {/* Action Bar */}
-              <div className="w-full bg-[#161a20]/80 backdrop-blur border border-[#2a2e38] rounded shadow-lg mb-8 flex items-center h-20 px-6 gap-4">
+              <div className="w-full bg-[#161a20]/80 backdrop-blur border border-[#2a2e38] rounded shadow-lg mb-6 flex items-center h-20 px-6 gap-4">
                 <button
                   onClick={() => handleLaunchLocal(selectedLocalGame)}
                   disabled={localGameRunning === selectedLocalGame.id}
-                  className="px-8 py-3 bg-[#1a9fff] hover:bg-[#47bfff] disabled:bg-[#1a9fff]/50 text-white font-black uppercase tracking-widest text-sm rounded transition-colors"
+                  className="px-8 py-2.5 rounded text-white font-black text-xl uppercase tracking-widest shadow-lg transition-all hover:scale-105 hover:brightness-110 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                  style={{ background: localGameRunning === selectedLocalGame.id ? "linear-gradient(to right, #1a9fff88, #1a70cb88)" : "linear-gradient(to right, #47bfff, #1a70cb)", textShadow: "0px 2px 4px rgba(0,0,0,0.4)" }}
                 >
                   {localGameRunning === selectedLocalGame.id ? t("library.running") : t("library.launch")}
                 </button>
+                <div className="h-10 w-px bg-[#2a2e38] mx-1" />
+                <AddToCollectionDropdown localGameId={selectedLocalGame.id} />
                 <div className="flex-1" />
                 <button
                   onClick={() => handleDeleteLocal(selectedLocalGame)}
-                  className="px-4 py-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded text-xs font-bold uppercase tracking-widest transition-colors"
+                  className="px-4 py-2 text-[#5e6673] hover:text-red-400 hover:bg-red-400/10 rounded text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer"
                 >
                   {t("library.removeFromLibrary")}
                 </button>
               </div>
 
-              {/* Collection + Info */}
-              <div className="mb-6">
-                <AddToCollectionDropdown localGameId={selectedLocalGame.id} />
-              </div>
+              {/* Store Match / Request Banner */}
+              {storeMatch === undefined ? (
+                <div className="mb-6 h-12 bg-[#2a2e38]/20 border border-[#2a2e38]/40 rounded animate-pulse" />
+              ) : storeMatch ? (
+                <div className="mb-6 flex items-center gap-3 px-5 py-3.5 bg-[#1a9fff]/10 border border-[#1a9fff]/30 rounded">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#47bfff" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  <span className="text-sm text-[#c6d4df] flex-1">{t("library.storeAvailable", { title: storeMatch.title })}</span>
+                  <button
+                    onClick={() => onNavigate?.("game", storeMatch.slug)}
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1a9fff] hover:bg-[#47bfff] text-white text-xs font-bold uppercase tracking-widest rounded transition-colors cursor-pointer"
+                  >
+                    {t("library.viewInStore")}
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                  </button>
+                </div>
+              ) : (
+                <div className="mb-6 flex items-center gap-3 px-5 py-3.5 bg-[#2a2e38]/40 border border-[#2a2e38] rounded">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span className="text-sm text-[#5e6673] flex-1">{t("library.notInStore")}</span>
+                  <button
+                    onClick={() => setShowRequestModal(true)}
+                    className="flex items-center gap-1.5 px-4 py-1.5 bg-[#2a2e38] hover:bg-[#3d4450] text-[#8f98a0] hover:text-white text-xs font-bold uppercase tracking-widest rounded transition-colors border border-[#3d4450] cursor-pointer"
+                  >
+                    {t("library.requestToStore")}
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
@@ -796,6 +845,48 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string) => voi
           </div>
         )}
       </div>
+
+      {/* Request to Store Modal */}
+      {showRequestModal && selectedLocalGame && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setShowRequestModal(false)}>
+          <div className="w-full max-w-md bg-[#1a1c23] border border-[#2a2e38] rounded-2xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 border-b border-[#2a2e38]">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest">{t("library.requestToStore")}</h3>
+              <p className="text-xs text-[#5e6673] mt-1">{t("library.requestDesc", { title: selectedLocalGame.title })}</p>
+            </div>
+            <div className="p-6">
+              <textarea
+                value={requestText}
+                onChange={(e) => setRequestText(e.target.value)}
+                placeholder={t("library.requestPlaceholder")}
+                className="w-full h-28 bg-[#20232c] border border-[#2a2e38] text-[#c6d4df] text-sm p-3 rounded resize-none focus:outline-none focus:border-[#3d4450] transition-colors"
+              />
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => { setShowRequestModal(false); setRequestText(""); }}
+                  className="flex-1 py-2 text-xs font-bold text-[#8f98a0] hover:text-white bg-[#2a2e38] hover:bg-[#3d4450] rounded transition-colors uppercase tracking-widest cursor-pointer"
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  onClick={async () => {
+                    setRequestSending(true);
+                    await new Promise(r => setTimeout(r, 500));
+                    setRequestSending(false);
+                    setShowRequestModal(false);
+                    setRequestText("");
+                    addToast(t("library.requestSent"), "success");
+                  }}
+                  disabled={requestSending}
+                  className="flex-1 py-2 text-xs font-bold text-white bg-[#1a9fff] hover:bg-[#47bfff] disabled:opacity-50 rounded transition-colors uppercase tracking-widest cursor-pointer"
+                >
+                  {requestSending ? t("common.loading") : t("library.send")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exe Picker Modal */}
       {exePickerOptions && (
