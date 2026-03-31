@@ -163,7 +163,7 @@ export interface Room {
   gameName: string;
   name: string;
   code: string;
-  visibility: "FRIENDS" | "INVITE" | "PUBLIC";
+  visibility: "FRIENDS" | "SCHEDULED" | "PUBLIC";
   status: "WAITING" | "PLAYING" | "CLOSED";
   maxPlayers: number;
   config?: Record<string, any>;

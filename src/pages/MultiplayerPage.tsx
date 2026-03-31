@@ -11,7 +11,7 @@ interface Props {
 
 export default function MultiplayerPage({ onNavigate }: Props) {
   const { t } = useTranslation();
-  useAuthStore(); // Keep auth context active
+  const { user } = useAuthStore();
   const { rooms, fetchRooms, createRoom } = useRoomStore();
   const [showCreate, setShowCreate] = useState(false);
   const [gameFilter, setGameFilter] = useState<string>("");
@@ -37,9 +37,16 @@ export default function MultiplayerPage({ onNavigate }: Props) {
   const filtered = useMemo(() => {
     let list = gameFilter ? rooms.filter((r) => r.gameName === gameFilter) : rooms;
     if (languageFilter) list = list.filter((r) => (r.config as any)?.language === languageFilter);
-    if (visibilityFilter) list = list.filter((r) => r.visibility === visibilityFilter);
+    if (visibilityFilter === "FRIENDS") {
+      // Show lobbies where host is a friend (or own lobbies)
+      list = list.filter((r) => r.visibility === "FRIENDS" || r.hostId === user?.id);
+    } else if (visibilityFilter === "SCHEDULED") {
+      list = list.filter((r) => r.visibility === "SCHEDULED");
+    } else if (visibilityFilter === "PUBLIC") {
+      list = list.filter((r) => r.visibility === "PUBLIC");
+    }
     return [...list].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [rooms, gameFilter, languageFilter, visibilityFilter]);
+  }, [rooms, gameFilter, languageFilter, visibilityFilter, user?.id]);
 
   async function handleCreate(data: any) {
     const room = await createRoom(data);
@@ -111,7 +118,7 @@ export default function MultiplayerPage({ onNavigate }: Props) {
         )}
 
         {/* ============ LANGUAGE FILTER PILLS ============ */}
-        {languages.length >= 2 && (
+        {languages.length >= 1 && (
           <div className="flex items-center gap-2 mb-6 flex-wrap">
             <button onClick={() => setLanguageFilter("")}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${!languageFilter ? "bg-[#1a9fff]/15 text-[#1a9fff] border border-[#1a9fff]/30" : "bg-[#1a1c23] text-[#8f98a0] border border-[#2a2e38] hover:border-[#8f98a0]/30"}`}>
@@ -131,8 +138,8 @@ export default function MultiplayerPage({ onNavigate }: Props) {
           {([
             { key: "", label: t("multiplayer.allGames") },
             { key: "PUBLIC", label: t("room.visibility.public") },
-            { key: "FRIENDS", label: t("room.visibility.friends") },
             { key: "SCHEDULED", label: t("room.visibility.scheduled") },
+            { key: "FRIENDS", label: t("room.visibility.friends") },
           ]).map((opt) => (
             <button
               key={opt.key}
