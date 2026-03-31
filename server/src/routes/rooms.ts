@@ -21,8 +21,13 @@ export default async function roomRoutes(app: FastifyInstance) {
       scheduledStart?: string;
       scheduledEnd?: string;
     };
-    const room = await roomService.createRoom(userId, body);
-    return reply.status(201).send({ data: room });
+    try {
+      const room = await roomService.createRoom(userId, body);
+      return reply.status(201).send({ data: room });
+    } catch (err) {
+      console.error("Room creation failed:", err);
+      throw err;
+    }
   });
 
   // List rooms (friends + own)
