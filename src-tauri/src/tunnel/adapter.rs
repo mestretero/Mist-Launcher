@@ -260,16 +260,27 @@ struct PeerEntry {
     virtual_ip: String,
 }
 
-/// Find wintun.dll — check app directory, then bundled resources.
+/// Find wintun.dll — check app directory, resources, src-tauri dir.
 fn find_wintun_dll() -> Result<std::path::PathBuf, String> {
-    // Check next to executable
+    // Check next to executable (bundled with app)
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
             let dll = dir.join("wintun.dll");
             if dll.exists() {
                 return Ok(dll);
             }
+            // Check resources subdirectory (Tauri bundle)
+            let res = dir.join("resources").join("wintun.dll");
+            if res.exists() {
+                return Ok(res);
+            }
         }
+    }
+
+    // Check src-tauri directory (dev mode)
+    let dev_path = std::path::PathBuf::from("src-tauri/wintun.dll");
+    if dev_path.exists() {
+        return Ok(dev_path);
     }
 
     // Check current directory
@@ -279,7 +290,7 @@ fn find_wintun_dll() -> Result<std::path::PathBuf, String> {
     }
 
     Err(
-        "wintun.dll bulunamadı. Lütfen https://www.wintun.net/ adresinden indirip uygulama dizinine koyun."
+        "wintun.dll bulunamadı. Lütfen uygulamayı yeniden yükleyin veya wintun.dll dosyasını uygulama dizinine koyun."
             .to_string(),
     )
 }
