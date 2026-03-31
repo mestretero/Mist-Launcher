@@ -562,6 +562,11 @@
     "ready": "Listo",
     "notReady": "No Listo",
     "leave": "Salir de la Sala",
+    "closeRoom": "Cerrar Sala",
+    "status": {
+      "waiting": "Esperando",
+      "playing": "Jugando"
+    },
     "sendMessage": "Enviar",
     "messagePlaceholder": "Escribe un mensaje...",
     "host": "Host",

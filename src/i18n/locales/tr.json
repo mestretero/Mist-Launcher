@@ -562,6 +562,11 @@
     "ready": "Hazırım",
     "notReady": "Hazır Değilim",
     "leave": "Odadan Ayrıl",
+    "closeRoom": "Odayı Kapat",
+    "status": {
+      "waiting": "Bekliyor",
+      "playing": "Oyunda"
+    },
     "sendMessage": "Gönder",
     "messagePlaceholder": "Mesaj yaz...",
     "host": "Host",

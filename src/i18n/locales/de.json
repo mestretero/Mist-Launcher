@@ -562,6 +562,11 @@
     "ready": "Bereit",
     "notReady": "Nicht bereit",
     "leave": "Raum verlassen",
+    "closeRoom": "Raum schließen",
+    "status": {
+      "waiting": "Wartet",
+      "playing": "Im Spiel"
+    },
     "sendMessage": "Senden",
     "messagePlaceholder": "Nachricht eingeben...",
     "host": "Host",

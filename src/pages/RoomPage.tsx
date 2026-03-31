@@ -16,7 +16,6 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
     currentRoom,
     messages,
     tunnelActive,
-    virtualIp,
     joinRoom,
     leaveRoom,
     sendMessage,
@@ -137,13 +136,21 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* Tunnel status */}
+          {/* Connection status */}
           <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${tunnelActive ? "bg-green-400" : "bg-brand-700"}`} />
-            <span className="text-[10px] text-brand-500">{tunnelActive ? "Tunnel Active" : "No Tunnel"}</span>
+            <div className={`w-2 h-2 rounded-full ${tunnelActive ? "bg-emerald-400 shadow-sm shadow-emerald-400/50" : "bg-gray-600"}`} />
+            <span className="text-[10px] text-brand-500">
+              {tunnelActive ? t("room.connected") : t("room.connecting")}
+            </span>
           </div>
-          {virtualIp && (
-            <span className="text-[10px] font-mono text-brand-500 bg-brand-900 px-2 py-0.5 rounded">{virtualIp}</span>
+          {/* Close room (host only) */}
+          {isHost && (
+            <button
+              onClick={handleLeave}
+              className="text-[10px] font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-md transition-colors"
+            >
+              {t("room.closeRoom", "Odayı Kapat")}
+            </button>
           )}
         </div>
       </div>
@@ -194,20 +201,23 @@ export default function RoomPage({ roomId, onNavigate }: Props) {
 
           {/* Action buttons */}
           <div className="p-3 border-t border-brand-800 space-y-2">
-            {isHost ? (
-              <button onClick={startGame} className="w-full py-2.5 rounded-lg text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-500 transition-colors">
+            {isHost && (
+              <button onClick={startGame} className="w-full py-2.5 rounded-lg text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors">
                 {t("room.startGame")}
               </button>
-            ) : (
+            )}
+            {!isHost && (
               <button onClick={() => toggleReady(!isReady)}
                 className={`w-full py-2.5 rounded-lg text-sm font-bold transition-colors ${
-                  isReady ? "bg-green-600 hover:bg-green-500 text-white" : "bg-brand-900 border border-brand-800 text-brand-300 hover:border-brand-600"
+                  isReady
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    : "bg-brand-900 border border-brand-800 text-brand-300 hover:border-brand-600"
                 }`}>
-                {isReady ? t("room.ready") : t("room.notReady")}
+                {isReady ? `✓ ${t("room.ready")}` : t("room.notReady")}
               </button>
             )}
-            <button onClick={handleLeave} className="w-full py-2 rounded-lg text-xs font-semibold text-red-400 bg-red-500/10 hover:bg-red-500/20 transition-colors">
-              {t("room.leave")}
+            <button onClick={handleLeave} className="w-full py-2 rounded-lg text-xs font-semibold text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+              {isHost ? t("room.closeRoom", "Odayı Kapat") : t("room.leave")}
             </button>
           </div>
         </div>
@@ -275,27 +285,35 @@ function PlayerRow({ player, isHost, canKick, onKick }: {
 }) {
   const { t } = useTranslation();
   const initials = player.user.username.slice(0, 2).toUpperCase();
+  const avatarSrc = player.user.avatarUrl
+    ? (player.user.avatarUrl.startsWith("http") ? player.user.avatarUrl : `http://localhost:3001${player.user.avatarUrl}`)
+    : null;
 
-  // Status LED colors
-  let ledColor = "bg-brand-600"; // default
+  let statusText = "";
+  let ledColor = "bg-gray-600";
   let ledAnim = "";
   if (player.status === "READY") {
-    ledColor = "bg-green-400";
+    ledColor = "bg-emerald-400";
+    statusText = t("room.ready");
   } else if (player.status === "CONNECTING") {
-    ledColor = "bg-yellow-400";
+    ledColor = "bg-amber-400";
     ledAnim = "animate-pulse";
+    statusText = t("room.connecting");
   } else if (player.status === "CONNECTED") {
     ledColor = "bg-blue-400";
+    statusText = t("room.connected");
   }
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-brand-900/50 group">
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-brand-900/50 group transition-colors">
       {/* Avatar */}
-      <div className="relative">
-        {player.user.avatarUrl ? (
-          <img src={player.user.avatarUrl} alt="" className="w-8 h-8 rounded-md object-cover" />
+      <div className="relative flex-shrink-0">
+        {avatarSrc ? (
+          <img src={avatarSrc} alt="" className="w-9 h-9 rounded-lg object-cover" />
         ) : (
-          <div className="w-8 h-8 rounded-md bg-indigo-600 flex items-center justify-center text-white text-xs font-black">{initials}</div>
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center text-white text-xs font-black">
+            {initials}
+          </div>
         )}
         <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-brand-950 ${ledColor} ${ledAnim}`} />
       </div>
@@ -309,19 +327,16 @@ function PlayerRow({ player, isHost, canKick, onKick }: {
               {t("room.host")}
             </span>
           )}
-          {player.status === "READY" && !isHost && (
-            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-green-600/20 text-green-400">
-              {t("room.ready")}
-            </span>
-          )}
         </div>
-        <span className="text-[10px] text-brand-600 font-mono">{player.virtualIp}</span>
+        {statusText && (
+          <span className="text-[10px] text-brand-600">{statusText}</span>
+        )}
       </div>
 
-      {/* Kick button (host only, not self) */}
+      {/* Kick button */}
       {canKick && (
         <button onClick={onKick}
-          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-red-400 transition-all"
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md hover:bg-red-500/20 text-red-400 transition-all"
           title={t("room.kick")}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
