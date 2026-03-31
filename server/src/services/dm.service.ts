@@ -73,11 +73,15 @@ export async function getConversations(userId: string) {
   return Array.from(convMap.values());
 }
 
-// Delete messages older than 8 hours
+// Delete messages older than 8 hours (DM + group)
 export async function cleanupOldMessages() {
   const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
-  const result = await prisma.directMessage.deleteMany({
+  const dmResult = await prisma.directMessage.deleteMany({
     where: { createdAt: { lt: eightHoursAgo } },
   });
-  if (result.count > 0) console.log(`Cleaned up ${result.count} old direct messages`);
+  if (dmResult.count > 0) console.log(`Cleaned up ${dmResult.count} old direct messages`);
+
+  // Import lazily to avoid circular deps
+  const groupService = await import("./group.service.js");
+  await groupService.cleanupOldMessages();
 }
