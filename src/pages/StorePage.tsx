@@ -25,7 +25,7 @@ interface StorePageProps {
 }
 
 export function StorePage({ onGameClick }: StorePageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const CATEGORIES = [
     { key: "all", label: t("store.categories.all") },
@@ -50,6 +50,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
   // Curated rows
   const [newReleases, setNewReleases] = useState<Game[]>([]);
   const [recommended, setRecommended] = useState<Game[]>([]);
+  const [heroDescs, setHeroDescs] = useState<Record<string, string>>({});
 
   // Infinite scroll state
   const [browseGames, setBrowseGames] = useState<Game[]>([]);
@@ -64,6 +65,25 @@ export function StorePage({ onGameClick }: StorePageProps) {
     api.games.list(1, 10).then(({ games }) => setNewReleases(games));
     api.games.recommended().then(setRecommended).catch(() => {});
   }, []);
+
+  // Fetch localized descriptions for featured/hero games
+  useEffect(() => {
+    if (featured.length === 0) return;
+    const steamLang: Record<string, string> = { tr: "turkish", es: "spanish", de: "german", en: "english" };
+    const lang = steamLang[i18n.language] || "english";
+    if (lang === "english") return;
+    featured.forEach((game) => {
+      api.games.getDescription(game.slug, lang)
+        .then((res) => {
+          const desc = res?.shortDescription || res?.description;
+          if (desc) {
+            const clean = desc.replace(/<[^>]*>/g, "");
+            setHeroDescs((prev) => ({ ...prev, [game.slug]: clean }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [featured, i18n.language]);
 
   // Load browse section (with category filter + pagination)
   const loadBrowse = useCallback(async (page: number, category: string, reset = false) => {
@@ -186,7 +206,7 @@ export function StorePage({ onGameClick }: StorePageProps) {
                           {game.title}
                         </h1>
                         <p className="text-[#8f98a0] text-sm mb-6 line-clamp-2 max-w-lg leading-relaxed">
-                          {game.shortDescription || game.description?.slice(0, 150)}
+                          {heroDescs[game.slug] || game.shortDescription || game.description?.slice(0, 150)}
                         </p>
                         <button onClick={() => onGameClick(game.slug)} className="px-6 py-2.5 rounded-lg text-xs font-black bg-[#1a9fff] text-white hover:bg-[#1a9fff]/80 transition-colors uppercase tracking-widest self-start">
                           {t("store.storePage")}
