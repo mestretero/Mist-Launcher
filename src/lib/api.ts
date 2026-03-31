@@ -130,6 +130,7 @@ export const api = {
     getBySlug: (slug: string) => request<any>(`/games/${slug}`),
     search: (q: string) => request<any[]>(`/games/search?q=${encodeURIComponent(q)}`),
     getDescription: (slug: string, lang: string) => request<{ description: string; shortDescription?: string }>(`/games/${slug}/description?lang=${lang}`),
+    localizedDescription: (title: string, lang: string) => request<{ description: string | null }>(`/games/localized-description?title=${encodeURIComponent(title)}&lang=${lang}`),
     dlcs: (slug: string) => request<any[]>(`/games/${slug}/dlcs`),
   },
   library: {

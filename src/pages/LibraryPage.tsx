@@ -15,7 +15,7 @@ import type { LibraryItem } from "../lib/types";
 type LibTab = "overview" | "dlc" | "community" | "discussions" | "workshop" | "guides" | "support";
 
 export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?: string) => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -37,6 +37,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   const [achievements, setAchievements] = useState<any[]>([]);
   const [dlcs, setDlcs] = useState<any[]>([]);
   const [dlcsLoading, setDlcsLoading] = useState(false);
+  const [localizedDesc, setLocalizedDesc] = useState<string | null>(null);
 
   useEffect(() => {
     api.library.list()
@@ -90,6 +91,20 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
       })
       .catch(() => setStoreMatch(null));
   }, [selectedLocalGame?.id]);
+
+  // Fetch localized description from Steam for local games
+  useEffect(() => {
+    if (!selectedLocalGame?.description) { setLocalizedDesc(null); return; }
+    const steamLang: Record<string, string> = { tr: "turkish", es: "spanish", de: "german", en: "english" };
+    const lang = steamLang[i18n.language] || "english";
+    if (lang === "english") { setLocalizedDesc(selectedLocalGame.description); return; }
+    setLocalizedDesc(null);
+    api.games.localizedDescription(selectedLocalGame.title, lang)
+      .then((res) => {
+        setLocalizedDesc(res?.description || selectedLocalGame.description);
+      })
+      .catch(() => setLocalizedDesc(selectedLocalGame.description));
+  }, [selectedLocalGame?.id, i18n.language]);
 
   const handleDownload = async (item: LibraryItem) => {
     const destDir = await getDownloadDir();
@@ -394,7 +409,6 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
             })}
             {filteredLocalGames.length > 0 && (
               <>
-                <div className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] px-5 pt-3 pb-1">{t("library.localGames")}</div>
                 {filteredLocalGames.map((game: LocalGame) => {
                   const isLocalSelected = selectedLocalGame?.id === game.id;
                   return (
@@ -547,7 +561,15 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
               {selectedLocalGame.description && (
                 <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5 mt-6">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.description")}</h3>
-                  <p className="text-sm text-[#8f98a0] leading-relaxed">{selectedLocalGame.description}</p>
+                  {localizedDesc ? (
+                    <p className="text-sm text-[#8f98a0] leading-relaxed">{localizedDesc}</p>
+                  ) : (
+                    <div className="space-y-2 animate-pulse">
+                      <div className="h-3 bg-[#2a2e38] rounded w-full" />
+                      <div className="h-3 bg-[#2a2e38] rounded w-4/5" />
+                      <div className="h-3 bg-[#2a2e38] rounded w-3/5" />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
