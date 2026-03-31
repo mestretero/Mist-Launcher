@@ -314,6 +314,42 @@ function handleWsMessage(
       }
       break;
 
+    case "group:message":
+      import("./groupStore").then(({ useGroupStore }) => {
+        useGroupStore.getState().receiveMessage(payload);
+      });
+      if (document.hidden) {
+        const sender = (payload as any).sender?.username || "Group";
+        try {
+          if (Notification.permission === "granted") {
+            new Notification(sender, { body: (payload as any).content, silent: false });
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission();
+          }
+        } catch { /* */ }
+      }
+      break;
+
+    case "group:member-added":
+    case "group:member-kicked":
+    case "group:member-left":
+      import("./groupStore").then(({ useGroupStore }) => {
+        useGroupStore.getState().receiveMemberUpdate({ ...(payload as any), type });
+      });
+      break;
+
+    case "group:deleted":
+      import("./groupStore").then(({ useGroupStore }) => {
+        useGroupStore.getState().receiveGroupDeleted((payload as any).groupId);
+      });
+      break;
+
+    case "group:created":
+      import("./groupStore").then(({ useGroupStore }) => {
+        useGroupStore.getState().receiveGroupCreated(payload as any);
+      });
+      break;
+
     case "error":
       console.error("WebSocket error:", payload.message);
       break;
