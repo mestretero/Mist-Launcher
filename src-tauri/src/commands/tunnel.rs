@@ -26,3 +26,12 @@ pub async fn destroy_tunnel(room_id: String) -> Result<(), String> {
 pub async fn get_tunnel_status(room_id: String) -> Result<TunnelStatus, String> {
     tunnel::adapter::get_status(&room_id)
 }
+
+/// Get the UDP listen port of an active tunnel.
+/// Used to tell peers where to send their encrypted packets.
+#[tauri::command]
+pub async fn get_tunnel_listen_port(room_id: String) -> Result<u16, String> {
+    tunnel::get_tunnel_info(&room_id)
+        .map(|info| info.listen_port)
+        .ok_or_else(|| "Tunnel not found".to_string())
+}

@@ -52,6 +52,7 @@ pub fn run() {
             commands::tunnel::create_tunnel,
             commands::tunnel::destroy_tunnel,
             commands::tunnel::get_tunnel_status,
+            commands::tunnel::get_tunnel_listen_port,
             commands::server_manager::start_dedicated_server,
             commands::server_manager::stop_dedicated_server,
         ])
