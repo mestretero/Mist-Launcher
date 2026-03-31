@@ -82,12 +82,32 @@ export const useRoomStore = create<RoomState>((set, get) => ({
 
   createRoom: async (data) => {
     const room = await api.rooms.create(data);
-    // Generate keypair — fallback to dummy if Tauri command unavailable
-    let privateKey = "dummy-private-key";
-    let publicKey = "dummy-public-key";
+    // Generate keypair
+    let privateKey = "";
+    let publicKey = "";
     try {
       [privateKey, publicKey] = await invoke<[string, string]>("generate_keypair");
-    } catch { /* Phase 1: tunnel is scaffold, dummy keys OK */ }
+    } catch (e) {
+      console.error("Keypair generation failed:", e);
+    }
+
+    // Host creates tunnel immediately (no peers yet, will add as they join)
+    let listenPort = 0;
+    if (privateKey) {
+      try {
+        const tunnelInfo = await invoke<any>("create_tunnel", {
+          roomId: room.id,
+          virtualIp: "10.13.37.1",
+          privateKey,
+          peers: [],
+        });
+        listenPort = tunnelInfo.listen_port || 0;
+        set({ tunnelActive: true });
+      } catch (e) {
+        console.warn("Tunnel creation failed (will work without VPN):", e);
+      }
+    }
+
     set({
       currentRoom: room,
       messages: [],
@@ -95,10 +115,15 @@ export const useRoomStore = create<RoomState>((set, get) => ({
       privateKey,
       virtualIp: "10.13.37.1",
     });
-    // Only send WS join if connected
+
+    // Join via WS — include listen_port as endpoint info
     const { wsClient, wsConnected } = get();
     if (wsClient && wsConnected) {
-      wsClient.send("room:join", { roomId: room.id, publicKey });
+      wsClient.send("room:join", {
+        roomId: room.id,
+        publicKey,
+        endpoint: listenPort ? `0.0.0.0:${listenPort}` : "",
+      });
     }
     return room;
   },
@@ -189,7 +214,7 @@ function handleWsMessage(
 
     case "room:player-joined": {
       const room = get().currentRoom;
-      if (!room) return;
+      if (!room) break;
       set({
         currentRoom: {
           ...room,
@@ -213,12 +238,24 @@ function handleWsMessage(
       });
       const { wsClient, publicKey } = get();
       if (wsClient && publicKey) {
-        wsClient.send("peer:offer", {
-          roomId: room.id,
-          targetUserId: payload.userId,
-          publicKey,
-          endpoint: "",
-        });
+        // Get our tunnel's listen port to share with the peer
+        invoke<number>("get_tunnel_listen_port", { roomId: room.id })
+          .then((port) => {
+            wsClient.send("peer:offer", {
+              roomId: room.id,
+              targetUserId: payload.userId,
+              publicKey,
+              endpoint: port > 0 ? `0.0.0.0:${port}` : "",
+            });
+          })
+          .catch(() => {
+            wsClient.send("peer:offer", {
+              roomId: room.id,
+              targetUserId: payload.userId,
+              publicKey,
+              endpoint: "",
+            });
+          });
       }
       break;
     }
