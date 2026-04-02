@@ -34,7 +34,7 @@ export function GroupList({ groups, activeGroupId, unreadGroups, onSelectGroup }
               <span className="text-[13px] font-medium truncate text-[#c6d4df] block">{group.name}</span>
               {group.lastMessage && (
                 <span className="text-[10px] text-[#67707b] truncate block">
-                  {group.lastMessage.sender.username}: {group.lastMessage.content}
+                  {group.lastMessage.sender?.username ?? "?"}: {group.lastMessage.content}
                 </span>
               )}
             </div>

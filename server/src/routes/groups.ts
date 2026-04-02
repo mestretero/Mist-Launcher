@@ -10,6 +10,7 @@ export default async function groupRoutes(app: FastifyInstance) {
     const userId = request.user!.userId;
     const { name, memberIds } = request.body as { name: string; memberIds: string[] };
     if (!name?.trim()) return reply.status(400).send({ error: { message: "Group name required" } });
+    if (name.trim().length > 50) return reply.status(400).send({ error: { message: "Group name too long (max 50)" } });
     if (!memberIds?.length) return reply.status(400).send({ error: { message: "Select at least one member" } });
 
     const group = await groupService.createGroup(userId, name.trim(), memberIds);
@@ -43,6 +44,7 @@ export default async function groupRoutes(app: FastifyInstance) {
     const { id } = request.params as { id: string };
     const { content } = request.body as { content: string };
     if (!content?.trim()) return reply.status(400).send({ error: { message: "Empty message" } });
+    if (content.trim().length > 2000) return reply.status(400).send({ error: { message: "Message too long (max 2000)" } });
 
     const message = await groupService.sendMessage(id, userId, content.trim());
 

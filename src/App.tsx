@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthStore } from "./stores/authStore";
-import { useDownloadStore } from "./stores/downloadStore";
+// import { useDownloadStore } from "./stores/downloadStore"; // disabled: download system not active
 import { useNotificationStore } from "./stores/notificationStore";
 import { useCartStore } from "./stores/cartStore";
 import { Layout } from "./components/Layout";
@@ -15,6 +15,7 @@ import { WishlistPage } from "./pages/WishlistPage";
 import { CartPage } from "./pages/CartPage";
 import { FriendsPage } from "./pages/FriendsPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
+import { VerifyEmailPage } from "./pages/VerifyEmailPage";
 import { CollectionsPage } from "./pages/CollectionsPage";
 import GameScannerPage from "./pages/GameScannerPage";
 import UserProfilePage from "./pages/UserProfilePage";
@@ -24,10 +25,13 @@ import MultiplayerPage from "./pages/MultiplayerPage";
 import RoomPage from "./pages/RoomPage";
 import { ToastContainer } from "./components/ToastContainer";
 import { ChatPanel } from "./components/ChatPanel";
+import { AchievementNotification } from "./components/AchievementNotification";
+import { useAutoUpdate } from "./hooks/useAutoUpdate";
 
 function App() {
-  const { isAuthenticated, isLoading, loadSession } = useAuthStore();
-  const { initListener } = useDownloadStore();
+  const { isAuthenticated, isLoading, pendingEmailVerification, loadSession } = useAuthStore();
+  const { update, downloading, progress, installUpdate } = useAutoUpdate();
+  // const { initListener } = useDownloadStore(); // disabled: download system not active
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
@@ -38,10 +42,12 @@ function App() {
 
   useEffect(() => {
     loadSession();
-    initListener();
+    // initListener(); // disabled: download system not active
 
     // Listen for game close events to sync play time to server
-    let unlisten: (() => void) | undefined;
+    let unlistenGameStatus: (() => void) | undefined;
+    let unlistenAchievement: (() => void) | undefined;
+
     Promise.all([
       import("@tauri-apps/api/event"),
       import("./stores/localGameStore"),
@@ -54,10 +60,32 @@ function App() {
             store.syncSingleGame(game.exe_path, Math.floor(game.play_time / 60), game.title);
           }
         }
-      }).then((fn) => { unlisten = fn; });
+      }).then((fn) => { unlistenGameStatus = fn; });
+
+      // Listen for achievement unlocks detected by the local watcher
+      listen<{ game_id: string; api_name: string; unlocked_at: number }>("achievement-unlocked", async (event) => {
+        const { game_id, api_name, unlocked_at } = event.payload;
+        try {
+          const { api } = await import("./lib/api");
+          const { useAchievementNotifStore } = await import("./stores/achievementNotifStore");
+          const result = await api.achievements.unlock(game_id, api_name, unlocked_at);
+          if (result?.data) {
+            useAchievementNotifStore.getState().show({
+              name: result.data.achievement?.name ?? api_name,
+              description: result.data.achievement?.description,
+              iconUrl: result.data.achievement?.iconUrl,
+            });
+          }
+        } catch {
+          // Achievement not in DB yet or already unlocked — silently ignore
+        }
+      }).then((fn) => { unlistenAchievement = fn; });
     }).catch(() => {});
 
-    return () => { unlisten?.(); };
+    return () => {
+      unlistenGameStatus?.();
+      unlistenAchievement?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -104,6 +132,9 @@ function App() {
   }
 
   if (!isAuthenticated) {
+    if (pendingEmailVerification) {
+      return <><VerifyEmailPage /><ToastContainer /></>;
+    }
     if (showForgotPassword) {
       return <><ForgotPasswordPage onBack={() => setShowForgotPassword(false)} /><ToastContainer /></>;
     }
@@ -168,6 +199,27 @@ function App() {
       {page === "admin" && <AdminPage />}
       <ToastContainer />
       <ChatPanel onNavigate={navigate} />
+      <AchievementNotification />
+      {update && (
+        <div className="fixed bottom-4 right-4 z-[9999] bg-[#0f1923] border border-[#1a9fff]/30 rounded-xl px-5 py-3 shadow-2xl shadow-black/50 flex items-center gap-4 max-w-sm">
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold text-white">MIST {update.version}</p>
+            <p className="text-[11px] text-[#8f98a0] mt-0.5">
+              {downloading ? `Downloading... ${progress}%` : "A new version is available"}
+            </p>
+            {downloading && (
+              <div className="mt-2 h-1.5 bg-[#1a1f2e] rounded-full overflow-hidden">
+                <div className="h-full bg-[#1a9fff] rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+              </div>
+            )}
+          </div>
+          {!downloading && (
+            <button onClick={installUpdate} className="px-4 py-2 bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg transition-colors flex-shrink-0">
+              Update
+            </button>
+          )}
+        </div>
+      )}
     </Layout>
   );
 }

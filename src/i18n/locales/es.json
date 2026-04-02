@@ -23,14 +23,14 @@
     "buy": "Comprar",
     "owned": "Adquirido",
     "free": "Gratis",
-    "insufficientBalance": "SC insuficiente",
+    "insufficientBalance": "MC insuficiente",
     "purchaseSuccess": "¡Tema comprado!",
     "all": "Todos",
     "games": "Juegos",
     "crossovers": "Crossover",
     "myThemes": "Adquiridos",
     "noThemes": "No se encontraron temas.",
-    "dailyBonus": "¡50 SC diarios ganados!",
+    "dailyBonus": "¡50 MC diarios ganados!",
     "preview": "Vista previa",
     "categoryGame": "Juego",
     "categoryCrossover": "Crossover",
@@ -189,8 +189,9 @@
     "subtitle": "Administra tu cuenta y las preferencias de la aplicación.",
     "tabs": {
       "account": "Cuenta",
-      "payments": "Historial de pagos",
-      "downloads": "Descargas",
+      "security": "Seguridad",
+      "privacy": "Privacidad",
+      "notifications": "Notificaciones",
       "scanner": "Escáner",
       "language": "Idioma"
     },
@@ -199,40 +200,64 @@
       "emailNotVerifiedHint": "Revisa tu correo para verificar tu cuenta.",
       "resend": "Reenviar",
       "profile": "Información de perfil",
-      "verificationSent": "Correo de verificación enviado"
-    },
-    "student": {
-      "title": "Descuento estudiante",
-      "hint": "Regístrate con tu correo universitario y obtén un 25% de descuento",
-      "pending": "Pendiente...",
-      "activate": "Activar",
-      "activated": "¡Descuento estudiante activado!",
-      "failed": "Verificación fallida"
+      "verificationSent": "Correo de verificación enviado",
+      "memberSince": "Miembro desde",
+      "logout": "Cerrar sesión",
+      "logoutHint": "Se cerrará la sesión de tu cuenta."
     },
     "referral": {
       "title": "Programa de referidos",
-      "hint": "Comparte tu código con amigos. Cuando se registren y compren juegos, obtendrán un 5% de descuento y tú ganarás un 1% de cashback.",
+      "hint": "Invita amigos a MIST. Cuando se unan con tu código, empezarán con MC de bonificación y tú ganarás recompensas.",
       "copied": "¡Copiado!",
       "copy": "Copiar código"
     },
-    "payments": {
-      "error": "No se pudo cargar el historial de pagos",
-      "success": "Completado",
-      "pending": "Pendiente",
-      "failed": "Fallido",
-      "refunded": "Reembolsado"
+    "security": {
+      "emailSection": "Verificación de correo",
+      "emailVerified": "Tu correo está verificado",
+      "emailNotVerified": "Correo no verificado",
+      "emailNotVerifiedHint": "Revisa tu bandeja de entrada para verificar tu dirección de correo.",
+      "resend": "Enviar de nuevo",
+      "twoFaSection": "Autenticación de dos factores",
+      "twoFaHint": "Usa Microsoft Authenticator, Google Authenticator o cualquier app compatible con TOTP.",
+      "twoFaActive": "2FA está activo — tu cuenta está protegida.",
+      "twoFaInactive": "La autenticación de dos factores no está activada.",
+      "enableTwoFa": "Activar 2FA",
+      "disableTwoFa": "Desactivar 2FA",
+      "confirmDisable": "Confirmar desactivación",
+      "cancel": "Cancelar",
+      "scanQr": "Escanea este código QR con tu app de autenticación e introduce el código de 6 dígitos.",
+      "manualKey": "Clave manual",
+      "enterCode": "Introduce el código de 6 dígitos de tu app de autenticación",
+      "verify": "Verificar y activar",
+      "back": "Volver"
     },
-    "downloads": {
-      "pathUpdated": "Ubicación de descarga actualizada",
-      "pathError": "No se pudo guardar",
-      "noLimit": "Sin límite",
-      "cacheCleared": "Caché limpiada"
+    "privacy": {
+      "title": "Privacidad",
+      "profileSection": "Visibilidad del perfil",
+      "profilePublic": "Perfil público",
+      "profilePublicHint": "Cualquiera puede ver tu página de perfil",
+      "libraryPublic": "Biblioteca pública",
+      "libraryPublicHint": "Muestra tu biblioteca de juegos en tu perfil",
+      "achievementsPublic": "Logros públicos",
+      "achievementsPublicHint": "Muestra tus logros en tu perfil"
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "friendRequests": "Solicitudes de amistad",
+      "friendRequestsHint": "Notificaciones cuando alguien te envía una solicitud de amistad",
+      "groupMessages": "Mensajes de grupo",
+      "groupMessagesHint": "Notificaciones de nuevos mensajes en tus grupos",
+      "achievements": "Logros desbloqueados",
+      "achievementsHint": "Notificaciones cuando desbloqueas un logro",
+      "system": "Notificaciones del sistema",
+      "systemHint": "Actualizaciones, anuncios y alertas de cuenta"
     },
     "scannerSettings": {
-      "title": "Ajustes de escaneo",
+      "title": "Escáner de juegos",
       "scanPaths": "Carpetas de escaneo",
+      "scanPathsHint": "MIST buscará juegos en estas carpetas.",
       "addFolder": "Añadir carpeta",
-      "launcherFilters": "Launchers excluidos por defecto"
+      "noFolders": "Aún no se han añadido carpetas."
     },
     "language": {
       "title": "Idioma de la aplicación",
@@ -324,6 +349,9 @@
     "noSearchResults": "No se encontraron usuarios coincidentes",
     "removed": "Amigo eliminado",
     "removeError": "No se pudo eliminar al amigo",
+    "block": "Bloquear",
+    "blocked": "Usuario bloqueado",
+    "blockError": "No se pudo bloquear",
     "requestAccepted": "Solicitud de amistad aceptada",
     "acceptError": "No se pudo aceptar la solicitud",
     "requestRejected": "Solicitud de amistad rechazada",
@@ -359,6 +387,7 @@
     "noAccount": "¿No tienes cuenta?",
     "registerLink": "Registrarse",
     "loginFailed": "Error al iniciar sesión",
+    "emailNotVerifiedLogin": "Por favor verifica tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada.",
     "twoFATitle": "AUTENTICACIÓN DE DOS FACTORES",
     "twoFAHint": "Ingresa el código de 6 dígitos que aparece en tu aplicación de autenticación.",
     "invalidCode": "Código de verificación inválido",
@@ -389,7 +418,17 @@
     "backToLogin": "Volver al inicio de sesión",
     "sending": "Enviando...",
     "sendResetLink": "Enviar enlace de restablecimiento",
-    "resetError": "Se produjo un error. Por favor inténtalo de nuevo."
+    "resetError": "Se produjo un error. Por favor inténtalo de nuevo.",
+    "rememberMe": "Recordarme",
+    "savedAccounts": "Cuentas guardadas",
+    "differentAccount": "Usar otra cuenta",
+    "verifyEmailTitle": "Verifica tu correo",
+    "verifyEmailHint": "Enviamos un código de 6 dígitos a",
+    "verifyEmailCodeLabel": "Código de verificación",
+    "referralCodeLabel": "Código de referido (Opcional)",
+    "referralCodeHint": "¿Tienes el código de un amigo? Introdúcelo para ganar MC extra.",
+    "referralApplied": "Código aplicado — ¡empezarás con 1000 MC!",
+    "passwordRules": "Mín. 8 caracteres, al menos una mayúscula, una minúscula y un número"
   },
   "profile": {
     "chooseTheme": "Elegir tema",
@@ -415,6 +454,7 @@
     "defaultBio": "Los juegos no son solo una escapada, son puertas a nuevos universos.",
     "updated": "Perfil actualizado",
     "updateError": "No se pudo actualizar el perfil",
+    "usernameTaken": "Este nombre de usuario ya está en uso",
     "showEmail": "Mostrar mi correo electrónico",
     "customStatus": "Estado personalizado",
     "customStatusPlaceholder": "¿Qué estás haciendo?",
@@ -428,6 +468,14 @@
       "favoriteGameDesc": "Destaca un juego como banner grande",
       "achievements": "Logros",
       "achievementsDesc": "Tus logros más recientes o más raros",
+      "perfectGames": "Juegos Perfectos",
+      "perfectGamesDesc": "Juegos donde desbloqueaste todos los logros",
+      "perfectGamesTitle": "Juegos Perfectos",
+      "perfectGamesEmpty": "Aún no tienes juegos perfectos. ¡Desbloquea todos los logros en un juego para exhibirlo aquí!",
+      "perfectGamesLayout": "Diseño",
+      "perfectGamesHint": "Juegos donde desbloqueaste todos los logros.",
+      "grid": "Cuadrícula",
+      "list": "Lista",
       "activity": "Actividad reciente",
       "activityDesc": "Sesiones de juego recientes",
       "text": "Bloque de texto",
@@ -553,7 +601,11 @@
     "enterCode": "Introduce un código de verificación de 6 dígitos"
   },
   "download": {
-    "remaining": "restante"
+    "remaining": "restante",
+    "queueEmpty": "La cola de descarga está vacía",
+    "resume": "Reanudar",
+    "pause": "Pausar",
+    "cancel": "Cancelar"
   },
   "multiplayer": {
     "title": "Multijugador",
@@ -721,6 +773,8 @@
         "addMirror": "+ Agregar Enlace Mirror",
         "sourceName": "ej. Fitgirl",
         "sourceUrl": "https://...",
+        "titlePlaceholder": "ej. GTA V - Full Repack v1.68",
+        "crackInfoPlaceholder": "ej. EMPRESS v1.68",
         "submit": "Compartir",
         "cancel": "Cancelar"
       },
@@ -760,6 +814,30 @@
     "gameRequestsCount": "Solicitudes",
     "requestedBy": "Solicitado por",
     "approve": "Aprobar",
-    "reject": "Rechazar"
+    "reject": "Rechazar",
+    "games": {
+      "tab": "Juegos",
+      "steamSync": "Sincronizar desde Steam",
+      "steamSyncDesc": "Agregar juegos automáticamente desde la API de Steam.",
+      "syncAll": "Sincronización completa",
+      "syncAAA": "Juegos AAA",
+      "syncMostPlayed": "Más jugados",
+      "syncFeatured": "Destacados",
+      "syncing": "Sincronizando...",
+      "syncDone": "{{count}} juegos nuevos añadidos",
+      "syncFailed": "Sincronización fallida",
+      "addByAppId": "Agregar por Steam App ID",
+      "addByAppIdDesc": "Ingresa el ID de la URL de la tienda Steam. Ejemplo: store.steampowered.com/app/730 → 730",
+      "appIdPlaceholder": "Steam App ID (ej. 730)",
+      "addBtn": "Agregar",
+      "addSuccess": "Juego agregado exitosamente",
+      "addFailed": "No se pudo agregar el juego",
+      "searchPlaceholder": "Buscar juegos...",
+      "totalCount": "{{count}} juegos en total",
+      "noGames": "No se encontraron juegos",
+      "deleteConfirm": "será eliminado. ¿Estás seguro?",
+      "deleted": "eliminado",
+      "deleteFailed": "Error al eliminar"
+    }
   }
 }

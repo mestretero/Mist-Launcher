@@ -19,6 +19,8 @@ export function GroupChatView({ group, messages, currentUserId, onClose, onSend 
   const [showMembers, setShowMembers] = useState(false);
   const [addingFriendId, setAddingFriendId] = useState("");
   const [localGroup, setLocalGroup] = useState(group);
+  const [error, setError] = useState("");
+  const [addingLoading, setAddingLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   // Keep localGroup in sync with store
@@ -38,34 +40,43 @@ export function GroupChatView({ group, messages, currentUserId, onClose, onSend 
   }
 
   async function handleKick(userId: string) {
+    if (!window.confirm(t("chat.confirmKick") || "Remove this member from the group?")) return;
+    setError("");
     try {
       await api.groups.removeMember(localGroup.id, userId);
       await loadGroups();
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setError(e?.message || "Failed to remove member");
     }
   }
 
   async function handleLeave() {
-    const warn = isCreator ? t("chat.creatorLeaveWarning") : "";
-    if (warn && !window.confirm(warn)) return;
+    if (isCreator) {
+      const warn = t("chat.creatorLeaveWarning") || "Leaving as creator will delete this group for everyone. Continue?";
+      if (!window.confirm(warn)) return;
+    }
+    setError("");
     try {
       await api.groups.leave(localGroup.id);
       onClose();
       await loadGroups();
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setError(e?.message || "Failed to leave group");
     }
   }
 
   async function handleAddMember() {
-    if (!addingFriendId.trim()) return;
+    if (!addingFriendId.trim() || addingLoading) return;
+    setAddingLoading(true);
+    setError("");
     try {
       await api.groups.addMember(localGroup.id, addingFriendId.trim());
       setAddingFriendId("");
       await loadGroups();
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      setError(e?.message || "Failed to add member");
+    } finally {
+      setAddingLoading(false);
     }
   }
 
@@ -108,6 +119,10 @@ export function GroupChatView({ group, messages, currentUserId, onClose, onSend 
             </div>
           ))}
 
+          {error && (
+            <p className="text-[11px] text-red-400 px-2 py-1">{error}</p>
+          )}
+
           {isCreator && (
             <div className="pt-2 border-t border-[#2a2e38]">
               <p className="text-[10px] font-bold uppercase tracking-widest text-[#67707b]/60 px-1 pb-2">{t("chat.addMember")}</p>
@@ -118,7 +133,7 @@ export function GroupChatView({ group, messages, currentUserId, onClose, onSend 
                   placeholder="User ID..."
                   className="flex-1 px-2 py-1.5 bg-[#1a1c23] border border-[#2a2e38] rounded-lg text-[12px] text-[#c6d4df] placeholder:text-[#67707b]/40 focus:border-[#1a9fff]/50 outline-none"
                 />
-                <button onClick={handleAddMember} disabled={!addingFriendId.trim()}
+                <button onClick={handleAddMember} disabled={!addingFriendId.trim() || addingLoading}
                   className="px-2 py-1.5 bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white rounded-lg text-[11px] disabled:opacity-30 transition-all cursor-pointer">
                   +
                 </button>
@@ -156,7 +171,14 @@ export function GroupChatView({ group, messages, currentUserId, onClose, onSend 
                       isMine ? "bg-[#1a9fff] text-white rounded-2xl rounded-br-sm" : "bg-[#1a1c23] text-[#c6d4df] border border-[#2a2e38] rounded-2xl rounded-bl-sm"
                     }`}>{msg.content}</div>
                     <span className="text-[8px] text-[#67707b]/40 mt-0.5 block px-1">
-                      {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {(() => {
+                        const d = new Date(msg.createdAt);
+                        const today = new Date();
+                        const isToday = d.toDateString() === today.toDateString();
+                        return isToday
+                          ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                          : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      })()}
                     </span>
                   </div>
                 </div>

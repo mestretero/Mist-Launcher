@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useRoomStore } from "../stores/roomStore";
 import { useAuthStore } from "../stores/authStore";
+import { getAvatarUrl } from "../lib/avatar";
 import type { RoomPlayer, RoomMessage } from "../lib/types";
 
 interface Props {
@@ -580,11 +581,7 @@ function PlayerRow({
 }) {
   const { t } = useTranslation();
   const initials = player.user.username.slice(0, 2).toUpperCase();
-  const avatarSrc = player.user.avatarUrl
-    ? player.user.avatarUrl.startsWith("http")
-      ? player.user.avatarUrl
-      : `http://localhost:3001${player.user.avatarUrl}`
-    : null;
+  const avatarSrc = getAvatarUrl(player.user.avatarUrl) || null;
 
   let ledColor = "bg-[#67707b]";
   let ledShadow = "";

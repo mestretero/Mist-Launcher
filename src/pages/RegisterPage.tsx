@@ -1,8 +1,15 @@
 import { useState } from "react";
+import mistLogo from "../assets/mist-logo.png";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { WindowControls } from "../components/WindowControls";
 import { LANGUAGES, changeLanguage } from "../i18n";
+
+const bgCoverModules = import.meta.glob("../assets/bg-covers/*.jpg", { eager: true, import: "default" });
+const BG_COVERS: string[] = (Object.values(bgCoverModules) as string[])
+  .map((v) => ({ v, sort: Math.random() }))
+  .sort((a, b) => a.sort - b.sort)
+  .map(({ v }) => v);
 
 function getPasswordStrength(pw: string, t: (key: string) => string): { level: number; label: string; color: string } {
   let score = 0;
@@ -23,6 +30,7 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +42,7 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
     setError("");
     setLoading(true);
     try {
-      await register(email, username, password);
+      await register(email, username, password, referralCode.trim() || undefined);
     } catch (err: any) {
       setError(err.message || t("auth.registerFailed"));
     } finally {
@@ -49,32 +57,43 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
       focused === name ? "border-[#1a9fff]/50 bg-[#0a0c10]/80" : "border-white/[0.06]"
     }`;
 
+  const COLS = 28;
+  const colCovers = Array.from({ length: COLS }, (_, i) => {
+    const start = (i * 3) % BG_COVERS.length;
+    const slice = [...BG_COVERS.slice(start), ...BG_COVERS].slice(0, 10);
+    return [...slice, ...slice];
+  });
+
   return (
     <div className="relative flex items-center justify-center h-screen overflow-hidden" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
       <WindowControls />
 
-      {/* Background */}
-      <div className="absolute inset-0 bg-[#0a0c10]">
-        <div className="absolute inset-0 opacity-30" style={{
-          background: "radial-gradient(ellipse at 70% 30%, #1c1a4a 0%, transparent 50%), radial-gradient(ellipse at 30% 70%, #1a3a5c 0%, transparent 50%)"
-        }} />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")"
-        }} />
+      {/* Background - diagonal scrolling game cards */}
+      <div className="absolute inset-0 bg-[#030712] overflow-hidden">
+        {colCovers.length > 0 && (
+          <div className="absolute flex" style={{ transform: "rotate(-8deg)", top: "-90vh", left: "-90vw", width: "280vw", height: "280vh", gap: "0.8vw" }}>
+            {colCovers.map((covers, col) => (
+              <div key={col} className={col % 2 === 0 ? "animate-scroll-up" : "animate-scroll-down"}
+                style={{ animationDuration: `${28 + col * 6}s`, display: "flex", flexDirection: "column", gap: "0.8vw", minWidth: "9vw" }}>
+                {covers.map((url, i) => (
+                  <img key={i} src={url} alt="" className="object-cover rounded-lg flex-shrink-0" style={{ opacity: 0.45, width: "9vw", height: "12.5vw" }} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #030712cc 0%, #030712aa 50%, #030712cc 100%)", backdropFilter: "blur(1px)" }} />
       </div>
 
       {/* Glass card */}
       <div className="relative z-10 w-full max-w-[420px] mx-4" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-        <div className="relative bg-[#12151a]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden">
+        <div className="relative bg-[#030712]/95 backdrop-blur-xl border border-white/[0.06] rounded-2xl shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-[1px] bg-gradient-to-r from-transparent via-[#1a9fff]/60 to-transparent" />
 
           <div className="p-8 pb-6">
             {/* Brand */}
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1a9fff] to-[#0066cc] flex items-center justify-center shadow-[0_4px_12px_rgba(26,159,255,0.3)]">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              </div>
-              <span className="text-lg font-black text-white tracking-[0.2em]">MIST</span>
+              <img src={mistLogo} alt="MIST" className="h-16 w-16 object-contain rounded-xl" />
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -105,6 +124,7 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
                 </label>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8}
                   onFocus={() => setFocused("pass")} onBlur={() => setFocused(null)} className={inputCls("pass")} />
+                <p className="text-[10px] text-[#3d4450] mt-1">{t("auth.passwordRules")}</p>
                 {strength && (
                   <div className="mt-2.5">
                     <div className="flex gap-1">
@@ -120,6 +140,29 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
                 )}
               </div>
 
+              {/* Referral Code */}
+              <div className="mb-4">
+                <label className={`text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block transition-colors ${focused === "ref" ? "text-[#1a9fff]" : "text-[#5e6673]"}`}>
+                  {t("auth.referralCodeLabel")}
+                </label>
+                <input
+                  type="text"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  onFocus={() => setFocused("ref")}
+                  onBlur={() => setFocused(null)}
+                  className={inputCls("ref")}
+                  placeholder="FRIEND-CODE"
+                  maxLength={20}
+                  autoComplete="off"
+                />
+                {referralCode.trim().length > 0 && (
+                  <p className="text-[10px] text-[#1a9fff] mt-1.5 font-medium">
+                    {t("auth.referralCodeHint")}
+                  </p>
+                )}
+              </div>
+
               {/* Terms */}
               <label className="flex items-start gap-3 mb-5 cursor-pointer select-none group">
                 <div className="relative flex items-center justify-center mt-0.5">
@@ -128,7 +171,7 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
                   <svg className="absolute w-3 h-3 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <span className="text-[11px] text-[#5e6673] leading-[1.6]">
-                  <span className="text-[#8f98a0] group-hover:text-white transition-colors">{t("auth.termsOfService")}</span> {t("auth.and")} <span className="text-[#8f98a0] group-hover:text-white transition-colors">{t("auth.privacyPolicy")}</span> {t("auth.termsAcceptSuffix")}
+                  <a href="https://mistlauncher.com/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-[#1a9fff] hover:underline">{t("auth.termsOfService")}</a> {t("auth.and")} <a href="https://mistlauncher.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-[#1a9fff] hover:underline">{t("auth.privacyPolicy")}</a> {t("auth.termsAcceptSuffix")}
                 </span>
               </label>
 

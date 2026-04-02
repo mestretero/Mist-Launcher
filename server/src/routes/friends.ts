@@ -48,4 +48,10 @@ export default async function friendRoutes(app: FastifyInstance) {
     await friendshipService.removeFriend(request.user!.userId, id);
     return { data: { success: true } };
   });
+
+  app.post("/friends/:id/block", async (request) => {
+    const { id } = request.params as { id: string };
+    await friendshipService.blockUser(request.user!.userId, id);
+    return { data: { success: true } };
+  });
 }

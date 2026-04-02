@@ -195,5 +195,31 @@ export async function getDashboardStats() {
     prisma.gameRequest.count({ where: { status: "PENDING" } }),
   ]);
 
-  return { totalUsers, bannedUsers, openReports, reportedLinks, gameRequests };
+  const totalGames = await prisma.game.count();
+  return { totalUsers, bannedUsers, openReports, reportedLinks, gameRequests, totalGames };
+}
+
+export async function listGames(search: string | undefined, page: number, limit: number) {
+  const where = search ? { title: { contains: search, mode: "insensitive" as const } } : {};
+  const [games, total] = await Promise.all([
+    prisma.game.findMany({
+      where,
+      select: { id: true, title: true, slug: true, steamAppId: true, coverImageUrl: true, categories: true, createdAt: true, publisher: { select: { name: true } } },
+      orderBy: { title: "asc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.game.count({ where }),
+  ]);
+  return { games, total };
+}
+
+export async function deleteGame(gameId: string) {
+  // Clear related records first
+  await prisma.communityLink.deleteMany({ where: { gameId } });
+  await prisma.review.deleteMany({ where: { gameId } });
+  await prisma.wishlist.deleteMany({ where: { gameId } });
+  await prisma.cartItem.deleteMany({ where: { gameId } });
+  await prisma.achievement.deleteMany({ where: { gameId } });
+  await prisma.game.delete({ where: { id: gameId } });
 }

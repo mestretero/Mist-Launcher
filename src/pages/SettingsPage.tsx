@@ -4,73 +4,170 @@ import { useToastStore } from "../stores/toastStore";
 import { useLocalGameStore } from "../stores/localGameStore";
 import { open } from "@tauri-apps/plugin-dialog";
 import { api } from "../lib/api";
-import { TwoFactorSetup } from "../components/TwoFactorSetup";
 import { useTranslation } from "react-i18next";
-import { LanguageSelector } from "../components/LanguageSelector";
+import { LANGUAGES, changeLanguage } from "../i18n";
 
-interface PaymentRecord {
-  id: string;
-  basePrice: string;
-  finalAmount: string;
-  installmentCount: number;
-  status: string;
-  createdAt: string;
-  game: { title: string; coverImageUrl: string };
+type Tab = "account" | "security" | "privacy" | "notifications" | "scanner" | "language";
+
+// ─── Shared UI Atoms ───────────────────────────────────────────────────────────
+
+function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      onClick={() => onChange(!on)}
+      className={`relative inline-flex h-[22px] w-10 items-center rounded-full transition-colors duration-200 focus:outline-none flex-shrink-0 ${
+        on ? "bg-[#1a9fff]" : "bg-[#202530]"
+      }`}
+    >
+      <span
+        className={`inline-block h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          on ? "translate-x-[22px]" : "translate-x-[4px]"
+        }`}
+      />
+    </button>
+  );
 }
 
+function SettingRow({
+  label,
+  desc,
+  children,
+  noBorder,
+}: {
+  label: string;
+  desc?: string;
+  children: React.ReactNode;
+  noBorder?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center gap-4 py-3.5 ${
+        !noBorder ? "border-b border-white/[0.04]" : ""
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-[13px] font-medium text-[#c6d4df] leading-snug">{label}</p>
+        {desc && (
+          <p className="text-[11px] text-[#4a5260] mt-0.5 leading-relaxed">{desc}</p>
+        )}
+      </div>
+      <div className="flex-shrink-0">{children}</div>
+    </div>
+  );
+}
+
+function SectionBlock({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mb-7">
+      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#3a4050] mb-2.5 px-0.5">
+        {label}
+      </p>
+      <div className="rounded-xl border border-white/[0.06] bg-[#0c0f16] overflow-hidden px-5">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Nav Icons ─────────────────────────────────────────────────────────────────
+
+const icons: Record<Tab, React.ReactNode> = {
+  account: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-3.87 3.58-7 8-7s8 3.13 8 7" />
+    </svg>
+  ),
+  security: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  ),
+  privacy: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  ),
+  notifications: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  ),
+  scanner: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" />
+    </svg>
+  ),
+  language: (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  ),
+};
+
+// ─── Main Component ────────────────────────────────────────────────────────────
+
 export function SettingsPage() {
-  const { t } = useTranslation();
-  const { user, logout } = useAuthStore();
+  const { t, i18n } = useTranslation();
+  const { user, logout, loadSession, updateUser } = useAuthStore();
   const addToast = useToastStore((s) => s.addToast);
-  const [studentEmail, setStudentEmail] = useState("");
-  const [studentStatus, setStudentStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [studentError, setStudentError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"account" | "payments" | "downloads" | "scanner" | "language">("account");
   const { scanConfig, loadScanConfig, updateScanConfig } = useLocalGameStore();
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(false);
-  const [downloadPath, setDownloadPath] = useState("C:/Games/MIST");
-  const [bandwidthLimit, setBandwidthLimit] = useState("0");
 
-  // Load preferences from user object on mount
-  useEffect(() => {
-    if (user?.preferences) {
-      if (user.preferences.downloadPath) setDownloadPath(user.preferences.downloadPath);
-      if (user.preferences.bandwidthLimit) setBandwidthLimit(user.preferences.bandwidthLimit);
-    }
-  }, [user?.preferences]);
+  const [activeTab, setActiveTab] = useState<Tab>("account");
+  const [copied, setCopied] = useState(false);
+
+  // 2FA state
+  const [twoFaStep, setTwoFaStep] = useState<"idle" | "setup" | "verify">("idle");
+  const [qrCode, setQrCode] = useState("");
+  const [twoFaSecret, setTwoFaSecret] = useState("");
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaLoading, setTwoFaLoading] = useState(false);
+  const [twoFaError, setTwoFaError] = useState("");
+  const [confirmDisable, setConfirmDisable] = useState(false);
+
+  // Email verification state
+  const [emailCode, setEmailCode] = useState("");
+  const [emailVerifyLoading, setEmailVerifyLoading] = useState(false);
+  const [emailVerifyError, setEmailVerifyError] = useState("");
+  const [emailCodeSent, setEmailCodeSent] = useState(false);
+
+  // Privacy prefs (from user.preferences)
+  const prefs = (user?.preferences ?? {}) as Record<string, unknown>;
+  const [profilePublic, setProfilePublic] = useState(prefs.profilePublic !== false);
+  const [libraryPublic, setLibraryPublic] = useState(prefs.libraryPublic !== false);
+  const [achievementsPublic, setAchievementsPublic] = useState(prefs.achievementsPublic !== false);
+
+  // Notification prefs
+  const [notifyFriends, setNotifyFriends] = useState(prefs.notifyFriendRequests !== false);
+  const [notifyGroups, setNotifyGroups] = useState(prefs.notifyGroupMessages !== false);
+  const [notifyAchievements, setNotifyAchievements] = useState(prefs.notifyAchievements !== false);
+  const [notifySystem, setNotifySystem] = useState(prefs.notifySystem !== false);
 
   useEffect(() => {
-    if (activeTab === "scanner" && !scanConfig) {
-      loadScanConfig();
-    }
+    if (activeTab === "scanner" && !scanConfig) loadScanConfig();
   }, [activeTab]);
 
-  useEffect(() => {
-    if (activeTab === "payments" && payments.length === 0) {
-      setPaymentsLoading(true);
-      api.payments.history()
-        .then((data) => { if (Array.isArray(data)) setPayments(data); })
-        .catch(() => addToast(t("settings.payments.error"), "error"))
-        .finally(() => setPaymentsLoading(false));
-    }
-  }, [activeTab]);
-
-  const handleVerifyStudent = async () => {
-    setStudentStatus("loading");
-    setStudentError("");
+  const savePreference = async (key: string, value: unknown) => {
     try {
-      await api.auth.verifyStudent(studentEmail);
-      setStudentStatus("success");
-      addToast(t("settings.student.activated"), "success");
-    } catch (err: any) {
-      setStudentError(err.message || t("settings.student.failed"));
-      setStudentStatus("error");
+      await api.auth.updatePreferences({ [key]: value });
+    } catch {
+      addToast(t("common.error"), "error");
     }
   };
 
-  const copyReferralCode = () => {
+  const copyReferral = () => {
     if (user?.referralCode) {
       navigator.clipboard.writeText(user.referralCode);
       setCopied(true);
@@ -79,471 +176,652 @@ export function SettingsPage() {
     }
   };
 
-  const tabs = [
-    { id: "account" as const, label: t("settings.tabs.account") },
-    { id: "payments" as const, label: t("settings.tabs.payments") },
-    { id: "downloads" as const, label: t("settings.tabs.downloads") },
-    { id: "scanner" as const, label: t("settings.tabs.scanner") },
-    { id: "language" as const, label: t("settings.tabs.language") },
-  ];
+  // 2FA actions
+  const handleEnable2FA = async () => {
+    setTwoFaLoading(true);
+    setTwoFaError("");
+    try {
+      const res = await api.auth.twoFactor.setup();
+      setQrCode(res.qrCodeDataUrl);
+      setTwoFaSecret(res.secret);
+      setTwoFaStep("setup");
+    } catch (err: any) {
+      setTwoFaError(err.message || t("twoFactor.setupFailed"));
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
 
-  const handleScannerAddPath = async () => {
+  const handleVerify2FA = async () => {
+    if (twoFaCode.length !== 6) return;
+    setTwoFaLoading(true);
+    setTwoFaError("");
+    try {
+      await api.auth.twoFactor.verify(twoFaCode);
+      updateUser({ twoFactorEnabled: true });
+      addToast(t("twoFactor.activated"), "success");
+      setTwoFaStep("idle");
+      setTwoFaCode("");
+      await loadSession();
+    } catch (err: any) {
+      setTwoFaError(err.message || t("twoFactor.invalidCode"));
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    setTwoFaLoading(true);
+    try {
+      await api.auth.twoFactor.disable();
+      updateUser({ twoFactorEnabled: false });
+      addToast(t("twoFactor.disabled"), "info");
+      setConfirmDisable(false);
+      await loadSession();
+    } catch {
+      addToast(t("twoFactor.disableFailed"), "error");
+    } finally {
+      setTwoFaLoading(false);
+    }
+  };
+
+  // Scanner actions
+  const addScanPath = async () => {
     const dir = await open({ directory: true, multiple: false });
     if (dir && scanConfig) {
-      const newPaths = [...scanConfig.scan_paths, dir as string];
-      await updateScanConfig({ ...scanConfig, scan_paths: newPaths });
+      await updateScanConfig({ ...scanConfig, scan_paths: [...scanConfig.scan_paths, dir as string] });
       addToast(t("settings.scannerSettings.addFolder"), "success");
     }
   };
 
-  const handleScannerRemovePath = async (path: string) => {
+  const removeScanPath = async (path: string) => {
     if (scanConfig) {
-      const newPaths = scanConfig.scan_paths.filter(p => p !== path);
-      await updateScanConfig({ ...scanConfig, scan_paths: newPaths });
+      await updateScanConfig({ ...scanConfig, scan_paths: scanConfig.scan_paths.filter((p) => p !== path) });
     }
   };
 
-  const handleToggleLauncher = async (launcher: string) => {
-    if (!scanConfig) return;
-    const excluded = scanConfig.exclude_launchers;
-    const newExcluded = excluded.includes(launcher)
-      ? excluded.filter(l => l !== launcher)
-      : [...excluded, launcher];
-    await updateScanConfig({ ...scanConfig, exclude_launchers: newExcluded });
+  const formatDate = (d?: string) => {
+    if (!d) return "";
+    return new Date(d).toLocaleDateString(i18n.language === "tr" ? "tr-TR" : "en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-  };
-
-  const statusLabels: Record<string, { text: string; color: string }> = {
-    SUCCESS: { text: t("settings.payments.success"), color: "text-green-400" },
-    PENDING: { text: t("settings.payments.pending"), color: "text-yellow-400" },
-    FAILED: { text: t("settings.payments.failed"), color: "text-red-400" },
-    REFUNDED: { text: t("settings.payments.refunded"), color: "text-blue-400" },
-  };
+  const NAV_TABS: Tab[] = ["account", "security", "privacy", "notifications", "scanner", "language"];
 
   return (
-    <div className="flex h-full bg-[#1a1c23] font-sans text-[#c6d4df] overflow-hidden">
+    <div className="flex h-full bg-[#0b0d11] font-sans text-[#c6d4df] overflow-hidden">
 
-      {/* Left Sidebar - Navigation */}
-      <div className="w-[300px] flex-shrink-0 bg-[#161920] border-r border-[#2a2e38] flex flex-col p-8 z-10 shadow-2xl">
-        <h1 className="text-3xl font-black text-white uppercase tracking-widest mb-10 drop-shadow-sm flex items-center gap-3">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          {t("settings.title")}
-        </h1>
+      {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
+      <div className="w-[210px] flex-shrink-0 flex flex-col border-r border-white/[0.05] bg-[#0d1018] pt-8 pb-4">
+        {/* Title */}
+        <div className="px-5 mb-6">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#3a4050]">
+            {t("settings.title")}
+          </p>
+        </div>
 
-        <div className="flex flex-col gap-2">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
+        {/* Nav */}
+        <nav className="flex flex-col gap-0.5 px-2 flex-1">
+          {NAV_TABS.map((tab) => {
+            const isActive = activeTab === tab;
             return (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`text-left px-5 py-3.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[12.5px] font-medium transition-all text-left ${
                   isActive
-                    ? "bg-[#2a2e38] text-white shadow-md border-l-4 border-[#47bfff]"
-                    : "text-[#8f98a0] hover:text-white hover:bg-[#20232c] border-l-4 border-transparent"
+                    ? "bg-[#1a1f2e] text-[#1a9fff]"
+                    : "text-[#5e6673] hover:text-[#c6d4df] hover:bg-white/[0.03]"
                 }`}
               >
-                {tab.label}
+                <span className={isActive ? "text-[#1a9fff]" : "text-[#3d4450]"}>
+                  {icons[tab]}
+                </span>
+                {t(`settings.tabs.${tab}`)}
               </button>
             );
           })}
-        </div>
-      </div>
+        </nav>
 
-      {/* Right Content Area */}
-      <div className="flex-1 overflow-y-auto bg-gradient-to-br from-[#1a1c23] to-[#0f1115] custom-scrollbar">
-        <div className="max-w-[900px] mx-auto p-12 py-16">
-
-          {/* Main Title Header */}
-          <div className="mb-10 border-b border-[#2a2e38] pb-6 flex items-end justify-between">
-            <div>
-              <h2 className="text-4xl font-black text-white uppercase tracking-widest drop-shadow-md">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h2>
-              <p className="text-[#8f98a0] mt-2 font-medium text-sm">{t("settings.subtitle")}</p>
+        {/* User info at bottom */}
+        {user && (
+          <div className="px-4 pt-4 border-t border-white/[0.04]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-[#1a1f2e] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                <span className="text-[10px] font-black text-[#1a9fff]">
+                  {user.username?.slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-[#8f98a0] truncate">{user.username}</p>
+              </div>
             </div>
           </div>
+        )}
+      </div>
 
-          <div className="space-y-8 pb-32">
+      {/* ── Content ──────────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="max-w-[640px] mx-auto px-8 py-10 pb-20">
 
-            {/* Account Tab Content */}
-            {activeTab === "account" && (
-              <>
-                {!user?.isEmailVerified && (
-                  <div className="rounded-xl bg-orange-900/20 border border-orange-700/50 p-5 flex items-center justify-between shadow-xl">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-orange-500/10 flex items-center justify-center">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-orange-400" strokeWidth="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-orange-400 uppercase tracking-widest">{t("settings.account.emailNotVerified")}</p>
-                        <p className="text-xs font-semibold text-orange-400/70 mt-1">{t("settings.account.emailNotVerifiedHint")}</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { api.auth.verifyEmail("resend").catch(() => {}); addToast(t("settings.account.verificationSent"), "success"); }}
-                      className="px-6 py-2.5 rounded text-[11px] font-black uppercase tracking-widest bg-orange-600/20 text-orange-400 hover:bg-orange-600/40 transition-colors"
-                    >
-                      {t("settings.account.resend")}
-                    </button>
+          {/* ─ Account Tab ─────────────────────────────────────────────────── */}
+          {activeTab === "account" && (
+            <>
+              {/* Profile section */}
+              <SectionBlock label={t("settings.account.profile")}>
+                <div className="py-5 flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-[#1a1f2e] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                    <span className="text-base font-black text-[#1a9fff]">
+                      {user?.username?.slice(0, 2).toUpperCase() ?? "?"}
+                    </span>
                   </div>
-                )}
-
-                {/* Profile Box */}
-                <section className="bg-gradient-to-tr from-[#161a20] to-[#1a1c23] border border-[#2a2e38] rounded-xl p-8 shadow-xl flex items-center gap-8 relative overflow-hidden">
-                  <div className="absolute right-0 top-0 h-full w-64 bg-gradient-to-l from-[#2a2e38]/20 to-transparent pointer-events-none" />
-
-                  <div className="w-24 h-24 rounded-full bg-[#2a2e38] border-4 border-[#3d4450] flex items-center justify-center shadow-lg relative z-10">
-                    <span className="text-4xl font-black text-white">{user?.username?.slice(0, 2).toUpperCase() || "?"}</span>
-                  </div>
-                  <div className="relative z-10">
-                    <h3 className="text-[10px] font-black text-[#47bfff] uppercase tracking-widest mb-1">{t("settings.account.profile")}</h3>
-                    <div className="text-3xl font-black text-white uppercase tracking-wider mb-1">{user?.username}</div>
-                    <div className="text-sm font-bold text-[#8f98a0]">{user?.email}</div>
-                  </div>
-                </section>
-
-                {/* Student Discount Block */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl ring-1 ring-white/5">
-                  <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 border-b border-[#2a2e38] pb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-purple-500" />
-                    {t("settings.student.title")}
-                  </h3>
-
-                  {user?.isStudent || studentStatus === "success" ? (
-                    <div className="flex items-center gap-5 bg-[#2a2e38]/40 border border-[#3d4450] p-5 rounded-xl">
-                      <div className="w-12 h-12 rounded-full bg-purple-500/20 border border-purple-500/50 flex items-center justify-center">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-purple-400" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <div>
-                        <span className="text-purple-400 text-lg font-black tracking-wide block mb-1 uppercase">{t("settings.student.activated")}</span>
-                        <span className="text-xs font-bold text-[#8f98a0]">{t("settings.student.hint")}</span>
-                      </div>
-                      <div className="ml-auto flex shrink-0 items-center justify-center w-16 h-16 rounded-full bg-[#1a1c23] border-4 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-                         <span className="font-black text-purple-400">-%10</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm text-[#8f98a0] font-medium mb-5 leading-relaxed bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
-                        {t("settings.student.hint")}
+                  <div>
+                    <p className="text-[15px] font-bold text-white">{user?.username}</p>
+                    <p className="text-[12px] text-[#5e6673] mt-0.5">{user?.email}</p>
+                    {user?.createdAt && (
+                      <p className="text-[11px] text-[#3d4450] mt-0.5">
+                        {t("settings.account.memberSince")} {formatDate(user.createdAt)}
                       </p>
-                      <div className="flex gap-4">
-                        <input
-                          type="email"
-                          placeholder="ornek@universite.edu.tr"
-                          value={studentEmail}
-                          onChange={(e) => setStudentEmail(e.target.value)}
-                          className="flex-1 px-5 py-3.5 rounded-lg bg-[#0f1115] border border-[#2a2e38] text-white text-sm focus:outline-none focus:border-[#47bfff] transition-all placeholder-[#5e6673] shadow-inner"
-                        />
-                        <button
-                          onClick={handleVerifyStudent}
-                          disabled={studentStatus === "loading" || !studentEmail.endsWith(".edu.tr")}
-                          className="px-8 py-3.5 rounded-lg bg-gradient-to-r from-[#47bfff] to-[#1a70cb] text-white text-xs font-black disabled:opacity-50 transition-all hover:scale-105 uppercase tracking-widest shadow-lg"
-                        >
-                          {studentStatus === "loading" ? t("settings.student.pending") : t("settings.student.activate")}
-                        </button>
-                      </div>
-                      {studentError && <p className="text-red-400 text-xs mt-3 font-bold pl-2">{studentError}</p>}
-                    </div>
-                  )}
-                </section>
+                    )}
+                  </div>
+                </div>
+              </SectionBlock>
 
-                {/* Referral Code Block */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl ring-1 ring-white/5">
-                  <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 border-b border-[#2a2e38] pb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500" />
-                    {t("settings.referral.title")}
-                  </h3>
-                  <p className="text-sm text-[#8f98a0] font-medium mb-5 leading-relaxed bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
+              {/* Referral code */}
+              <SectionBlock label={t("settings.referral.title")}>
+                <div className="py-3.5">
+                  <p className="text-[11px] text-[#4a5260] mb-3 leading-relaxed">
                     {t("settings.referral.hint")}
                   </p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 px-5 py-4 rounded-lg bg-[#0f1115] border border-[#2a2e38] text-xl font-black tracking-[0.2em] text-center text-green-400 uppercase shadow-inner">
-                      {user?.referralCode || "—"}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 px-4 py-2.5 rounded-lg bg-[#080a0f] border border-white/[0.06] font-mono text-[14px] font-bold text-[#1a9fff] tracking-[0.12em]">
+                      {user?.referralCode ?? "—"}
                     </div>
                     <button
-                      onClick={copyReferralCode}
-                      className="px-8 py-4 rounded-lg bg-[#2a2e38] text-white text-xs font-black transition-colors hover:bg-[#3d4450] uppercase tracking-widest min-w-[160px] shadow-lg border border-[#3d4450]"
+                      onClick={copyReferral}
+                      className={`px-4 py-2.5 rounded-lg text-[12px] font-semibold transition-all border ${
+                        copied
+                          ? "bg-green-500/10 border-green-500/30 text-green-400"
+                          : "bg-[#1a1f2e] border-white/[0.07] text-[#8f98a0] hover:text-white hover:border-white/[0.15]"
+                      }`}
                     >
-                      {copied ? t("settings.referral.copied") : t("settings.referral.copy")}
+                      {copied ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                          {t("settings.referral.copied")}
+                        </span>
+                      ) : t("settings.referral.copy")}
                     </button>
                   </div>
-                </section>
+                </div>
+              </SectionBlock>
 
-                {/* 2FA Form */}
-                <TwoFactorSetup
-                  enabled={!!user?.twoFactorEnabled}
-                  onClose={() => {}}
-                />
-
-                {/* Logout Danger Zone */}
-                <section className="bg-red-950/20 border border-red-900/30 rounded-xl p-8 shadow-xl relative overflow-hidden">
-                  <h3 className="text-[11px] font-black text-red-500 uppercase tracking-widest mb-4">{t("nav.logout")}</h3>
-                  <p className="text-sm text-[#8f98a0] mb-6">{t("settings.subtitle")}</p>
+              {/* Logout */}
+              <SectionBlock label={t("settings.account.logout")}>
+                <SettingRow label={t("settings.account.logout")} desc={t("settings.account.logoutHint")} noBorder>
                   <button
                     onClick={logout}
-                    className="px-8 py-3 rounded-lg bg-red-900/40 border border-red-900 text-red-400 text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-md"
+                    className="px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-semibold hover:bg-red-500/20 transition-colors"
                   >
-                    {t("nav.logout")}
+                    {t("settings.account.logout")}
                   </button>
-                </section>
-              </>
-            )}
+                </SettingRow>
+              </SectionBlock>
+            </>
+          )}
 
-            {/* Payment History Tab Content */}
-            {activeTab === "payments" && (
-              <div className="space-y-4">
-                {paymentsLoading ? (
-                  <div className="text-center py-24 bg-[#1a1c23]/60 rounded-xl border border-[#2a2e38]">
-                    <div className="w-12 h-12 rounded-full mx-auto mb-6 border-4 border-[#2a2e38] border-t-[#47bfff] animate-spin" />
-                    <p className="text-[#8f98a0] text-xs font-black uppercase tracking-widest">{t("common.loading")}</p>
-                  </div>
-                ) : payments.length === 0 ? (
-                  <div className="text-center py-24 bg-[#1a1c23]/60 border border-[#2a2e38] rounded-xl flex flex-col items-center">
-                    <svg className="mb-6 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-                    </svg>
-                    <p className="text-[#8f98a0] text-sm font-black uppercase tracking-widest">{t("settings.payments.error")}</p>
-                  </div>
+          {/* ─ Security Tab ────────────────────────────────────────────────── */}
+          {activeTab === "security" && (
+            <>
+              {/* Email Verification */}
+              <SectionBlock label={t("settings.security.emailSection")}>
+                {user?.isEmailVerified ? (
+                  <SettingRow
+                    label={t("settings.security.emailVerified")}
+                    desc={user.email}
+                    noBorder
+                  >
+                    <span className="flex items-center gap-1.5 text-[11px] font-semibold text-green-400">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+                      {t("settings.security.emailVerified")}
+                    </span>
+                  </SettingRow>
                 ) : (
-                  <div className="overflow-hidden rounded-xl border border-[#2a2e38] bg-[#1a1c23]/80 backdrop-blur shadow-2xl">
-                    {payments.map((payment, idx) => {
-                      const status = statusLabels[payment.status] || { text: payment.status, color: "text-[#8f98a0]" };
-                      return (
-                        <div key={payment.id} className={`flex items-center gap-6 p-6 ${idx !== payments.length -1 ? 'border-b border-[#2a2e38]' : ''} hover:bg-[#20232c] transition-colors`}>
-                          <img
-                            src={payment.game.coverImageUrl}
-                            alt={payment.game.title}
-                            className="w-20 h-28 rounded object-cover flex-shrink-0 shadow-md border border-[#2a2e38]"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-lg font-black text-white uppercase tracking-widest truncate mb-1">{payment.game.title}</h4>
-                            <div className="text-xs font-bold text-[#8f98a0] flex items-center gap-2">
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                              {formatDate(payment.createdAt)}
-                            </div>
-                            {payment.installmentCount > 1 && (
-                              <div className="inline-block mt-3 px-2 py-1 bg-[#2a2e38] rounded text-[10px] text-[#c6d4df] font-black uppercase tracking-widest border border-[#3d4450]">
-                                {payment.installmentCount}x
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0 min-w-[120px]">
-                            <div className="text-2xl font-black text-white">{parseFloat(payment.finalAmount).toFixed(2)} TL</div>
-                            <div className={`inline-block mt-1 px-3 py-1 bg-[#161920] rounded-full text-[10px] font-black uppercase tracking-widest border border-[#2a2e38] ${status.color}`}>
-                              {status.text}
-                            </div>
-                          </div>
+                  <div className="py-3.5 space-y-3">
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/[0.07] border border-amber-500/20">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 flex-shrink-0">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      <div>
+                        <p className="text-[12px] font-medium text-amber-400">{t("settings.security.emailNotVerified")}</p>
+                        <p className="text-[11px] text-amber-400/60 mt-0.5">{user?.email}</p>
+                      </div>
+                    </div>
+
+                    {!emailCodeSent ? (
+                      <button
+                        onClick={async () => {
+                          setEmailVerifyLoading(true);
+                          setEmailVerifyError("");
+                          try {
+                            await api.auth.resendVerification();
+                            setEmailCodeSent(true);
+                            addToast(t("settings.account.verificationSent"), "success");
+                          } catch (err: any) {
+                            setEmailVerifyError(err.message || t("common.error"));
+                          } finally {
+                            setEmailVerifyLoading(false);
+                          }
+                        }}
+                        disabled={emailVerifyLoading}
+                        className="px-4 py-2 rounded-lg bg-[#1a9fff]/10 border border-[#1a9fff]/30 text-[#1a9fff] text-[12px] font-semibold hover:bg-[#1a9fff]/20 transition-colors disabled:opacity-50"
+                      >
+                        {emailVerifyLoading ? "..." : t("settings.security.resend")}
+                      </button>
+                    ) : (
+                      <>
+                        <p className="text-[12px] text-[#8f98a0]">{t("settings.security.enterCode")}</p>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={emailCode}
+                          onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                          placeholder="000000"
+                          autoFocus
+                          className="w-full px-4 py-3 rounded-lg bg-[#080a0f] border border-white/[0.06] text-white text-center text-xl tracking-[0.5em] font-mono focus:outline-none focus:border-[#1a9fff]/50 transition-colors placeholder-[#2a2e38]"
+                        />
+                        {emailVerifyError && <p className="text-red-400 text-[11px] font-medium">{emailVerifyError}</p>}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={async () => {
+                              if (emailCode.length !== 6) return;
+                              setEmailVerifyLoading(true);
+                              setEmailVerifyError("");
+                              try {
+                                await api.auth.verifyEmail(emailCode);
+                                updateUser({ isEmailVerified: true });
+                                addToast(t("settings.security.emailVerified"), "success");
+                                setEmailCodeSent(false);
+                                setEmailCode("");
+                              } catch (err: any) {
+                                setEmailVerifyError(err.message || t("common.error"));
+                              } finally {
+                                setEmailVerifyLoading(false);
+                              }
+                            }}
+                            disabled={emailCode.length !== 6 || emailVerifyLoading}
+                            className="px-4 py-2 rounded-lg bg-[#1a9fff]/10 border border-[#1a9fff]/30 text-[#1a9fff] text-[12px] font-semibold hover:bg-[#1a9fff]/20 transition-colors disabled:opacity-40"
+                          >
+                            {emailVerifyLoading ? "..." : t("settings.security.verify")}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              setEmailVerifyLoading(true);
+                              try {
+                                await api.auth.resendVerification();
+                                setEmailCode("");
+                                setEmailVerifyError("");
+                                addToast(t("settings.account.verificationSent"), "success");
+                              } catch {
+                                addToast(t("common.error"), "error");
+                              } finally {
+                                setEmailVerifyLoading(false);
+                              }
+                            }}
+                            disabled={emailVerifyLoading}
+                            className="px-4 py-2 rounded-lg bg-[#1a1f2e] text-[#8f98a0] text-[12px] font-medium hover:text-white transition-colors disabled:opacity-50"
+                          >
+                            {t("settings.security.resend")}
+                          </button>
                         </div>
-                      );
-                    })}
+                      </>
+                    )}
+                    {emailVerifyError && !emailCodeSent && <p className="text-red-400 text-[11px] font-medium">{emailVerifyError}</p>}
                   </div>
                 )}
-              </div>
-            )}
+              </SectionBlock>
 
-            {/* Downloads Tab Content */}
-            {activeTab === "downloads" && (
-              <div className="space-y-8">
-                {/* Download Location */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl">
-                  <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#47bfff]" />
-                    {t("settings.tabs.downloads")}
-                  </h3>
-                  <p className="text-sm text-[#8f98a0] font-medium mb-5 bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
-                    {t("settings.downloads.pathUpdated")}
+              {/* Two-Factor Authentication */}
+              <SectionBlock label={t("settings.security.twoFaSection")}>
+                <div className="py-3.5">
+                  <p className="text-[11px] text-[#4a5260] mb-4 leading-relaxed">
+                    {t("settings.security.twoFaHint")}
                   </p>
-                  <div className="flex gap-4">
-                    <input
-                      type="text"
-                      value={downloadPath}
-                      onChange={(e) => setDownloadPath(e.target.value)}
-                      className="flex-1 px-5 py-3.5 rounded-lg bg-[#0f1115] border border-[#2a2e38] text-white text-sm focus:outline-none focus:border-[#47bfff] transition-all font-mono shadow-inner"
-                    />
-                    <button
-                      onClick={async () => {
-                        try {
-                          await api.auth.updatePreferences({ downloadPath });
-                          addToast(t("settings.downloads.pathUpdated"), "success");
-                        } catch { addToast(t("settings.downloads.pathError"), "error"); }
-                      }}
-                      className="px-8 py-3.5 rounded-lg bg-[#2a2e38] text-white text-xs font-black transition-colors hover:bg-[#3d4450] uppercase tracking-widest border border-[#3d4450] shadow-md"
-                    >
-                      {t("common.save")}
-                    </button>
-                  </div>
-                </section>
 
-                {/* Bandwidth Limit */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl">
-                  <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#47bfff]" />
-                    {t("settings.tabs.downloads")}
-                  </h3>
-                  <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      {[
-                        { value: "0", label: t("settings.downloads.noLimit") },
-                        { value: "10485760", label: "10 MB/s" },
-                        { value: "5242880", label: "5 MB/s" },
-                        { value: "2097152", label: "2 MB/s" },
-                        { value: "1048576", label: "1 MB/s" },
-                        { value: "524288", label: "512 KB/s" },
-                      ].map((opt) => {
-                        const isActive = bandwidthLimit === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            onClick={async () => {
-                              setBandwidthLimit(opt.value);
-                              try {
-                                await api.auth.updatePreferences({ bandwidthLimit: opt.value });
-                                addToast(opt.label, "success");
-                              } catch { addToast(t("common.error"), "error"); }
-                            }}
-                            className={`px-4 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all border-2 ${
-                              isActive
-                                ? "bg-[#47bfff]/10 text-[#47bfff] border-[#47bfff] shadow-[0_4px_16px_rgba(71,191,255,0.15)]"
-                                : "bg-[#20232c]/50 text-[#67707b] border-[#2a2e38] hover:border-[#3d4450] hover:text-[#8f98a0]"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
+                  {/* Microsoft Authenticator badge */}
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0a0e18] border border-white/[0.06] text-[10px] text-[#5e6673] font-medium">
+                      <span className="w-2 h-2 rounded-full bg-[#00a4ef]" />
+                      Microsoft Authenticator
+                    </div>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0a0e18] border border-white/[0.06] text-[10px] text-[#5e6673] font-medium">
+                      <span className="w-2 h-2 rounded-full bg-[#4285f4]" />
+                      Google Authenticator
                     </div>
                   </div>
-                </section>
 
-                {/* Cache Clear */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-6 shadow-xl flex items-center justify-between">
-                  <div>
-                    <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-1">{t("settings.tabs.downloads")}</h3>
-                    <p className="text-xs font-bold text-[#67707b]">{t("settings.downloads.cacheCleared")}</p>
-                  </div>
-                  <button
-                    onClick={() => addToast(t("settings.downloads.cacheCleared"), "success")}
-                    className="px-6 py-2.5 rounded-lg bg-[#2a2e38] border border-[#3d4450] text-[#c6d4df] hover:bg-[#3d4450] hover:text-white transition-all text-xs font-black uppercase tracking-widest shadow-md"
-                  >
-                    {t("common.delete")}
-                  </button>
-                </section>
-              </div>
-            )}
+                  {/* 2FA Status */}
+                  {user?.twoFactorEnabled ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-500/[0.07] border border-green-500/20">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-green-400 flex-shrink-0">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <p className="text-[12px] font-medium text-green-400">{t("settings.security.twoFaActive")}</p>
+                      </div>
 
-            {/* Scanner Tab Content */}
-            {activeTab === "scanner" && (
-              <div className="space-y-8">
-                {/* Scan Paths */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl">
-                  <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 border-b border-[#2a2e38] pb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow-500" />
-                    {t("settings.scannerSettings.scanPaths")}
-                  </h3>
-                  <p className="text-sm text-[#8f98a0] font-medium mb-6 bg-[#20232c]/50 p-4 rounded-lg border border-[#2a2e38]">
-                    {t("settings.scannerSettings.title")}
-                  </p>
+                      {!confirmDisable ? (
+                        <button
+                          onClick={() => setConfirmDisable(true)}
+                          className="text-[12px] font-medium text-[#5e6673] hover:text-red-400 transition-colors"
+                        >
+                          {t("settings.security.disableTwoFa")}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleDisable2FA}
+                            disabled={twoFaLoading}
+                            className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-semibold hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                          >
+                            {twoFaLoading ? "..." : t("settings.security.confirmDisable")}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDisable(false)}
+                            className="px-3 py-1.5 rounded-lg bg-[#1a1f2e] text-[#8f98a0] text-[12px] font-medium hover:text-white transition-colors"
+                          >
+                            {t("settings.security.cancel")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : twoFaStep === "idle" ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[#0a0e18] border border-white/[0.06]">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-[#4a5260] flex-shrink-0">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                        </svg>
+                        <p className="text-[12px] text-[#4a5260]">{t("settings.security.twoFaInactive")}</p>
+                      </div>
+                      <button
+                        onClick={handleEnable2FA}
+                        disabled={twoFaLoading}
+                        className="px-4 py-2 rounded-lg bg-[#1a9fff]/10 border border-[#1a9fff]/30 text-[#1a9fff] text-[12px] font-semibold hover:bg-[#1a9fff]/20 transition-colors disabled:opacity-50"
+                      >
+                        {twoFaLoading ? t("twoFactor.loading") : t("settings.security.enableTwoFa")}
+                      </button>
+                      {twoFaError && <p className="text-red-400 text-[11px] font-medium">{twoFaError}</p>}
+                    </div>
+                  ) : twoFaStep === "setup" ? (
+                    <div className="space-y-4">
+                      <p className="text-[12px] text-[#8f98a0] leading-relaxed">{t("settings.security.scanQr")}</p>
 
-                  {!scanConfig ? (
-                    <div className="flex items-center gap-3 text-[#47bfff] font-bold text-sm bg-[#1a1c23] p-6 rounded-xl border border-[#2a2e38]">
-                      <div className="w-5 h-5 border-2 border-[#47bfff] border-t-transparent rounded-full animate-spin" />
-                      {t("common.loading")}
+                      {qrCode && (
+                        <div className="w-[160px] h-[160px] rounded-xl overflow-hidden border border-white/[0.08] bg-white p-2">
+                          <img src={qrCode} alt="2FA QR" className="w-full h-full object-contain" />
+                        </div>
+                      )}
+
+                      {twoFaSecret && (
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#3d4450] mb-1.5">
+                            {t("settings.security.manualKey")}
+                          </p>
+                          <code className="block text-[11px] font-mono text-[#8f98a0] bg-[#080a0f] border border-white/[0.06] px-3 py-2 rounded-lg select-all">
+                            {twoFaSecret}
+                          </code>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setTwoFaStep("verify")}
+                          className="px-4 py-2 rounded-lg bg-[#1a9fff]/10 border border-[#1a9fff]/30 text-[#1a9fff] text-[12px] font-semibold hover:bg-[#1a9fff]/20 transition-colors"
+                        >
+                          {t("twoFactor.continueBtn")}
+                        </button>
+                        <button
+                          onClick={() => setTwoFaStep("idle")}
+                          className="px-4 py-2 rounded-lg bg-[#1a1f2e] text-[#8f98a0] text-[12px] font-medium hover:text-white transition-colors"
+                        >
+                          {t("settings.security.cancel")}
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-3 mb-6">
-                        {scanConfig.scan_paths.length === 0 && (
-                          <div className="text-center py-10 bg-[#0f1115] border border-dashed border-[#2a2e38] rounded-xl text-[#5e6673] font-bold uppercase tracking-widest text-xs">
-                            {t("settings.scannerSettings.scanPaths")}
-                          </div>
-                        )}
+                    <div className="space-y-3">
+                      <p className="text-[12px] text-[#8f98a0]">{t("settings.security.enterCode")}</p>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={twoFaCode}
+                        onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000"
+                        autoFocus
+                        className="w-full px-4 py-3 rounded-lg bg-[#080a0f] border border-white/[0.06] text-white text-center text-xl tracking-[0.5em] font-mono focus:outline-none focus:border-[#1a9fff]/50 transition-colors placeholder-[#2a2e38]"
+                      />
+                      {twoFaError && <p className="text-red-400 text-[11px] font-medium">{twoFaError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleVerify2FA}
+                          disabled={twoFaCode.length !== 6 || twoFaLoading}
+                          className="px-4 py-2 rounded-lg bg-[#1a9fff]/10 border border-[#1a9fff]/30 text-[#1a9fff] text-[12px] font-semibold hover:bg-[#1a9fff]/20 transition-colors disabled:opacity-40"
+                        >
+                          {twoFaLoading ? "..." : t("settings.security.verify")}
+                        </button>
+                        <button
+                          onClick={() => { setTwoFaStep("setup"); setTwoFaError(""); setTwoFaCode(""); }}
+                          className="px-4 py-2 rounded-lg bg-[#1a1f2e] text-[#8f98a0] text-[12px] font-medium hover:text-white transition-colors"
+                        >
+                          {t("settings.security.back")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </SectionBlock>
+            </>
+          )}
+
+          {/* ─ Privacy Tab ─────────────────────────────────────────────────── */}
+          {activeTab === "privacy" && (
+            <SectionBlock label={t("settings.privacy.profileSection")}>
+              <SettingRow
+                label={t("settings.privacy.profilePublic")}
+                desc={t("settings.privacy.profilePublicHint")}
+              >
+                <Toggle
+                  on={profilePublic}
+                  onChange={(v) => {
+                    setProfilePublic(v);
+                    savePreference("profilePublic", v);
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("settings.privacy.libraryPublic")}
+                desc={t("settings.privacy.libraryPublicHint")}
+              >
+                <Toggle
+                  on={libraryPublic}
+                  onChange={(v) => {
+                    setLibraryPublic(v);
+                    savePreference("libraryPublic", v);
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("settings.privacy.achievementsPublic")}
+                desc={t("settings.privacy.achievementsPublicHint")}
+                noBorder
+              >
+                <Toggle
+                  on={achievementsPublic}
+                  onChange={(v) => {
+                    setAchievementsPublic(v);
+                    savePreference("achievementsPublic", v);
+                  }}
+                />
+              </SettingRow>
+            </SectionBlock>
+          )}
+
+          {/* ─ Notifications Tab ───────────────────────────────────────────── */}
+          {activeTab === "notifications" && (
+            <SectionBlock label={t("settings.notifications.title")}>
+              <SettingRow
+                label={t("settings.notifications.friendRequests")}
+                desc={t("settings.notifications.friendRequestsHint")}
+              >
+                <Toggle
+                  on={notifyFriends}
+                  onChange={(v) => {
+                    setNotifyFriends(v);
+                    savePreference("notifyFriendRequests", v);
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("settings.notifications.groupMessages")}
+                desc={t("settings.notifications.groupMessagesHint")}
+              >
+                <Toggle
+                  on={notifyGroups}
+                  onChange={(v) => {
+                    setNotifyGroups(v);
+                    savePreference("notifyGroupMessages", v);
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("settings.notifications.achievements")}
+                desc={t("settings.notifications.achievementsHint")}
+              >
+                <Toggle
+                  on={notifyAchievements}
+                  onChange={(v) => {
+                    setNotifyAchievements(v);
+                    savePreference("notifyAchievements", v);
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                label={t("settings.notifications.system")}
+                desc={t("settings.notifications.systemHint")}
+                noBorder
+              >
+                <Toggle
+                  on={notifySystem}
+                  onChange={(v) => {
+                    setNotifySystem(v);
+                    savePreference("notifySystem", v);
+                  }}
+                />
+              </SettingRow>
+            </SectionBlock>
+          )}
+
+          {/* ─ Scanner Tab ─────────────────────────────────────────────────── */}
+          {activeTab === "scanner" && (
+            <SectionBlock label={t("settings.scannerSettings.title")}>
+              <div className="py-3.5 space-y-3">
+                <p className="text-[11px] text-[#4a5260] leading-relaxed">
+                  {t("settings.scannerSettings.scanPathsHint")}
+                </p>
+
+                {!scanConfig ? (
+                  <div className="flex items-center gap-2 text-[#4a5260] text-[12px]">
+                    <div className="w-4 h-4 border-2 border-[#3d4450] border-t-[#1a9fff] rounded-full animate-spin" />
+                    {t("common.loading")}
+                  </div>
+                ) : (
+                  <>
+                    {scanConfig.scan_paths.length === 0 ? (
+                      <p className="text-[12px] text-[#3d4450] py-2">{t("settings.scannerSettings.noFolders")}</p>
+                    ) : (
+                      <div className="space-y-1.5">
                         {scanConfig.scan_paths.map((path) => (
-                          <div key={path} className="flex items-center justify-between bg-[#0f1115] border border-[#2a2e38] rounded-lg px-5 py-3">
-                            <span className="text-white text-sm font-mono truncate flex-1 tracking-wide">{path}</span>
+                          <div
+                            key={path}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#080a0f] border border-white/[0.05]"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-[#3d4450] flex-shrink-0">
+                              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                            </svg>
+                            <span className="text-[12px] font-mono text-[#8f98a0] truncate flex-1">{path}</span>
                             <button
-                              onClick={() => handleScannerRemovePath(path)}
-                              className="text-red-400 hover:text-red-300 bg-red-900/10 px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors border border-red-900/30"
+                              onClick={() => removeScanPath(path)}
+                              className="text-[#3d4450] hover:text-red-400 transition-colors flex-shrink-0"
                             >
-                              {t("scanner.remove")}
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <line x1="18" y1="6" x2="6" y2="18" />
+                                <line x1="6" y1="6" x2="18" y2="18" />
+                              </svg>
                             </button>
                           </div>
                         ))}
                       </div>
+                    )}
+
+                    <button
+                      onClick={addScanPath}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-white/[0.1] text-[#5e6673] hover:text-[#c6d4df] hover:border-white/[0.2] text-[12px] font-medium transition-all"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <line x1="12" y1="5" x2="12" y2="19" />
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                      {t("settings.scannerSettings.addFolder")}
+                    </button>
+                  </>
+                )}
+              </div>
+            </SectionBlock>
+          )}
+
+          {/* ─ Language Tab ────────────────────────────────────────────────── */}
+          {activeTab === "language" && (
+            <SectionBlock label={t("settings.language.title")}>
+              <div className="py-3">
+                <p className="text-[11px] text-[#4a5260] mb-4 leading-relaxed">{t("settings.language.hint")}</p>
+                <div className="space-y-1">
+                  {LANGUAGES.map((lang) => {
+                    const isActive = i18n.language === lang.code;
+                    return (
                       <button
-                        onClick={handleScannerAddPath}
-                        className="px-6 py-3 rounded-lg bg-[#2a2e38] text-white text-xs font-black transition-colors hover:bg-[#3d4450] uppercase tracking-widest border border-[#3d4450] shadow-md flex items-center gap-2 justify-center w-full"
+                        key={lang.code}
+                        onClick={() => changeLanguage(lang.code)}
+                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-left ${
+                          isActive
+                            ? "bg-[#1a1f2e] border border-[#1a9fff]/20"
+                            : "hover:bg-white/[0.02] border border-transparent"
+                        }`}
                       >
-                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                        {t("settings.scannerSettings.addFolder")}
+                        <span className="text-xl leading-none">{lang.flag}</span>
+                        <div className="flex-1">
+                          <p className={`text-[13px] font-semibold ${isActive ? "text-white" : "text-[#8f98a0]"}`}>
+                            {lang.name}
+                          </p>
+                          <p className="text-[10px] text-[#3d4450] uppercase tracking-wider mt-0.5">{lang.code}</p>
+                        </div>
+                        {isActive && (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#1a9fff]">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
                       </button>
-                    </>
-                  )}
-                </section>
-
-                {/* Launcher Filters */}
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl">
-                   <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 border-b border-[#2a2e38] pb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-500" />
-                    {t("settings.scannerSettings.launcherFilters")}
-                  </h3>
-                  <p className="text-sm text-[#8f98a0] font-medium mb-6">
-                    {t("settings.scannerSettings.launcherFilters")}
-                  </p>
-
-                  {!scanConfig ? (
-                    <div className="h-20 bg-[#2a2e38]/50 animate-pulse rounded-xl" />
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                      {["steam", "epic", "ubisoft", "ea", "gog", "battlenet"].map((launcher) => {
-                        const isExcluded = scanConfig.exclude_launchers.includes(launcher);
-                        return (
-                          <label key={launcher} className={`flex items-center gap-4 cursor-pointer group p-4 rounded-xl border-2 transition-all ${isExcluded ? 'bg-red-950/20 border-red-900/50' : 'bg-[#0f1115] border-[#2a2e38] hover:border-[#3d4450]'}`}>
-                            <div className="relative">
-                              <input
-                                type="checkbox"
-                                checked={isExcluded}
-                                onChange={() => handleToggleLauncher(launcher)}
-                                className="sr-only"
-                              />
-                              <div className={`w-5 h-5 rounded border ${isExcluded ? 'bg-red-500 border-red-500' : 'bg-[#1a1c23] border-[#3d4450]'} flex items-center justify-center transition-colors`}>
-                                {isExcluded && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                              </div>
-                            </div>
-                            <div className="flex flex-col">
-                               <span className={`text-sm font-black uppercase tracking-widest ${isExcluded ? 'text-red-400' : 'text-white'}`}>{launcher}</span>
-                               <span className={`text-[10px] font-bold ${isExcluded ? 'text-red-500/70 block' : 'hidden'}`}>{t("settings.scannerSettings.launcherFilters")}</span>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
+                    );
+                  })}
+                </div>
               </div>
-            )}
+            </SectionBlock>
+          )}
 
-            {/* Language Tab Content */}
-            {activeTab === "language" && (
-              <div className="space-y-8">
-                <section className="bg-[#1a1c23]/60 backdrop-blur-md border border-[#2a2e38] rounded-xl p-8 shadow-xl">
-                  <h3 className="text-[11px] font-black text-white uppercase tracking-widest mb-6 border-b border-[#2a2e38] pb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#47bfff]" />
-                    {t("settings.language.title")}
-                  </h3>
-                  <p className="text-sm text-[#8f98a0] font-medium mb-6">
-                    {t("settings.language.hint")}
-                  </p>
-                  <LanguageSelector />
-                </section>
-              </div>
-            )}
-
-          </div>
         </div>
       </div>
     </div>

@@ -22,7 +22,7 @@ export async function deposit(userId: string, amount: number) {
       amount,
       type: "DEPOSIT",
       balanceAfter: user.walletBalance,
-      description: `${amount} TL yüklendi`,
+      description: `${amount} MC yüklendi`,
     },
   });
 
@@ -30,7 +30,7 @@ export async function deposit(userId: string, amount: number) {
     userId,
     "SYSTEM",
     "Bakiye Yüklendi",
-    `Cüzdanınıza ${amount} TL yüklendi.`,
+    `Cüzdanınıza ${amount} MC yüklendi.`,
     { transactionId: tx.id }
   );
 
@@ -54,7 +54,7 @@ export async function deduct(userId: string, amount: number, referenceId?: strin
       type: "PURCHASE",
       referenceId,
       balanceAfter: updated.walletBalance,
-      description: description || `${amount} TL harcandı`,
+      description: description || `${amount} MC harcandı`,
     },
   });
 
@@ -82,7 +82,7 @@ export async function addEarning(userId: string, amount: number, referenceId?: s
       type: "REFERRAL_EARNING",
       referenceId,
       balanceAfter: user.walletBalance,
-      description: `Referans kazancı: ${amount} TL`,
+      description: `Referans kazancı: ${amount} MC`,
     },
   });
 

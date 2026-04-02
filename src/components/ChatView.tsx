@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { getAvatarUrl } from "../lib/avatar";
 
 interface DmMessage {
   id: string;
@@ -55,7 +56,7 @@ export function ChatView({ friend, messages, currentUserId, onClose, onSend, onN
         >
           <div className="relative">
             {friend.avatarUrl ? (
-              <img src={friend.avatarUrl.startsWith("http") ? friend.avatarUrl : `http://localhost:3001${friend.avatarUrl}`} alt="" className="w-8 h-8 rounded-lg object-cover ring-2 ring-[#2a2e38]" />
+              <img src={getAvatarUrl(friend.avatarUrl) || ""} alt="" className="w-8 h-8 rounded-lg object-cover ring-2 ring-[#2a2e38]" />
             ) : (
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] flex items-center justify-center text-[10px] font-black text-[#c6d4df] ring-2 ring-[#2a2e38]">
                 {friend.username.slice(0, 2).toUpperCase()}
@@ -64,7 +65,7 @@ export function ChatView({ friend, messages, currentUserId, onClose, onSend, onN
             {friend.online && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#1a1c23]" />}
           </div>
           <div className="text-left">
-            <span className="text-[13px] font-bold text-white block leading-tight">{friend.username}</span>
+            <span className="text-[13px] font-bold text-white block leading-tight truncate max-w-[200px]">{friend.username}</span>
             <span className={`text-[10px] leading-tight ${friend.online ? "text-emerald-400" : "text-[#67707b]"}`}>
               {friend.online ? t("chat.online") : t("chat.offline")}
             </span>

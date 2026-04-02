@@ -23,14 +23,14 @@
     "buy": "Kaufen",
     "owned": "Besitzt",
     "free": "Kostenlos",
-    "insufficientBalance": "Nicht genug SC",
+    "insufficientBalance": "Nicht genug MC",
     "purchaseSuccess": "Thema gekauft!",
     "all": "Alle",
     "games": "Spiele",
     "crossovers": "Crossover",
     "myThemes": "Besitzt",
     "noThemes": "Keine Themen gefunden.",
-    "dailyBonus": "Tägliche 50 SC verdient!",
+    "dailyBonus": "Tägliche 50 MC verdient!",
     "preview": "Vorschau",
     "categoryGame": "Spiel",
     "categoryCrossover": "Crossover",
@@ -189,8 +189,9 @@
     "subtitle": "Konto- und App-Einstellungen verwalten.",
     "tabs": {
       "account": "Konto",
-      "payments": "Zahlungsverlauf",
-      "downloads": "Downloads",
+      "security": "Sicherheit",
+      "privacy": "Datenschutz",
+      "notifications": "Benachrichtigungen",
       "scanner": "Scanner",
       "language": "Sprache"
     },
@@ -199,40 +200,64 @@
       "emailNotVerifiedHint": "Überprüfe deine E-Mail, um dein Konto zu bestätigen.",
       "resend": "Erneut senden",
       "profile": "Profilinformationen",
-      "verificationSent": "Bestätigungs-E-Mail gesendet"
-    },
-    "student": {
-      "title": "Studentenrabatt",
-      "hint": "Registriere dich mit deiner Uni-E-Mail und erhalte 25% Rabatt",
-      "pending": "Ausstehend...",
-      "activate": "Aktivieren",
-      "activated": "Studentenrabatt aktiviert!",
-      "failed": "Verifizierung fehlgeschlagen"
+      "verificationSent": "Bestätigungs-E-Mail gesendet",
+      "memberSince": "Mitglied seit",
+      "logout": "Abmelden",
+      "logoutHint": "Du wirst von deinem Konto abgemeldet."
     },
     "referral": {
       "title": "Empfehlungsprogramm",
-      "hint": "Teile deinen Code mit Freunden. Wenn sie sich anmelden und Spiele kaufen, erhalten sie 5% Rabatt und du bekommst 1% Cashback.",
+      "hint": "Lade Freunde zu MIST ein. Wenn sie mit deinem Code beitreten, starten sie mit Bonus-MC und du erhältst Belohnungen.",
       "copied": "Kopiert!",
       "copy": "Code kopieren"
     },
-    "payments": {
-      "error": "Zahlungsverlauf konnte nicht geladen werden",
-      "success": "Erfolgreich",
-      "pending": "Ausstehend",
-      "failed": "Fehlgeschlagen",
-      "refunded": "Erstattet"
+    "security": {
+      "emailSection": "E-Mail-Verifizierung",
+      "emailVerified": "Deine E-Mail ist verifiziert",
+      "emailNotVerified": "E-Mail nicht verifiziert",
+      "emailNotVerifiedHint": "Überprüfe dein Postfach, um deine E-Mail-Adresse zu bestätigen.",
+      "resend": "Erneut senden",
+      "twoFaSection": "Zwei-Faktor-Authentifizierung",
+      "twoFaHint": "Verwende Microsoft Authenticator, Google Authenticator oder eine andere TOTP-kompatible App.",
+      "twoFaActive": "2FA ist aktiv — dein Konto ist geschützt.",
+      "twoFaInactive": "Zwei-Faktor-Authentifizierung ist nicht aktiviert.",
+      "enableTwoFa": "2FA aktivieren",
+      "disableTwoFa": "2FA deaktivieren",
+      "confirmDisable": "Deaktivierung bestätigen",
+      "cancel": "Abbrechen",
+      "scanQr": "Scanne diesen QR-Code mit deiner Authenticator-App und gib dann den 6-stelligen Code ein.",
+      "manualKey": "Manueller Schlüssel",
+      "enterCode": "Gib den 6-stelligen Code aus deiner Authenticator-App ein",
+      "verify": "Verifizieren & Aktivieren",
+      "back": "Zurück"
     },
-    "downloads": {
-      "pathUpdated": "Download-Speicherort aktualisiert",
-      "pathError": "Speichern nicht möglich",
-      "noLimit": "Kein Limit",
-      "cacheCleared": "Cache geleert"
+    "privacy": {
+      "title": "Datenschutz",
+      "profileSection": "Profilsichtbarkeit",
+      "profilePublic": "Öffentliches Profil",
+      "profilePublicHint": "Jeder kann deine Profilseite sehen",
+      "libraryPublic": "Öffentliche Bibliothek",
+      "libraryPublicHint": "Zeige deine Spielebibliothek in deinem Profil",
+      "achievementsPublic": "Öffentliche Erfolge",
+      "achievementsPublicHint": "Zeige deine Erfolge in deinem Profil"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "friendRequests": "Freundschaftsanfragen",
+      "friendRequestsHint": "Benachrichtigungen, wenn jemand eine Freundschaftsanfrage sendet",
+      "groupMessages": "Gruppennachrichten",
+      "groupMessagesHint": "Benachrichtigungen für neue Nachrichten in deinen Gruppen",
+      "achievements": "Freischaltung von Erfolgen",
+      "achievementsHint": "Benachrichtigungen, wenn du einen Erfolg freischaltest",
+      "system": "Systembenachrichtigungen",
+      "systemHint": "Updates, Ankündigungen und Kontobenachrichtigungen"
     },
     "scannerSettings": {
-      "title": "Scan-Einstellungen",
+      "title": "Spielscanner",
       "scanPaths": "Scan-Ordner",
+      "scanPathsHint": "MIST sucht in diesen Ordnern nach Spielen.",
       "addFolder": "Ordner hinzufügen",
-      "launcherFilters": "Standardmäßig ausgeschlossene Launcher"
+      "noFolders": "Noch keine Ordner hinzugefügt."
     },
     "language": {
       "title": "App-Sprache",
@@ -324,6 +349,9 @@
     "noSearchResults": "Keine passenden Nutzer gefunden",
     "removed": "Freund entfernt",
     "removeError": "Freund konnte nicht entfernt werden",
+    "block": "Blockieren",
+    "blocked": "Benutzer blockiert",
+    "blockError": "Blockierung fehlgeschlagen",
     "requestAccepted": "Freundschaftsanfrage angenommen",
     "acceptError": "Anfrage konnte nicht angenommen werden",
     "requestRejected": "Freundschaftsanfrage abgelehnt",
@@ -359,6 +387,7 @@
     "noAccount": "Noch kein Konto?",
     "registerLink": "Registrieren",
     "loginFailed": "Anmeldung fehlgeschlagen",
+    "emailNotVerifiedLogin": "Bitte bestätige deine E-Mail-Adresse, bevor du dich anmeldest. Überprüfe deinen Posteingang.",
     "twoFATitle": "ZWEI-FAKTOR-AUTHENTIFIZIERUNG",
     "twoFAHint": "Gib den 6-stelligen Code aus deiner Authentifizierungs-App ein.",
     "invalidCode": "Ungültiger Bestätigungscode",
@@ -389,7 +418,17 @@
     "backToLogin": "Zurück zur Anmeldung",
     "sending": "Wird gesendet...",
     "sendResetLink": "Link zum Zurücksetzen senden",
-    "resetError": "Ein Fehler ist aufgetreten. Bitte versuche es erneut."
+    "resetError": "Ein Fehler ist aufgetreten. Bitte versuche es erneut.",
+    "rememberMe": "Angemeldet bleiben",
+    "savedAccounts": "Gespeicherte Konten",
+    "differentAccount": "Anderes Konto verwenden",
+    "verifyEmailTitle": "E-Mail bestätigen",
+    "verifyEmailHint": "Wir haben einen 6-stelligen Code gesendet an",
+    "verifyEmailCodeLabel": "Bestätigungscode",
+    "referralCodeLabel": "Empfehlungscode (Optional)",
+    "referralCodeHint": "Hast du einen Code eines Freundes? Gib ihn ein und erhalte Bonus-MC.",
+    "referralApplied": "Code angewendet — du startest mit 1000 MC!",
+    "passwordRules": "Min. 8 Zeichen, mindestens ein Großbuchstabe, ein Kleinbuchstabe und eine Zahl"
   },
   "profile": {
     "chooseTheme": "Thema wählen",
@@ -415,6 +454,7 @@
     "defaultBio": "Spiele sind nicht nur Flucht, sie sind Tore zu neuen Universen.",
     "updated": "Profil aktualisiert",
     "updateError": "Profil konnte nicht aktualisiert werden",
+    "usernameTaken": "Dieser Benutzername ist bereits vergeben",
     "showEmail": "E-Mail-Adresse anzeigen",
     "customStatus": "Benutzerdefinierter Status",
     "customStatusPlaceholder": "Was machst du gerade?",
@@ -428,6 +468,14 @@
       "favoriteGameDesc": "Ein Spiel als großes Banner hervorheben",
       "achievements": "Erfolge",
       "achievementsDesc": "Deine neuesten oder seltensten Erfolge",
+      "perfectGames": "Perfekte Spiele",
+      "perfectGamesDesc": "Spiele, bei denen du alle Erfolge freigeschaltet hast",
+      "perfectGamesTitle": "Perfekte Spiele",
+      "perfectGamesEmpty": "Noch keine perfekten Spiele. Schalte alle Erfolge in einem Spiel frei, um es hier zu präsentieren!",
+      "perfectGamesLayout": "Layout",
+      "perfectGamesHint": "Spiele, bei denen du alle Erfolge freigeschaltet hast.",
+      "grid": "Raster",
+      "list": "Liste",
       "activity": "Letzte Aktivität",
       "activityDesc": "Zuletzt gespielte Sitzungen",
       "text": "Textblock",
@@ -553,7 +601,11 @@
     "enterCode": "6-stelligen Bestätigungscode eingeben"
   },
   "download": {
-    "remaining": "verbleibend"
+    "remaining": "verbleibend",
+    "queueEmpty": "Download-Warteschlange ist leer",
+    "resume": "Fortsetzen",
+    "pause": "Pause",
+    "cancel": "Abbrechen"
   },
   "multiplayer": {
     "title": "Mehrspieler",
@@ -721,6 +773,8 @@
         "addMirror": "+ Mirror-Link hinzufügen",
         "sourceName": "z.B. Fitgirl",
         "sourceUrl": "https://...",
+        "titlePlaceholder": "z.B. GTA V - Full Repack v1.68",
+        "crackInfoPlaceholder": "z.B. EMPRESS v1.68",
         "submit": "Teilen",
         "cancel": "Abbrechen"
       },
@@ -760,6 +814,30 @@
     "gameRequestsCount": "Spielanfragen",
     "requestedBy": "Angefragt von",
     "approve": "Genehmigen",
-    "reject": "Ablehnen"
+    "reject": "Ablehnen",
+    "games": {
+      "tab": "Spiele",
+      "steamSync": "Von Steam synchronisieren",
+      "steamSyncDesc": "Spiele automatisch von der Steam-API hinzufügen.",
+      "syncAll": "Vollständige Synchronisierung",
+      "syncAAA": "AAA-Spiele",
+      "syncMostPlayed": "Meistgespielt",
+      "syncFeatured": "Empfohlen",
+      "syncing": "Synchronisiere...",
+      "syncDone": "{{count}} neue Spiele hinzugefügt",
+      "syncFailed": "Synchronisierung fehlgeschlagen",
+      "addByAppId": "Per Steam App ID hinzufügen",
+      "addByAppIdDesc": "Gib die ID aus der Steam-Store-URL ein. Beispiel: store.steampowered.com/app/730 → 730",
+      "appIdPlaceholder": "Steam App ID (z.B. 730)",
+      "addBtn": "Hinzufügen",
+      "addSuccess": "Spiel erfolgreich hinzugefügt",
+      "addFailed": "Spiel konnte nicht hinzugefügt werden",
+      "searchPlaceholder": "Spiele suchen...",
+      "totalCount": "{{count}} Spiele insgesamt",
+      "noGames": "Keine Spiele gefunden",
+      "deleteConfirm": "wird gelöscht. Bist du sicher?",
+      "deleted": "gelöscht",
+      "deleteFailed": "Löschen fehlgeschlagen"
+    }
   }
 }

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
+import { getAvatarUrl } from "../lib/avatar";
 import type { Friend } from "../lib/types";
 
 type Tab = "friends" | "pending" | "search";
@@ -90,6 +91,19 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
     }
   };
 
+  const handleBlockUser = async (id: string) => {
+    setRemovingId(id);
+    try {
+      await api.friends.block(id);
+      setFriends((prev) => prev.filter((f) => f.friendshipId !== id));
+      addToast(t("friends.blocked"), "success");
+    } catch {
+      addToast(t("friends.blockError"), "error");
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
   const handleAccept = async (id: string) => {
     setProcessingId(id);
     try {
@@ -155,7 +169,7 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
     return (name || "??").slice(0, 2).toUpperCase();
   };
 
-  const containerClass = "max-w-[1400px] mx-auto px-10";
+  const containerClass = "max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10";
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "friends", label: t("friends.tabFriends") },
@@ -166,33 +180,31 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   return (
     <div className="bg-brand-950 font-sans pb-20 mt-4 min-h-[calc(100vh-48px)]">
       <div className={containerClass}>
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6 border-b border-brand-800 pb-2">
-          <h2 className="text-xl font-bold text-brand-100 uppercase tracking-widest">
+        {/* Header + Tabs */}
+        <div className="mb-8">
+          <h2 className="text-xl font-black text-white uppercase tracking-[0.2em] mb-6">
             {t("friends.title")}
           </h2>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-6 border-b border-brand-800 pb-1 mb-8">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`text-sm font-bold uppercase tracking-widest pb-3 border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? "text-brand-100 border-brand-200"
-                  : "text-brand-500 border-transparent hover:text-brand-200"
-              }`}
-            >
-              {tab.label}
-              {tab.id === "pending" && pending.length > 0 && (
-                <span className="ml-2 text-[10px] font-black px-2 py-0.5 rounded bg-brand-200 text-brand-950">
-                  {pending.length}
-                </span>
-              )}
-            </button>
-          ))}
+          <div className="flex items-center gap-1 bg-[#0a0c10]/40 rounded-xl p-1 w-fit">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${
+                  activeTab === tab.id
+                    ? "text-white bg-[#1a9fff]/20 shadow-[0_0_12px_rgba(26,159,255,0.1)]"
+                    : "text-[#5e6673] hover:text-white hover:bg-white/[0.04]"
+                }`}
+              >
+                {tab.label}
+                {tab.id === "pending" && pending.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] text-[10px] font-black px-1 rounded-full bg-[#1a9fff] text-white flex items-center justify-center">
+                    {pending.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Friends Tab */}
@@ -240,46 +252,71 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {friends.map((friend) => (
                   <div
                     key={friend.friendshipId}
-                    onClick={() => onNavigate?.("user-profile", friend.username)}
-                    className="flex items-center gap-4 bg-brand-900 border border-brand-800 rounded p-4 hover:border-brand-600 transition-colors cursor-pointer"
+                    className="group flex items-center gap-4 bg-[#1a1c23]/60 border border-white/[0.04] rounded-xl p-4 hover:bg-[#1a1c23] hover:border-white/[0.08] transition-all duration-200"
                   >
-                    {/* Avatar */}
-                    {friend.avatarUrl ? (
-                      <img
-                        src={friend.avatarUrl.startsWith("http") ? friend.avatarUrl : `http://localhost:3001${friend.avatarUrl}`}
-                        alt={friend.username}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-brand-800 flex items-center justify-center text-sm font-bold text-brand-200">
-                        {getInitials(friend.username)}
-                      </div>
-                    )}
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-bold text-brand-100 truncate block">
-                        {friend.username}
-                      </span>
-                      {friend.bio && (
-                        <p className="text-xs text-brand-500 truncate mt-0.5">
-                          {friend.bio}
-                        </p>
+                    {/* Avatar with online dot */}
+                    <div
+                      className="relative cursor-pointer flex-shrink-0"
+                      onClick={() => onNavigate?.("user-profile", friend.username)}
+                    >
+                      {friend.avatarUrl ? (
+                        <img
+                          src={getAvatarUrl(friend.avatarUrl) || ""}
+                          alt={friend.username}
+                          className="w-11 h-11 rounded-full object-cover ring-2 ring-white/[0.06]"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1a9fff]/20 to-[#1a1c23] ring-2 ring-white/[0.06] flex items-center justify-center text-sm font-black text-[#c6d4df]">
+                          {getInitials(friend.username)}
+                        </div>
+                      )}
+                      {friend.online && (
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-[2.5px] border-[#1a1c23]" />
                       )}
                     </div>
 
-                    {/* Remove */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.friendshipId); }}
-                      disabled={removingId === friend.friendshipId}
-                      className="px-4 py-2 text-xs font-bold text-brand-500 hover:text-red-400 bg-brand-800 hover:bg-brand-800/80 rounded transition-colors uppercase tracking-widest disabled:opacity-50"
+                    {/* Info */}
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onNavigate?.("user-profile", friend.username)}
                     >
-                      {t("friends.remove")}
-                    </button>
+                      <span className="text-sm font-bold text-white truncate block group-hover:text-[#1a9fff] transition-colors">
+                        {friend.username}
+                      </span>
+                      <p className="text-[11px] truncate mt-0.5">
+                        {friend.online ? (
+                          <span className="text-emerald-400 font-medium">{t("chat.online")}</span>
+                        ) : friend.bio ? (
+                          <span className="text-[#5e6673]">{friend.bio}</span>
+                        ) : (
+                          <span className="text-[#3d4450]">{t("chat.offline")}</span>
+                        )}
+                      </p>
+                    </div>
+
+                    {/* Actions — visible on hover */}
+                    <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemoveFriend(friend.friendshipId); }}
+                        disabled={removingId === friend.friendshipId}
+                        className="p-2 rounded-lg text-[#5e6673] hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-50"
+                        title={t("friends.remove")}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleBlockUser(friend.friendshipId); }}
+                        disabled={removingId === friend.friendshipId}
+                        className="p-2 rounded-lg text-[#5e6673] hover:text-red-400 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                        title={t("friends.block")}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -336,27 +373,31 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                     key={req.friendshipId}
                     className="flex items-center gap-4 bg-brand-900 border border-brand-800 rounded p-4 hover:border-brand-600 transition-colors"
                   >
-                    {/* Avatar */}
-                    {req.avatarUrl ? (
-                      <img
-                        src={req.avatarUrl?.startsWith("http") ? req.avatarUrl : `http://localhost:3001${req.avatarUrl}`}
-                        alt={req.username}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-brand-800 flex items-center justify-center text-sm font-bold text-brand-200">
-                        {getInitials(req.username)}
-                      </div>
-                    )}
+                    {/* Avatar + Info — clickable to profile */}
+                    <div
+                      className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onNavigate?.("user-profile", req.username)}
+                    >
+                      {req.avatarUrl ? (
+                        <img
+                          src={getAvatarUrl(req.avatarUrl) || ""}
+                          alt={req.username}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-brand-800 flex items-center justify-center text-sm font-bold text-brand-200">
+                          {getInitials(req.username)}
+                        </div>
+                      )}
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-brand-100 truncate">
-                        {req.username}
-                      </h4>
-                      <p className="text-[10px] text-brand-500 font-medium uppercase tracking-widest mt-0.5">
-                        {t("friends.friendRequest")}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-bold text-brand-100 truncate hover:text-[#1a9fff] transition-colors">
+                          {req.username}
+                        </h4>
+                        <p className="text-[10px] text-brand-500 font-medium uppercase tracking-widest mt-0.5">
+                          {t("friends.friendRequest")}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Accept / Reject */}
@@ -408,47 +449,57 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="w-full pl-12 pr-4 py-3 rounded bg-brand-900 border border-brand-800 text-brand-100 text-sm font-medium focus:outline-none focus:border-brand-500 transition-colors placeholder-brand-600"
+                  className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-[#0a0c10]/60 border border-white/[0.06] text-white text-sm font-medium focus:outline-none focus:border-[#1a9fff]/40 focus:bg-[#0a0c10]/80 transition-all placeholder-[#3d4450]"
                 />
               </div>
               <button
                 onClick={handleSearch}
                 disabled={searchLoading || !searchQuery.trim()}
-                className="px-6 py-3 rounded text-sm font-bold bg-brand-200 text-brand-950 hover:bg-white transition-colors uppercase tracking-widest disabled:opacity-50"
+                className="px-6 py-3.5 rounded-xl text-sm font-bold bg-[#1a9fff] text-white hover:bg-[#3dafff] transition-all uppercase tracking-wider disabled:opacity-50 shadow-[0_2px_12px_rgba(26,159,255,0.2)]"
               >
-                {searchLoading ? t("friends.searching") : t("friends.search")}
+                {searchLoading ? (
+                  <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                ) : t("friends.search")}
               </button>
             </div>
 
             {searchResults.length > 0 ? (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {searchResults.map((user) => (
                   <div
                     key={user.id}
-                    className="flex items-center gap-4 bg-brand-900 border border-brand-800 rounded p-4 hover:border-brand-600 transition-colors"
+                    className="group flex items-center gap-4 bg-[#1a1c23]/60 border border-white/[0.04] rounded-xl p-4 hover:bg-[#1a1c23] hover:border-white/[0.08] transition-all duration-200"
                   >
-                    {/* Avatar */}
-                    {user.avatarUrl ? (
-                      <img
-                        src={user.avatarUrl?.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`}
-                        alt={user.username}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-brand-800 flex items-center justify-center text-sm font-bold text-brand-200">
-                        {getInitials(user.username)}
-                      </div>
-                    )}
+                    {/* Avatar — clickable */}
+                    <div
+                      className="cursor-pointer flex-shrink-0"
+                      onClick={() => onNavigate?.("user-profile", user.username)}
+                    >
+                      {user.avatarUrl ? (
+                        <img
+                          src={getAvatarUrl(user.avatarUrl) || ""}
+                          alt={user.username}
+                          className="w-11 h-11 rounded-full object-cover ring-2 ring-white/[0.06]"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1a9fff]/20 to-[#1a1c23] ring-2 ring-white/[0.06] flex items-center justify-center text-sm font-black text-[#c6d4df]">
+                          {getInitials(user.username)}
+                        </div>
+                      )}
+                    </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-bold text-brand-100 truncate">
+                    {/* Info — clickable */}
+                    <div
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onNavigate?.("user-profile", user.username)}
+                    >
+                      <h4 className="text-sm font-bold text-white truncate group-hover:text-[#1a9fff] transition-colors">
                         {user.username}
                       </h4>
-                      {user.bio && (
-                        <p className="text-xs text-brand-500 truncate mt-0.5">
-                          {user.bio}
-                        </p>
+                      {user.bio ? (
+                        <p className="text-[11px] text-[#5e6673] truncate mt-0.5">{user.bio}</p>
+                      ) : (
+                        <p className="text-[11px] text-[#3d4450] mt-0.5">{t("chat.offline")}</p>
                       )}
                     </div>
 
@@ -456,11 +507,13 @@ export function FriendsPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                     <button
                       onClick={() => handleSendRequest(user.username)}
                       disabled={sendingTo === user.username}
-                      className="px-4 py-2 text-xs font-bold bg-brand-200 text-brand-950 hover:bg-white rounded transition-colors uppercase tracking-widest disabled:opacity-50"
+                      className="px-4 py-2 text-xs font-bold bg-[#1a9fff] text-white hover:bg-[#3dafff] rounded-lg transition-all disabled:opacity-50 uppercase tracking-wider shadow-[0_2px_8px_rgba(26,159,255,0.2)]"
                     >
-                      {sendingTo === user.username
-                        ? t("friends.sending")
-                        : t("friends.addFriend")}
+                      {sendingTo === user.username ? (
+                        <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+                      )}
                     </button>
                   </div>
                 ))}

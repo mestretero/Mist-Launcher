@@ -1,5 +1,7 @@
 import { FastifyInstance } from "fastify";
 import * as communityLinkService from "../services/communityLink.service.js";
+import { prisma } from "../lib/prisma.js";
+import { badRequest, notFound } from "../lib/errors.js";
 
 export default async function communityLinkRoutes(app: FastifyInstance) {
   // Public (with optional auth for userVote)
@@ -7,12 +9,12 @@ export default async function communityLinkRoutes(app: FastifyInstance) {
     preHandler: [app.tryAuthenticate],
     handler: async (request) => {
       const { slug } = request.params as { slug: string };
-      const { prisma } = await import("../lib/prisma.js");
       const game = await prisma.game.findUnique({ where: { slug } });
       if (!game) return { data: { links: [] } };
 
       const isAdmin = request.user?.isAdmin ?? false;
-      const links = await communityLinkService.getLinksForGame(game.id, request.user?.userId, isAdmin);
+      const { page } = request.query as { page?: string };
+      const links = await communityLinkService.getLinksForGame(game.id, request.user?.userId, isAdmin, Number(page) || 1);
       return { data: { links } };
     },
   });
@@ -30,13 +32,11 @@ export default async function communityLinkRoutes(app: FastifyInstance) {
         mirrors: { sourceName: string; url: string }[];
       };
 
-      const { badRequest } = await import("../lib/errors.js");
       if (!body.title || body.title.length < 3) throw badRequest("Title must be at least 3 characters");
       if (!body.mirrors?.length) throw badRequest("At least one mirror required");
 
-      const { prisma } = await import("../lib/prisma.js");
       const game = await prisma.game.findUnique({ where: { slug } });
-      if (!game) throw new Error("Game not found");
+      if (!game) throw notFound("Game not found");
 
       const link = await communityLinkService.createLink(
         game.id,
@@ -56,7 +56,7 @@ export default async function communityLinkRoutes(app: FastifyInstance) {
       const { voteType } = request.body as { voteType: "UP" | "DOWN" };
 
       if (!["UP", "DOWN"].includes(voteType)) {
-        throw new Error("Invalid vote type");
+        throw badRequest("Invalid vote type");
       }
 
       const result = await communityLinkService.vote(linkId, request.user!.userId, voteType);

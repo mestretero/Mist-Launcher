@@ -1,6 +1,13 @@
 import { useState } from "react";
+import mistLogo from "../assets/mist-logo.png";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
+
+const bgCoverModules = import.meta.glob("../assets/bg-covers/*.jpg", { eager: true, import: "default" });
+const BG_COVERS: string[] = (Object.values(bgCoverModules) as string[])
+  .map((v) => ({ v, sort: Math.random() }))
+  .sort((a, b) => a.sort - b.sort)
+  .map(({ v }) => v);
 import { WindowControls } from "../components/WindowControls";
 import { LANGUAGES, changeLanguage } from "../i18n";
 
@@ -26,32 +33,43 @@ export function ForgotPasswordPage({ onBack }: { onBack: () => void }) {
     }
   };
 
+  const COLS = 28;
+  const colCovers = Array.from({ length: COLS }, (_, i) => {
+    const start = (i * 3) % BG_COVERS.length;
+    const slice = [...BG_COVERS.slice(start), ...BG_COVERS].slice(0, 10);
+    return [...slice, ...slice];
+  });
+
   return (
     <div className="relative flex items-center justify-center h-screen overflow-hidden" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
       <WindowControls />
 
-      {/* Background */}
-      <div className="absolute inset-0 bg-[#0a0c10]">
-        <div className="absolute inset-0 opacity-30" style={{
-          background: "radial-gradient(ellipse at 50% 40%, #1a3a5c 0%, transparent 50%)"
-        }} />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")"
-        }} />
+      {/* Background - diagonal scrolling game cards */}
+      <div className="absolute inset-0 bg-[#030712] overflow-hidden">
+        {colCovers.length > 0 && (
+          <div className="absolute flex" style={{ transform: "rotate(-8deg)", top: "-90vh", left: "-90vw", width: "280vw", height: "280vh", gap: "0.8vw" }}>
+            {colCovers.map((covers, col) => (
+              <div key={col} className={col % 2 === 0 ? "animate-scroll-up" : "animate-scroll-down"}
+                style={{ animationDuration: `${28 + col * 6}s`, display: "flex", flexDirection: "column", gap: "0.8vw", minWidth: "9vw" }}>
+                {covers.map((url, i) => (
+                  <img key={i} src={url} alt="" className="object-cover rounded-lg flex-shrink-0" style={{ opacity: 0.45, width: "9vw", height: "12.5vw" }} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, #030712cc 0%, #030712aa 50%, #030712cc 100%)", backdropFilter: "blur(1px)" }} />
       </div>
 
       {/* Glass card */}
       <div className="relative z-10 w-full max-w-[420px] mx-4" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-        <div className="relative bg-[#12151a]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden">
+        <div className="relative bg-[#030712]/95 backdrop-blur-xl border border-white/[0.06] rounded-2xl shadow-[0_32px_64px_rgba(0,0,0,0.5)] overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-[1px] bg-gradient-to-r from-transparent via-[#1a9fff]/60 to-transparent" />
 
           <div className="p-8 pb-6">
             {/* Brand */}
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1a9fff] to-[#0066cc] flex items-center justify-center shadow-[0_4px_12px_rgba(26,159,255,0.3)]">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              </div>
-              <span className="text-lg font-black text-white tracking-[0.2em]">MIST</span>
+              <img src={mistLogo} alt="MIST" className="h-16 w-16 object-contain rounded-xl" />
             </div>
 
             <h2 className="text-white text-sm font-bold uppercase tracking-[0.15em] mb-2">{t("auth.resetTitle")}</h2>

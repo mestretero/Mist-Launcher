@@ -49,18 +49,20 @@ export const useGroupStore = create<GroupState>((set, get) => ({
     const { activeGroup } = get();
     if (!activeGroup || !content.trim()) return;
     try {
-      const msg = await api.groups.send(activeGroup.id, content.trim());
-      set({ groupMessages: [...get().groupMessages, msg] });
+      // Don't add to list here — the WebSocket broadcast will deliver it via receiveMessage
+      await api.groups.send(activeGroup.id, content.trim());
     } catch (e) {
       console.error("Failed to send group message:", e);
     }
   },
 
   receiveMessage: (msg) => {
-    const { activeGroup, groupMessages, unreadGroups } = get();
+    const { activeGroup, unreadGroups } = get();
     if (activeGroup?.id === msg.groupId) {
-      const exists = groupMessages.some((m) => m.id === msg.id);
-      if (!exists) set({ groupMessages: [...groupMessages, msg] });
+      set((state) => {
+        if (state.groupMessages.some((m) => m.id === msg.id)) return state;
+        return { groupMessages: [...state.groupMessages, msg] };
+      });
     } else {
       const newUnread = new Set(unreadGroups);
       newUnread.add(msg.groupId);

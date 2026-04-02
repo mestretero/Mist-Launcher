@@ -29,6 +29,7 @@ import roomRoutes from "./routes/rooms.js";
 import hostingProfileRoutes from "./routes/hosting-profiles.js";
 import dmRoutes from "./routes/dm.js";
 import groupRoutes from "./routes/groups.js";
+import updateRoutes from "./routes/updates.js";
 import { AppError } from "./lib/errors.js";
 import { ZodError } from "zod";
 
@@ -42,11 +43,37 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export async function buildApp() {
   const app = Fastify({ logger: true });
 
-  await app.register(cors, { origin: true, methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] });
+  const allowedOrigins = [
+    "tauri://localhost",          // Tauri production
+    "http://tauri.localhost",     // Tauri dev (Windows)
+    "http://localhost:1420",      // Vite dev server
+    "https://localhost",          // Tauri HTTPS
+  ];
+  await app.register(cors, {
+    origin: (origin, cb) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        cb(null, true);
+      } else {
+        cb(new Error("CORS not allowed"), false);
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  });
   await app.register(multipart, { limits: { fileSize: 2 * 1024 * 1024 } }); // 2MB max
   await app.register(helmet, {
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:", "https://images.igdb.com", "https://steamcdn-a.akamaihd.net"],
+        connectSrc: ["'self'", "ws://localhost:*", "wss://localhost:*"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
   });
   await app.register(rateLimit, { max: 100, timeWindow: "1 minute" });
   await app.register(fastifyStatic, {
@@ -101,6 +128,7 @@ export async function buildApp() {
   await app.register(hostingProfileRoutes);
   await app.register(dmRoutes);
   await app.register(groupRoutes);
+  await app.register(updateRoutes);
 
   return app;
 }

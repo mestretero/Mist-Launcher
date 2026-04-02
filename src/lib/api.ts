@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Room, RoomMessage, Group, GroupMessage, GroupMember } from "./types";
 
-export const API_URL = "http://localhost:3001";
+export const API_URL = import.meta.env.DEV ? "http://localhost:3001" : "https://api.mistlauncher.com";
 
 let cachedAccessToken: string | null = null;
 
@@ -38,7 +38,11 @@ async function request<T>(path: string, options: RequestInit = {}, _retry = fals
   }
 
   const body = await res.json();
-  if (!res.ok) throw new Error(body.error?.message || "Request failed");
+  if (!res.ok) {
+    const err = new Error(body.error?.message || "Request failed") as Error & { code?: string };
+    err.code = body.error?.code;
+    throw err;
+  }
   return body.data;
 }
 
@@ -69,16 +73,16 @@ async function tryRefreshToken(): Promise<boolean> {
 
 export const api = {
   auth: {
-    register: (data: { email: string; username: string; password: string }) =>
+    register: (data: { email: string; username: string; password: string; referralCode?: string }) =>
       request<{ user: any; tokens: any }>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
-    login: (data: { email: string; password: string }) =>
-      request<{ user?: any; tokens?: any; requires2FA?: boolean; userId?: string }>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+    login: (data: { email: string; password: string; deviceId?: string }) =>
+      request<{ user?: any; tokens?: any; requires2FA?: boolean; userId?: string; dailyBonusAwarded?: boolean }>("/auth/login", { method: "POST", body: JSON.stringify(data) }),
     refresh: (refreshToken: string) =>
       request<{ tokens: any }>("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }),
     verifyStudent: (studentEmail: string) =>
       request<{ verified: boolean }>("/auth/verify-student", { method: "POST", body: JSON.stringify({ studentEmail }) }),
     me: () => request<{ id: string; email: string; username: string; isStudent: boolean; isAdmin: boolean; referralCode: string; avatarUrl?: string; bio?: string; walletBalance: string; isEmailVerified: boolean; twoFactorEnabled: boolean; preferences?: Record<string, any>; createdAt?: string }>("/auth/me"),
-    updateProfile: (data: { bio?: string; avatarUrl?: string }) =>
+    updateProfile: (data: { bio?: string; avatarUrl?: string; username?: string }) =>
       request<any>("/auth/profile", { method: "PATCH", body: JSON.stringify(data) }),
     uploadAvatar: async (file: File) => {
       const token = await getAccessToken();
@@ -99,8 +103,12 @@ export const api = {
       request<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
     resetPassword: (token: string, password: string) =>
       request<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, newPassword: password }) }),
-    verifyEmail: (token: string) =>
-      request<any>("/auth/verify-email", { method: "POST", body: JSON.stringify({ token }) }),
+    verifyEmail: (code: string) =>
+      request<any>("/auth/verify-email", { method: "POST", body: JSON.stringify({ code }) }),
+    resendVerification: () =>
+      request<any>("/auth/resend-verification", { method: "POST" }),
+    logout: () =>
+      request<any>("/auth/logout", { method: "POST" }),
     twoFactor: {
       setup: () =>
         request<{ qrCodeDataUrl: string; secret: string }>("/auth/2fa/setup", { method: "POST" }),
@@ -108,8 +116,8 @@ export const api = {
         request<{ enabled: boolean }>("/auth/2fa/verify", { method: "POST", body: JSON.stringify({ token }) }),
       disable: () =>
         request<{ enabled: boolean }>("/auth/2fa/disable", { method: "POST" }),
-      login: (userId: string, token: string) =>
-        request<{ user: any; tokens: any }>("/auth/2fa/login", { method: "POST", body: JSON.stringify({ userId, token }) }),
+      login: (userId: string, token: string, deviceId?: string) =>
+        request<{ user: any; tokens: any }>("/auth/2fa/login", { method: "POST", body: JSON.stringify({ userId, token, deviceId }) }),
     },
   },
   games: {
@@ -131,6 +139,10 @@ export const api = {
     search: (q: string) => request<any[]>(`/games/search?q=${encodeURIComponent(q)}`),
     getDescription: (slug: string, lang: string) => request<{ description: string; shortDescription?: string }>(`/games/${slug}/description?lang=${lang}`),
     localizedDescription: (title: string, lang: string) => request<{ description: string | null }>(`/games/localized-description?title=${encodeURIComponent(title)}&lang=${lang}`),
+    steamAchievements: (title: string, lang: string) =>
+      request<{ appId: number; achievements: Array<{ apiName: string; name: string; description: string; iconUrl: string | null }> } | null>(
+        `/games/steam-achievements?title=${encodeURIComponent(title)}&lang=${lang}`
+      ),
     dlcs: (slug: string) => request<any[]>(`/games/${slug}/dlcs`),
     submitRequest: (gameTitle: string, reason: string) =>
       request<any>("/games/request", { method: "POST", body: JSON.stringify({ gameTitle, reason }) }),
@@ -192,10 +204,16 @@ export const api = {
     accept: (id: string) => request<any>(`/friends/${id}/accept`, { method: "POST" }),
     reject: (id: string) => request<any>(`/friends/${id}/reject`, { method: "POST" }),
     remove: (id: string) => request<any>(`/friends/${id}`, { method: "DELETE" }),
+    block: (id: string) => request<any>(`/friends/${id}/block`, { method: "POST" }),
   },
   achievements: {
     forGame: (slug: string) => request<any>(`/games/${slug}/achievements`),
     forLibraryItem: (id: string) => request<any>(`/library/${id}/achievements`),
+    unlock: (gameId: string, apiName: string, unlockedAt?: number) =>
+      request<any>("/achievements/unlock", {
+        method: "POST",
+        body: JSON.stringify({ gameId, apiName, unlockedAt }),
+      }),
   },
   collections: {
     list: () => request<any[]>("/collections"),
@@ -235,6 +253,10 @@ export const api = {
       request<any[]>("/profiles/me/sync-games", { method: "POST", body: JSON.stringify(games) }),
     syncGame: (data: { exePathHash: string; playTimeMins: number; lastPlayedAt?: string | null; title?: string }) =>
       request<any>("/profiles/me/sync-games", { method: "PATCH", body: JSON.stringify(data) }),
+    getAchievements: (username: string) =>
+      request<any[]>(`/profiles/${username}/achievements`),
+    getPerfectGames: (username: string) =>
+      request<any[]>(`/profiles/${username}/perfect-games`),
   },
   marketplace: {
     getThemes: () => request<any[]>("/marketplace/themes"),
@@ -288,7 +310,7 @@ export const api = {
   },
   admin: {
     stats: () =>
-      request<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number }>("/admin/stats"),
+      request<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number; gameRequests: number; totalGames: number }>("/admin/stats"),
     listUsers: (search?: string, page = 1, limit = 20) => {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) });
       if (search) params.set("search", search);
@@ -314,5 +336,18 @@ export const api = {
       request<any>(`/admin/game-requests/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }),
     deleteGameRequest: (id: string) =>
       request<void>(`/admin/game-requests/${id}`, { method: "DELETE" }),
+    // Steam sync
+    steamSyncAll: () => request<any>("/admin/steam/sync-all", { method: "POST" }),
+    steamSyncAAA: () => request<any>("/admin/steam/sync-aaa", { method: "POST" }),
+    steamSyncMostPlayed: (limit = 100) => request<any>(`/admin/steam/sync-most-played?limit=${limit}`, { method: "POST" }),
+    steamSyncFeatured: () => request<any>("/admin/steam/sync-featured", { method: "POST" }),
+    // Game management
+    listGames: (search?: string, page = 1, limit = 20) => {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (search) params.set("search", search);
+      return request<{ games: any[]; total: number }>(`/admin/games?${params}`);
+    },
+    deleteGame: (id: string) => request<void>(`/admin/games/${id}`, { method: "DELETE" }),
+    addGameByAppId: (appId: number) => request<any>(`/admin/steam/add/${appId}`, { method: "POST" }),
   },
 };

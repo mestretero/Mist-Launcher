@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import DOMPurify from "dompurify";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
@@ -33,10 +34,12 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewContent, setReviewContent] = useState("");
   const [activeTab, setActiveTab] = useState<"about" | "reviews" | "links">("about");
+  const [linkCount, setLinkCount] = useState(0);
 
   useEffect(() => { api.games.getBySlug(slug).then(setGame); }, [slug]);
   useEffect(() => { if (game) api.wishlist.check(game.id).then((r) => setInWishlist(r.wishlisted)).catch(() => {}); }, [game]);
   useEffect(() => { api.reviews.list(slug).then(setReviews).catch(() => {}); }, [slug]);
+  useEffect(() => { api.communityLinks.list(slug).then((r) => setLinkCount(r.links?.length ?? 0)).catch(() => {}); }, [slug]);
 
   // Fetch localized description from Steam
   useEffect(() => {
@@ -117,8 +120,8 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
 
   const tabs = [
     { key: "about", label: t("gameDetail.about") },
-    { key: "reviews", label: `${t("gameDetail.userReviews")} ${reviews?.totalReviews ? `(${reviews.totalReviews})` : ""}` },
-    { key: "links", label: t("gameDetail.communityLinksTab") },
+    { key: "reviews", label: `${t("gameDetail.userReviews")}${reviews?.totalReviews ? ` (${reviews.totalReviews})` : ""}` },
+    { key: "links", label: `${t("gameDetail.communityLinksTab")}${linkCount > 0 ? ` (${linkCount})` : ""}` },
   ];
 
   return (
@@ -210,7 +213,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
               try {
                 if (inWishlist) { await api.wishlist.remove(game.id); setInWishlist(false); }
                 else { await api.wishlist.add(game.id); setInWishlist(true); }
-              } catch {}
+              } catch (err) { console.error("Wishlist toggle failed:", err); }
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-sm font-bold ${inWishlist ? "bg-red-500/10 text-red-400" : "bg-[#1a9fff] text-white"}`}
           >
@@ -277,7 +280,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
                       [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3
                       [&_li]:mb-1
                       [&_a]:text-[#1a9fff] [&_a]:hover:underline"
-                    dangerouslySetInnerHTML={{ __html: localizedDesc || game.description }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(localizedDesc || game.description || "") }}
                   />
                 </div>
 
@@ -411,7 +414,7 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
 
             {/* Community Links Tab */}
             {activeTab === "links" && (
-              <CommunityLinks slug={slug} onNavigateToUser={(username) => onNavigate("user-profile", username)} />
+              <CommunityLinks slug={slug} onNavigateToUser={(username) => onNavigate("user-profile", username)} onLinkCountChange={setLinkCount} />
             )}
           </div>
 

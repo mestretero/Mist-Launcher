@@ -113,6 +113,7 @@ export interface Friend {
   username: string;
   avatarUrl?: string;
   bio?: string;
+  online?: boolean;
   status: 'PENDING' | 'ACCEPTED' | 'BLOCKED';
   createdAt: string;
 }

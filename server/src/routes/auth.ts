@@ -20,28 +20,43 @@ const preferencesSchema = z.object({
   language: z.string().optional(),
   showEmail: z.boolean().optional(),
   customStatus: z.string().max(100).nullable().optional(),
+  profilePublic: z.boolean().optional(),
+  libraryPublic: z.boolean().optional(),
+  achievementsPublic: z.boolean().optional(),
+  notifyFriendRequests: z.boolean().optional(),
+  notifyGroupMessages: z.boolean().optional(),
+  notifyAchievements: z.boolean().optional(),
+  notifySystem: z.boolean().optional(),
 }).strict();
 
 export default async function authRoutes(app: FastifyInstance) {
-  app.post("/auth/register", async (request, reply) => {
+  app.post("/auth/register", { config: { rateLimit: { max: 3, timeWindow: "1 hour" } } }, async (request, reply) => {
     const body = registerSchema.parse(request.body);
     const result = await authService.registerUser(body);
     return reply.status(201).send({ data: result });
   });
 
-  app.post("/auth/login", async (request, reply) => {
+  app.post("/auth/login", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
     const body = loginSchema.parse(request.body);
     const result = await authService.loginUser(body);
     if (result.requires2FA) {
       return reply.send({ data: { requires2FA: true, userId: result.userId } });
     }
-    return reply.send({ data: { user: result.user, tokens: result.tokens } });
+    return reply.send({ data: { user: result.user, tokens: result.tokens, dailyBonusAwarded: result.dailyBonusAwarded } });
   });
 
   app.post("/auth/refresh", async (request, reply) => {
     const body = refreshSchema.parse(request.body);
     const tokens = await authService.refreshTokens(body.refreshToken);
     return reply.send({ data: { tokens } });
+  });
+
+  app.post("/auth/logout", {
+    preHandler: [app.authenticate],
+    handler: async (request, reply) => {
+      const result = await authService.logout(request.user!.userId);
+      return reply.send({ data: result });
+    },
   });
 
   app.post("/auth/verify-student", {
@@ -64,8 +79,11 @@ export default async function authRoutes(app: FastifyInstance) {
   app.patch("/auth/profile", {
     preHandler: [app.authenticate],
     handler: async (request, reply) => {
-      const { bio, avatarUrl } = request.body as { bio?: string; avatarUrl?: string };
-      const user = await authService.updateProfile(request.user!.userId, { bio, avatarUrl });
+      const { bio, avatarUrl, username } = request.body as { bio?: string; avatarUrl?: string; username?: string };
+      if (username !== undefined && (username.trim().length < 3 || username.trim().length > 32)) {
+        return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "Username must be 3–32 characters" } });
+      }
+      const user = await authService.updateProfile(request.user!.userId, { bio, avatarUrl, username: username?.trim() });
       return reply.send({ data: user });
     },
   });
@@ -117,7 +135,7 @@ export default async function authRoutes(app: FastifyInstance) {
     },
   });
 
-  app.post("/auth/forgot-password", async (request, reply) => {
+  app.post("/auth/forgot-password", { config: { rateLimit: { max: 3, timeWindow: "15 minutes" } } }, async (request, reply) => {
     const { email } = request.body as { email: string };
     const result = await authService.forgotPassword(email);
     return reply.send({ data: result });
@@ -129,10 +147,23 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.send({ data: result });
   });
 
-  app.post("/auth/verify-email", async (request, reply) => {
-    const { token } = request.body as { token: string };
-    const result = await authService.verifyEmail(token);
-    return reply.send({ data: result });
+  app.post("/auth/verify-email", {
+    preHandler: [app.authenticate],
+    config: { rateLimit: { max: 5, timeWindow: "15 minutes" } },
+    handler: async (request, reply) => {
+      const { code } = request.body as { code: string };
+      const result = await authService.verifyEmail(request.user!.userId, code);
+      return reply.send({ data: result });
+    },
+  });
+
+  app.post("/auth/resend-verification", {
+    preHandler: [app.authenticate],
+    config: { rateLimit: { max: 3, timeWindow: "15 minutes" } },
+    handler: async (request, reply) => {
+      const result = await authService.resendEmailVerification(request.user!.userId);
+      return reply.send({ data: result });
+    },
   });
 
   app.patch("/auth/preferences", {
@@ -171,10 +202,16 @@ export default async function authRoutes(app: FastifyInstance) {
     },
   });
 
-  app.post("/auth/2fa/login", async (request, reply) => {
-    const { userId, token } = request.body as { userId: string; token: string };
+  app.post("/auth/2fa/login", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const { userId, token, deviceId } = request.body as { userId: string; token: string; deviceId?: string };
     const isValid = await twoFactorService.verifyToken(userId, token);
     if (!isValid) throw new AppError(401, "INVALID_2FA", "Invalid 2FA code");
+
+    // Trust this device after successful 2FA
+    if (deviceId) {
+      await authService.trustDevice(userId, deviceId);
+    }
+
     const user = await authService.getProfile(userId);
     const tokens = await authService.createTokens(userId, user.email);
     return reply.send({ data: { user, tokens } });

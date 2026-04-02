@@ -110,11 +110,46 @@ async function addGameFromSteam(detail: SteamAppDetail): Promise<boolean> {
         releaseDate: validDate,
         categories: genres,
         status: "PUBLISHED",
+        steamAppId: detail.steam_appid,
       },
     });
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * Fetch achievement schema for a Steam game and upsert into DB.
+ */
+export async function syncAchievementsForGame(steamAppId: number, gameId: string) {
+  try {
+    const res = await fetch(
+      `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_KEY}&appid=${steamAppId}&l=turkish`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const data = await res.json();
+    const achs: Array<{ name: string; displayName: string; description?: string; icon?: string; icongray?: string }> =
+      data.game?.availableGameStats?.achievements || [];
+
+    let added = 0;
+    for (const ach of achs) {
+      const existing = await prisma.achievement.findFirst({ where: { gameId, apiName: ach.name } });
+      if (existing) continue;
+      await prisma.achievement.create({
+        data: {
+          gameId,
+          apiName: ach.name,
+          name: ach.displayName || ach.name,
+          description: ach.description || "",
+          iconUrl: ach.icon || null,
+        },
+      });
+      added++;
+    }
+    return { added, total: achs.length };
+  } catch {
+    return { added: 0, total: 0 };
   }
 }
 
@@ -1022,5 +1057,66 @@ export async function searchSteamGames(query: string): Promise<Array<{
       }));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Get achievements for a game directly from Steam API (no DB required).
+ * Searches for the game by title, finds appId, fetches achievement schema.
+ */
+export async function getSteamAchievements(gameTitle: string, lang = "turkish"): Promise<{
+  appId: number;
+  achievements: Array<{ apiName: string; name: string; description: string; iconUrl: string | null; hidden: boolean }>;
+} | null> {
+  try {
+    // 1. Search Steam for the game
+    const searchRes = await fetch(
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(gameTitle)}&l=english&cc=us`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const searchData = await searchRes.json();
+    const items: Array<{ id: number; name: string; type: string }> = searchData.items || [];
+    const match = items.find((i) => i.type === "app") || null;
+    if (!match) return null;
+
+    // 2. Fetch achievement schema in requested language
+    const achRes = await fetch(
+      `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_KEY}&appid=${match.id}&l=${lang}`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    const achData = await achRes.json();
+    const achs: Array<{ name: string; displayName: string; description?: string; icon?: string; hidden?: number }> =
+      achData.game?.availableGameStats?.achievements || [];
+
+    // 3. If some descriptions are empty and lang != english, fetch English as fallback
+    const hasEmpty = achs.some((a) => !a.description);
+    let enMap: Record<string, string> = {};
+    if (hasEmpty && lang !== "english") {
+      try {
+        const enRes = await fetch(
+          `https://api.steampowered.com/ISteamUserStats/GetSchemaForGame/v2/?key=${STEAM_KEY}&appid=${match.id}&l=english`,
+          { signal: AbortSignal.timeout(10000) }
+        );
+        const enData = await enRes.json();
+        const enAchs: Array<{ name: string; description?: string }> =
+          enData.game?.availableGameStats?.achievements || [];
+        for (const a of enAchs) {
+          if (a.description) enMap[a.name] = a.description;
+        }
+      } catch { /* ignore fallback failure */ }
+    }
+
+    return {
+      appId: match.id,
+      achievements: achs.map((a) => ({
+        apiName: a.name,
+        name: a.displayName || a.name,
+        description: a.description || enMap[a.name] || "",
+        iconUrl: a.icon || null,
+        hidden: a.hidden === 1,
+      })),
+    };
+  } catch {
+    return null;
   }
 }

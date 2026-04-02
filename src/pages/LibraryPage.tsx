@@ -9,10 +9,12 @@ import { useLocalGameStore, LocalGame } from "../stores/localGameStore";
 import { listen } from "@tauri-apps/api/event";
 import { DownloadProgress } from "../components/DownloadProgress";
 import { AddToCollectionDropdown } from "../components/AddToCollectionDropdown";
-import { AchievementCard } from "../components/AchievementCard";
 import type { LibraryItem } from "../lib/types";
 
 type LibTab = "overview" | "dlc" | "community" | "discussions" | "workshop" | "guides" | "support";
+
+// In-memory cache for Steam achievement lookups (survives page-internal navigations)
+const achievementCache = new Map<string, { achievements: any[]; stats: { total: number; unlocked: number }; steamAppId?: number }>();
 
 export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?: string) => void }) {
   const { t, i18n } = useTranslation();
@@ -35,6 +37,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   const [requestSending, setRequestSending] = useState(false);
   const [achievementStats, setAchievementStats] = useState({ total: 0, unlocked: 0 });
   const [achievements, setAchievements] = useState<any[]>([]);
+  const [showAllAchievements, setShowAllAchievements] = useState(false);
+  const [revealedAchievements, setRevealedAchievements] = useState<Set<string>>(new Set());
+  const [storeReviews, setStoreReviews] = useState<any[]>([]);
   const [dlcs, setDlcs] = useState<any[]>([]);
   const [dlcsLoading, setDlcsLoading] = useState(false);
   const [localizedDesc, setLocalizedDesc] = useState<string | null>(null);
@@ -78,7 +83,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
   }, [activeTab, selectedItem?.id]);
 
   // Reset tab when selecting a different game
-  useEffect(() => { setActiveTab("overview"); setUninstallConfirm(null); setDlcs([]); }, [selectedItem?.id]);
+  useEffect(() => { setActiveTab("overview"); setUninstallConfirm(null); setDlcs([]); setShowAllAchievements(false); setRevealedAchievements(new Set()); setStoreReviews([]); }, [selectedItem?.id, selectedLocalGame?.id]);
 
   // Check if local game exists in MIST store
   useEffect(() => {
@@ -90,6 +95,58 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
         setStoreMatch(match ? { slug: match.slug, title: match.title } : null);
       })
       .catch(() => setStoreMatch(null));
+  }, [selectedLocalGame?.id]);
+
+  // Fetch store reviews when storeMatch is found
+  useEffect(() => {
+    if (!storeMatch) { setStoreReviews([]); return; }
+    api.reviews.list(storeMatch.slug).then((res: any) => {
+      const list = Array.isArray(res) ? res : res?.reviews ?? [];
+      setStoreReviews(list.slice(0, 3)); // Last 3 reviews
+    }).catch(() => setStoreReviews([]));
+  }, [storeMatch?.slug]);
+
+  // Fetch achievements for local games — cached + immediate Steam API call
+  useEffect(() => {
+    if (!selectedLocalGame) return;
+    let stale = false;
+    const cacheKey = selectedLocalGame.title.toLowerCase();
+
+    // Check cache first — instant display
+    const cached = achievementCache.get(cacheKey);
+    if (cached) {
+      setAchievements(cached.achievements);
+      setAchievementStats(cached.stats);
+      return;
+    }
+
+    setAchievements([]);
+    setAchievementStats({ total: 0, unlocked: 0 });
+
+    const steamLang: Record<string, string> = { tr: "tr", en: "en", es: "es", de: "de" };
+    const lang = steamLang[i18n.language] || "tr";
+
+    api.games.steamAchievements(selectedLocalGame.title, lang).then((res: any) => {
+      if (stale) return;
+      if (res?.achievements?.length > 0) {
+        const list = res.achievements.map((a: any, i: number) => ({
+          id: `steam-${i}`,
+          name: a.name,
+          description: a.description,
+          iconUrl: a.iconUrl,
+          hidden: a.hidden || false,
+          unlocked: false,
+          unlockedAt: null,
+        }));
+        const stats = { total: list.length, unlocked: 0 };
+        setAchievements(list);
+        setAchievementStats(stats);
+        // Cache the result (including steamAppId for achievement watcher)
+        achievementCache.set(cacheKey, { achievements: list, stats, steamAppId: res.appId });
+      }
+    }).catch(() => {});
+
+    return () => { stale = true; };
   }, [selectedLocalGame?.id]);
 
   // Fetch localized description from Steam for local games
@@ -130,6 +187,15 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
         exePath: item.installPath || `C:/Games/MIST/${item.game.slug}/game.exe`,
       });
       addToast(t("collections.launching", { title: item.game.title }), "info");
+
+      // Start achievement watcher if game has a Steam App ID
+      const steamAppId = (item.game as any).steamAppId;
+      if (steamAppId) {
+        invoke("start_achievement_watcher", {
+          gameId: item.gameId,
+          steamAppId: String(steamAppId),
+        }).catch(() => {}); // non-critical, silently ignore
+      }
     } catch (err: any) {
       addToast(t("common.launchError"), "error");
     }
@@ -184,21 +250,37 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
     }
   };
 
-  // Listen for game-status events (running/stopped)
+  // Listen for game-status events (running/stopped) — refresh playtime
   useEffect(() => {
     const unlisten = listen<{ game_id: string; status: string; play_time_secs: number }>("game-status", (event) => {
       if (event.payload.status === "stopped") {
         setLocalGameRunning(null);
-        loadLocalGames(); // Refresh play time
+        // Refresh local games list to get updated play_time
+        loadLocalGames().then(() => {
+          // Also update selectedLocalGame if it's the one that was playing
+          const updated = useLocalGameStore.getState().games.find((g) => g.id === event.payload.game_id);
+          if (updated && selectedLocalGame?.id === event.payload.game_id) {
+            setSelectedLocalGame(updated);
+          }
+        });
       }
     });
     return () => { unlisten.then(fn => fn()); };
-  }, []);
+  }, [selectedLocalGame?.id]);
 
   const handleLaunchLocal = async (game: LocalGame) => {
     try {
       setLocalGameRunning(game.id);
       await invoke("launch_game", { gameId: game.id, exePath: game.exe_path });
+
+      // Start achievement watcher if we know the Steam App ID
+      const cached = achievementCache.get(game.title.toLowerCase());
+      if (cached?.steamAppId) {
+        invoke("start_achievement_watcher", {
+          gameId: game.id,
+          steamAppId: String(cached.steamAppId),
+        }).catch(() => {}); // non-critical
+      }
     } catch (err: any) {
       setLocalGameRunning(null);
       addToast(t("common.launchError"), "error");
@@ -439,9 +521,9 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
       {/* Main Area */}
       <div className="flex-1 relative flex flex-col bg-[#1a1c23] overflow-y-auto">
         {selectedLocalGame ? (
-          /* Local Game Detail Panel */
+          /* Local Game Detail Panel — Steam-inspired layout */
           <div className="flex flex-col h-full">
-            {/* Hero area with cover or placeholder */}
+            {/* Hero */}
             <div className="relative w-full h-[340px] flex-shrink-0 overflow-hidden">
               {selectedLocalGame.cover_url ? (
                 <>
@@ -455,8 +537,8 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                   <div className="text-6xl font-black text-[#2a2e38] tracking-widest select-none">{selectedLocalGame.title.slice(0, 2).toUpperCase()}</div>
                 </div>
               )}
-              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#1a1c23] to-transparent z-10" />
-              <div className="absolute bottom-10 left-10 z-30">
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#1a1c23] to-transparent z-10" />
+              <div className="absolute bottom-16 left-10 z-30">
                 <h1 className="text-4xl font-black text-white tracking-tighter drop-shadow-lg" style={{ textShadow: "0px 4px 12px rgba(0,0,0,0.8)" }}>
                   {selectedLocalGame.title}
                 </h1>
@@ -467,99 +549,106 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
               </div>
             </div>
 
-            <div className="px-10 pb-10 -mt-4 z-20 relative">
-              {/* Action Bar */}
-              <div className="w-full bg-[#161a20]/80 backdrop-blur border border-[#2a2e38] rounded shadow-lg mb-6 flex items-center h-20 px-6 gap-4">
-                <button
-                  onClick={() => handleLaunchLocal(selectedLocalGame)}
-                  disabled={localGameRunning === selectedLocalGame.id}
-                  className="px-8 py-2.5 rounded text-white font-black text-xl uppercase tracking-widest shadow-lg transition-all hover:scale-105 hover:brightness-110 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
-                  style={{ background: localGameRunning === selectedLocalGame.id ? "linear-gradient(to right, #1a9fff88, #1a70cb88)" : "linear-gradient(to right, #47bfff, #1a70cb)", textShadow: "0px 2px 4px rgba(0,0,0,0.4)" }}
-                >
-                  {localGameRunning === selectedLocalGame.id ? t("library.running") : t("library.launch")}
-                </button>
-                <div className="h-10 w-px bg-[#2a2e38] mx-1" />
-                <AddToCollectionDropdown localGameId={selectedLocalGame.id} />
-                <div className="flex-1" />
-                <button
-                  onClick={() => handleDeleteLocal(selectedLocalGame)}
-                  className="px-4 py-2 text-[#5e6673] hover:text-red-400 hover:bg-red-400/10 rounded text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer"
-                >
-                  {t("library.removeFromLibrary")}
-                </button>
+            <div className="px-4 sm:px-6 lg:px-10 pb-10 -mt-6 z-20 relative">
+              {/* Action Bar — Steam style with stats */}
+              <div className="w-full bg-[#161a20]/90 backdrop-blur-xl border border-[#2a2e38] rounded-lg shadow-lg mb-6 flex items-center h-[72px]">
+                {/* Play Button */}
+                <div className="flex items-center pl-5 pr-6 h-full border-r border-[#2a2e38]/50">
+                  <button
+                    onClick={() => handleLaunchLocal(selectedLocalGame)}
+                    disabled={localGameRunning === selectedLocalGame.id}
+                    className="flex items-center gap-2.5 px-7 py-2.5 rounded text-white font-black text-lg uppercase tracking-widest shadow-lg transition-all hover:scale-105 hover:brightness-110 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                    style={{ background: localGameRunning === selectedLocalGame.id ? "linear-gradient(135deg, #1a9fff66, #1a70cb66)" : "linear-gradient(135deg, #47bfff, #1a70cb)", textShadow: "0px 2px 4px rgba(0,0,0,0.4)" }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    {localGameRunning === selectedLocalGame.id ? t("library.running") : t("library.launch")}
+                  </button>
+                </div>
+
+                {/* Stats row */}
+                <div className="flex items-center gap-0 h-full flex-1">
+                  {/* Last Played */}
+                  <div className="flex items-center gap-3 px-5 h-full border-r border-[#2a2e38]/50">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#67707b" strokeWidth="1.5" className="flex-shrink-0">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <div>
+                      <div className="text-[9px] font-bold text-[#67707b] uppercase tracking-widest">{t("library.lastPlayed")}</div>
+                      <div className="text-xs font-semibold text-white">{formatRelativeDate(selectedLocalGame.last_played)}</div>
+                    </div>
+                  </div>
+
+                  {/* Play Time */}
+                  <div className="flex items-center gap-3 px-5 h-full border-r border-[#2a2e38]/50">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#67707b" strokeWidth="1.5" className="flex-shrink-0">
+                      <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                      <path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    <div>
+                      <div className="text-[9px] font-bold text-[#67707b] uppercase tracking-widest">{t("library.playTime")}</div>
+                      <div className="text-xs font-semibold text-white">{selectedLocalGame.play_time > 0 ? formatPlayTime(Math.floor(selectedLocalGame.play_time / 60)) : t("library.neverPlayed")}</div>
+                    </div>
+                  </div>
+
+                  {/* Achievements */}
+                  {achievementStats.total > 0 && (
+                    <div className="flex items-center gap-3 px-5 h-full">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={achievementStats.unlocked === achievementStats.total && achievementStats.total > 0 ? "#fbbf24" : "#67707b"} strokeWidth="1.5" className="flex-shrink-0">
+                        <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                        <path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                        <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                        <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                      </svg>
+                      <div>
+                        <div className="text-[9px] font-bold text-[#67707b] uppercase tracking-widest">{t("library.achievements")}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-white tabular-nums">{achievementStats.unlocked}/{achievementStats.total}</span>
+                          <div className="w-16 h-1.5 bg-[#2a2e38] rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{
+                              width: `${(achievementStats.unlocked / achievementStats.total) * 100}%`,
+                              background: achievementStats.unlocked === achievementStats.total ? "linear-gradient(90deg, #fbbf24, #f59e0b)" : "linear-gradient(90deg, #1a9fff, #47bfff)",
+                            }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Utility buttons */}
+                <div className="flex items-center gap-1 pr-4 text-[#67707b]">
+                  <AddToCollectionDropdown localGameId={selectedLocalGame.id} />
+                  <button onClick={() => handleDeleteLocal(selectedLocalGame)} className="p-2 hover:text-red-400 hover:bg-red-400/10 rounded transition-colors" title={t("library.removeFromLibrary")}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
               </div>
 
               {/* Store Match / Request Banner */}
               {storeMatch === undefined ? (
                 <div className="mb-6 h-12 bg-[#2a2e38]/20 border border-[#2a2e38]/40 rounded animate-pulse" />
               ) : storeMatch ? (
-                <div className="mb-6 flex items-center gap-3 px-5 py-3.5 bg-[#1a9fff]/10 border border-[#1a9fff]/30 rounded">
+                <div className="mb-6 flex items-center gap-3 px-5 py-3 bg-[#1a9fff]/8 border border-[#1a9fff]/20 rounded-lg">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#47bfff" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                   <span className="text-sm text-[#c6d4df] flex-1">{t("library.storeAvailable", { title: storeMatch.title })}</span>
-                  <button
-                    onClick={() => onNavigate?.("game", storeMatch.slug)}
-                    className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1a9fff] hover:bg-[#47bfff] text-white text-xs font-bold uppercase tracking-widest rounded transition-colors cursor-pointer"
-                  >
+                  <button onClick={() => onNavigate?.("game", storeMatch.slug)} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#1a9fff] hover:bg-[#47bfff] text-white text-xs font-bold uppercase tracking-widest rounded transition-colors cursor-pointer">
                     {t("library.viewInStore")}
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                   </button>
                 </div>
               ) : (
-                <div className="mb-6 flex items-center gap-3 px-5 py-3.5 bg-[#2a2e38]/40 border border-[#2a2e38] rounded">
+                <div className="mb-6 flex items-center gap-3 px-5 py-3 bg-[#2a2e38]/30 border border-[#2a2e38] rounded-lg">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                   <span className="text-sm text-[#5e6673] flex-1">{t("library.notInStore")}</span>
-                  <button
-                    onClick={() => setShowRequestModal(true)}
-                    className="flex items-center gap-1.5 px-4 py-1.5 bg-[#2a2e38] hover:bg-[#3d4450] text-[#8f98a0] hover:text-white text-xs font-bold uppercase tracking-widest rounded transition-colors border border-[#3d4450] cursor-pointer"
-                  >
+                  <button onClick={() => setShowRequestModal(true)} className="flex items-center gap-1.5 px-4 py-1.5 bg-[#2a2e38] hover:bg-[#3d4450] text-[#8f98a0] hover:text-white text-xs font-bold uppercase tracking-widest rounded transition-colors border border-[#3d4450] cursor-pointer">
                     {t("library.requestToStore")}
                   </button>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.gameInfo")}</h3>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-[#67707b]">{t("library.playTime")}</span>
-                      <span className="text-[#c6d4df] font-medium">{selectedLocalGame.play_time > 0 ? formatPlayTime(Math.floor(selectedLocalGame.play_time / 60)) : t("library.neverPlayed")}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#67707b]">{t("library.lastPlayed")}</span>
-                      <span className="text-[#c6d4df] font-medium">{formatRelativeDate(selectedLocalGame.last_played)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#67707b]">{t("library.addedDate")}</span>
-                      <span className="text-[#c6d4df] font-medium">{new Date(selectedLocalGame.added_at).toLocaleDateString("tr-TR")}</span>
-                    </div>
-                    {selectedLocalGame.genres && selectedLocalGame.genres.length > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-[#67707b]">{t("library.genres")}</span>
-                        <span className="text-[#c6d4df] font-medium">{selectedLocalGame.genres.join(", ")}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.fileInfo")}</h3>
-                  <div className="space-y-3 text-sm">
-                    <div>
-                      <span className="text-[#67707b] block mb-1">{t("library.exePath")}</span>
-                      <span className="text-[#c6d4df] font-mono text-xs break-all">{selectedLocalGame.exe_path}</span>
-                    </div>
-                    {selectedLocalGame.install_path && (
-                      <div>
-                        <span className="text-[#67707b] block mb-1">{t("library.installPath")}</span>
-                        <span className="text-[#c6d4df] font-mono text-xs break-all">{selectedLocalGame.install_path}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
+              {/* ── Full-width description ── */}
               {selectedLocalGame.description && (
-                <div className="bg-[#161a20] border border-[#2a2e38] rounded p-5 mt-6">
+                <div className="bg-[#161a20] border border-[#2a2e38] rounded-lg p-5 mb-6">
                   <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673] mb-3">{t("library.description")}</h3>
                   {localizedDesc ? (
                     <p className="text-sm text-[#8f98a0] leading-relaxed">{localizedDesc}</p>
@@ -572,6 +661,327 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                   )}
                 </div>
               )}
+
+              {/* ── Achievement Modal (Steam-style overlay) ── */}
+              {showAllAchievements && achievements.length > 0 && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={() => setShowAllAchievements(false)}>
+                  <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                  <div className="relative w-full max-w-2xl max-h-[85vh] bg-[#1b2838] border border-[#2a2e38] rounded-xl shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+                    {/* Modal Header */}
+                    <div className="flex items-center gap-4 px-6 py-4 border-b border-[#2a2e38] bg-[#171d29] rounded-t-xl">
+                      {selectedLocalGame?.cover_url && (
+                        <img src={selectedLocalGame.cover_url} alt="" className="w-10 h-10 rounded object-cover" />
+                      )}
+                      <h2 className="text-lg font-black text-white uppercase tracking-wider flex-1">{selectedLocalGame?.title}</h2>
+                      <button onClick={() => setShowAllAchievements(false)} className="w-9 h-9 rounded-full bg-[#2a2e38] hover:bg-[#3d4450] flex items-center justify-center transition-colors">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="px-6 py-4 bg-[#0a0c10]/60">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          achievementStats.unlocked === achievementStats.total
+                            ? "bg-yellow-500/20 ring-2 ring-yellow-500/40"
+                            : "bg-[#161920] ring-2 ring-[#2a2e38]"
+                        }`}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={achievementStats.unlocked === achievementStats.total ? "#fbbf24" : "#47bfff"} strokeWidth="1.5">
+                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                            <path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between items-baseline mb-1">
+                            <p className={`text-sm font-bold uppercase tracking-widest ${achievementStats.unlocked === achievementStats.total ? "text-yellow-400" : "text-white"}`}>
+                              {achievementStats.unlocked}/{achievementStats.total}
+                              {achievementStats.unlocked === achievementStats.total
+                                ? ` ${t("library.allAchievementsUnlocked", "Tüm başarımlar kazanıldı!")}`
+                                : ""}
+                            </p>
+                            <span className="text-sm font-bold text-[#67707b]">({Math.round((achievementStats.unlocked / achievementStats.total) * 100)}%)</span>
+                          </div>
+                          <div className="w-full h-2.5 rounded-full bg-[#1a1c23] overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500" style={{
+                              width: `${(achievementStats.unlocked / achievementStats.total) * 100}%`,
+                              background: achievementStats.unlocked === achievementStats.total
+                                ? "linear-gradient(90deg, #fbbf24, #f59e0b)"
+                                : "linear-gradient(90deg, #1a9fff, #47bfff)",
+                              boxShadow: achievementStats.unlocked === achievementStats.total
+                                ? "0 0 12px #fbbf2466" : "0 0 12px #47bfff44",
+                            }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Achievement List */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      {[...achievements]
+                        .sort((a: any, b: any) => {
+                          // unlocked first, then visible, then hidden
+                          if (a.unlocked !== b.unlocked) return b.unlocked ? 1 : -1;
+                          if (a.hidden !== b.hidden) return a.hidden ? 1 : -1;
+                          return 0;
+                        })
+                        .map((ach: any, i: number) => {
+                          const isHidden = ach.hidden && !ach.unlocked && !revealedAchievements.has(ach.id);
+                          return (
+                            <div
+                              key={ach.id}
+                              className={`flex items-center gap-4 px-6 py-3.5 transition-colors ${
+                                i > 0 ? "border-t border-[#2a2e38]/50" : ""
+                              } ${ach.unlocked ? "hover:bg-[#1a2436]" : "opacity-40"} ${isHidden ? "cursor-pointer" : ""}`}
+                              onClick={isHidden ? () => setRevealedAchievements((prev) => new Set(prev).add(ach.id)) : undefined}
+                            >
+                              <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 border ${
+                                ach.unlocked ? "bg-[#161920] border-[#2a2e38]" : "bg-[#0a0c10] border-[#1a1c23]"
+                              }`}>
+                                {isHidden ? (
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e6673" strokeWidth="2">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                                    <line x1="1" y1="1" x2="23" y2="23" />
+                                  </svg>
+                                ) : ach.iconUrl ? (
+                                  <img src={ach.iconUrl} alt="" className={`w-9 h-9 object-contain rounded ${!ach.unlocked ? "grayscale" : ""}`} />
+                                ) : (
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ach.unlocked ? "#fbbf24" : "#3d4450"} strokeWidth="2">
+                                    {ach.unlocked ? <polyline points="20 6 9 17 4 12" /> : <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>}
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {isHidden ? (
+                                  <>
+                                    <p className="text-sm font-bold text-[#5e6673] italic">{t("library.hiddenAchievement", "Gizli Başarım")}</p>
+                                    <p className="text-xs text-[#3d4450] mt-0.5">{t("library.clickToReveal", "Görmek için tıkla")}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-sm font-bold text-white">{ach.name}</p>
+                                    {ach.description && <p className="text-xs text-[#8f98a0] mt-0.5">{ach.description}</p>}
+                                  </>
+                                )}
+                              </div>
+                              {ach.unlocked && ach.unlockedAt && (
+                                <span className="text-xs text-[#5e6673] font-medium flex-shrink-0">
+                                  {new Date(ach.unlockedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Two-column content (matched height) ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+                {/* Left Column */}
+                <div className="space-y-5">
+                  {/* Game Details Card */}
+                  <div className="bg-[#161a20] border border-[#2a2e38] rounded-lg overflow-hidden">
+                    <div className="px-5 py-3 border-b border-[#2a2e38]">
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673]">{t("library.gameInfo")}</h3>
+                    </div>
+                    <div className="p-5 space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-[#67707b]">{t("library.addedDate")}</span>
+                        <span className="text-[#c6d4df] font-medium">{new Date(selectedLocalGame.added_at).toLocaleDateString("tr-TR")}</span>
+                      </div>
+                      {selectedLocalGame.genres && selectedLocalGame.genres.length > 0 && (
+                        <div className="flex justify-between gap-4">
+                          <span className="text-[#67707b] flex-shrink-0">{t("library.genres")}</span>
+                          <span className="text-[#c6d4df] font-medium text-right">{selectedLocalGame.genres.join(", ")}</span>
+                        </div>
+                      )}
+                      <div className="border-t border-[#2a2e38] pt-3 mt-3">
+                        <div className="mb-2">
+                          <span className="text-[#67707b] text-xs">{t("library.exePath")}</span>
+                          <p className="text-[#c6d4df] font-mono text-[11px] break-all mt-0.5">{selectedLocalGame.exe_path}</p>
+                        </div>
+                        {selectedLocalGame.install_path && (
+                          <div>
+                            <span className="text-[#67707b] text-xs">{t("library.installPath")}</span>
+                            <p className="text-[#c6d4df] font-mono text-[11px] break-all mt-0.5">{selectedLocalGame.install_path}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Friends who play this */}
+                  <div className="bg-[#161a20] border border-[#2a2e38] rounded-lg overflow-hidden">
+                    <div className="px-5 py-3 border-b border-[#2a2e38] flex items-center justify-between">
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673]">{t("library.friendsPlaying")}</h3>
+                      <button onClick={() => onNavigate?.("friends")} className="text-[10px] font-bold text-[#47bfff] hover:text-white transition-colors uppercase tracking-widest">
+                        {t("library.viewFriends")}
+                      </button>
+                    </div>
+                    <div className="px-5 py-4">
+                      <p className="text-xs text-[#5e6673] text-center">{t("library.noFriendsPlaying")}</p>
+                    </div>
+                  </div>
+
+                  {/* Community — Recent Reviews */}
+                  {storeMatch && (
+                    <div className="bg-[#161a20] border border-[#2a2e38] rounded-lg overflow-hidden">
+                      <div className="px-5 py-3 border-b border-[#2a2e38] flex items-center justify-between">
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673]">{t("library.tabs.community")}</h3>
+                        <button onClick={() => onNavigate?.("game", storeMatch.slug)} className="text-[10px] font-bold text-[#47bfff] hover:text-white transition-colors uppercase tracking-widest">
+                          {t("library.viewInStore")} →
+                        </button>
+                      </div>
+                      <div className="p-4">
+                        {storeReviews.length > 0 ? (
+                          <div className="space-y-3">
+                            {storeReviews.map((review: any) => (
+                              <div key={review.id} className="bg-[#0a0c10]/50 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-6 h-6 rounded-full bg-[#2a2e38] flex items-center justify-center text-[10px] font-bold text-[#8f98a0]">
+                                    {(review.user?.username || "?")[0].toUpperCase()}
+                                  </div>
+                                  <span className="text-xs font-bold text-[#c6d4df]">{review.user?.username || "?"}</span>
+                                  <div className="flex gap-0.5 ml-auto">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <svg key={star} width="10" height="10" viewBox="0 0 24 24" fill={star <= review.rating ? "#fbbf24" : "none"} stroke={star <= review.rating ? "#fbbf24" : "#3d4450"} strokeWidth="2">
+                                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                      </svg>
+                                    ))}
+                                  </div>
+                                </div>
+                                <p className="text-xs text-[#8f98a0] line-clamp-2 leading-relaxed">{review.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[#5e6673] text-center py-2">{t("library.noReviews", "Henüz yorum yok.")}</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column — Achievements + Stats (compact, no scroll) */}
+                <div className="space-y-5">
+                  {/* Achievements compact card */}
+                  {achievements.length > 0 && (
+                    <div className="bg-[#161a20] border border-[#2a2e38] rounded-lg overflow-hidden">
+                      <div className="px-4 py-3 border-b border-[#2a2e38]">
+                        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673]">{t("library.achievements")}</h3>
+                      </div>
+                      <div className="p-4">
+                        {/* Summary */}
+                        <div className="flex items-center gap-3 mb-4 p-3 rounded-lg bg-[#0a0c10]/60">
+                          <div className={`w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            achievementStats.unlocked === achievementStats.total
+                              ? "bg-yellow-500/20 ring-2 ring-yellow-500/40"
+                              : "bg-[#161920] ring-2 ring-[#2a2e38]"
+                          }`}>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={achievementStats.unlocked === achievementStats.total ? "#fbbf24" : "#47bfff"} strokeWidth="1.5">
+                              <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                              <path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                              <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                              <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-bold ${achievementStats.unlocked === achievementStats.total ? "text-yellow-400" : "text-white"}`}>
+                              {achievementStats.unlocked}/{achievementStats.total}
+                              {achievementStats.unlocked === achievementStats.total
+                                ? ` — ${t("library.allAchievementsUnlocked", "Tüm başarımlar!")}`
+                                : ` (${Math.round((achievementStats.unlocked / achievementStats.total) * 100)}%)`}
+                            </p>
+                            <div className="w-full h-2 rounded-full bg-[#1a1c23] overflow-hidden mt-1.5">
+                              <div className="h-full rounded-full transition-all duration-500" style={{
+                                width: `${(achievementStats.unlocked / achievementStats.total) * 100}%`,
+                                background: achievementStats.unlocked === achievementStats.total
+                                  ? "linear-gradient(90deg, #fbbf24, #f59e0b)"
+                                  : "linear-gradient(90deg, #1a9fff, #47bfff)",
+                                boxShadow: achievementStats.unlocked === achievementStats.total
+                                  ? "0 0 10px #fbbf2466" : "0 0 10px #47bfff44",
+                              }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Icon grid */}
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {[...achievements]
+                            .sort((a: any, b: any) => {
+                          // unlocked first, then visible, then hidden
+                          if (a.unlocked !== b.unlocked) return b.unlocked ? 1 : -1;
+                          if (a.hidden !== b.hidden) return a.hidden ? 1 : -1;
+                          return 0;
+                        })
+                            .slice(0, 14)
+                            .map((ach: any) => (
+                              <div key={ach.id} className={`w-9 h-9 rounded flex items-center justify-center border ${
+                                ach.unlocked ? "bg-[#161920] border-[#2a2e38]" : "bg-[#0a0c10] border-[#1a1c23] opacity-30"
+                              }`} title={ach.name}>
+                                {ach.iconUrl ? (
+                                  <img src={ach.iconUrl} alt="" className={`w-6 h-6 object-contain rounded ${!ach.unlocked ? "grayscale" : ""}`} />
+                                ) : (
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={ach.unlocked ? "#fbbf24" : "#3d4450"} strokeWidth="2">
+                                    {ach.unlocked ? <polyline points="20 6 9 17 4 12" /> : <><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>}
+                                  </svg>
+                                )}
+                              </div>
+                            ))}
+                          {achievements.length > 14 && (
+                            <div className="w-9 h-9 rounded bg-[#0a0c10] border border-[#1a1c23] flex items-center justify-center">
+                              <span className="text-[10px] font-bold text-[#5e6673]">+{achievements.length - 14}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Open modal button */}
+                        <button
+                          onClick={() => setShowAllAchievements(true)}
+                          className="w-full py-2 text-[11px] font-bold text-[#67707b] hover:text-white bg-[#0a0c10]/40 hover:bg-[#0a0c10] rounded transition-colors uppercase tracking-widest border border-[#2a2e38]/50"
+                        >
+                          {t("library.viewAchievements")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Stats Card */}
+                  <div className="bg-[#161a20] border border-[#2a2e38] rounded-lg overflow-hidden">
+                    <div className="px-4 py-3 border-b border-[#2a2e38]">
+                      <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5e6673]">{t("profile.blocks.stats", "İstatistikler")}</h3>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 gap-3">
+                      <div className="bg-[#0a0c10]/60 rounded-lg p-3 text-center">
+                        <div className="text-xl font-black text-white tabular-nums">
+                          {selectedLocalGame.play_time > 0 ? `${(selectedLocalGame.play_time / 3600).toFixed(1)}` : "0"}
+                        </div>
+                        <div className="text-[9px] font-bold text-[#5e6673] uppercase tracking-widest mt-0.5">{t("library.hoursShort")}</div>
+                      </div>
+                      <div className="bg-[#0a0c10]/60 rounded-lg p-3 text-center">
+                        <div className="text-xl font-black text-white tabular-nums">{achievementStats.total}</div>
+                        <div className="text-[9px] font-bold text-[#5e6673] uppercase tracking-widest mt-0.5">{t("library.achievements")}</div>
+                      </div>
+                      <div className="bg-[#0a0c10]/60 rounded-lg p-3 text-center">
+                        <div className="text-xl font-black text-white tabular-nums">{achievementStats.unlocked}</div>
+                        <div className="text-[9px] font-bold text-[#5e6673] uppercase tracking-widest mt-0.5">{t("library.unlocked")}</div>
+                      </div>
+                      <div className="bg-[#0a0c10]/60 rounded-lg p-3 text-center">
+                        <div className={`text-xl font-black tabular-nums ${
+                          achievementStats.total > 0 && achievementStats.unlocked === achievementStats.total ? "text-yellow-400" : "text-white"
+                        }`}>
+                          {achievementStats.total > 0 ? `${Math.round((achievementStats.unlocked / achievementStats.total) * 100)}%` : "—"}
+                        </div>
+                        <div className="text-[9px] font-bold text-[#5e6673] uppercase tracking-widest mt-0.5">{t("library.completion", "Tamamlama")}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         ) : items.length === 0 && localGames.length === 0 ? (
@@ -594,7 +1004,7 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
               </div>
             </div>
 
-            <div className="px-10 pb-20 relative z-20 -mt-10">
+            <div className="px-4 sm:px-6 lg:px-10 pb-20 relative z-20 -mt-10">
               {/* Action Bar */}
               <div className="w-full bg-[#161a20]/80 backdrop-blur border border-[#2a2e38] rounded shadow-lg mb-8 flex items-center pr-6 h-20">
                 <div className="flex items-center gap-4 pl-6 border-r border-[#2a2e38]/50 h-full pr-8">
@@ -625,31 +1035,63 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                   )}
                 </div>
 
-                {/* Stats */}
-                <div className="flex items-center gap-12 ml-10">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.lastPlayed")}</span>
-                    <span className="text-sm font-semibold text-white">{formatRelativeDate(selectedItem.lastPlayedAt)}</span>
+                {/* Stats — Steam-style with icons */}
+                <div className="flex items-center gap-1 ml-4 h-full">
+                  {/* Last Played */}
+                  <div className="flex items-center gap-3 px-5 h-full border-r border-[#2a2e38]/50">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#67707b" strokeWidth="1.5" className="flex-shrink-0">
+                      <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("library.lastPlayed")}</span>
+                      <span className="text-sm font-semibold text-white">{formatRelativeDate(selectedItem.lastPlayedAt)}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.playTime")}</span>
-                    <span className="text-sm font-semibold text-white">{formatPlayTime(selectedItem.playTimeMins)}</span>
+
+                  {/* Play Time */}
+                  <div className="flex items-center gap-3 px-5 h-full border-r border-[#2a2e38]/50">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#67707b" strokeWidth="1.5" className="flex-shrink-0">
+                      <path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+                      <path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" />
+                    </svg>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("library.playTime")}</span>
+                      <span className="text-sm font-semibold text-white">{formatPlayTime(selectedItem.playTimeMins)}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.cloudStatus")}</span>
-                    <span className="text-sm font-semibold text-white flex items-center gap-1">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
-                      {t("library.cloudUpToDate")}
-                    </span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest mb-1">{t("library.achievements")}</span>
-                    <span className="text-sm font-semibold text-white">
-                      {achievementStats.unlocked} / {achievementStats.total}
-                      <div className="w-24 h-1.5 bg-[#2a2e38] rounded-full mt-1.5 overflow-hidden">
-                        <div className="bg-[#47bfff] h-full shadow-[0_0_10px_#47bfff]" style={{ width: achievementStats.total > 0 ? `${(achievementStats.unlocked / achievementStats.total) * 100}%` : "0%" }} />
+
+                  {/* Achievements */}
+                  <div className="flex items-center gap-3 px-5 h-full">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={achievementStats.unlocked === achievementStats.total && achievementStats.total > 0 ? "#fbbf24" : "#67707b"} strokeWidth="1.5" className="flex-shrink-0">
+                      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                      <path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                    </svg>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-[#67707b] uppercase tracking-widest">{t("library.achievements")}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white tabular-nums">
+                          {achievementStats.unlocked}/{achievementStats.total}
+                        </span>
+                        {achievementStats.total > 0 && (
+                          <div className="w-20 h-1.5 bg-[#2a2e38] rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${(achievementStats.unlocked / achievementStats.total) * 100}%`,
+                                background: achievementStats.unlocked === achievementStats.total
+                                  ? "linear-gradient(90deg, #fbbf24, #f59e0b)"
+                                  : "linear-gradient(90deg, #1a9fff, #47bfff)",
+                                boxShadow: achievementStats.unlocked === achievementStats.total
+                                  ? "0 0 8px #fbbf24"
+                                  : "0 0 8px #47bfff",
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
-                    </span>
+                    </div>
                   </div>
                 </div>
 
@@ -713,42 +1155,10 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
 
               {/* Tab Content */}
               {activeTab === "overview" && (
-                <div className="grid grid-cols-[1fr_320px] gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
+                  {/* Left Column — Activity */}
                   <div className="space-y-6">
-                    {/* Friends Playing */}
-                    <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
-                      <div className="px-4 py-3 border-b border-[#2a2e38]">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.friendsPlaying")}</h3>
-                      </div>
-                      <div className="p-4">
-                        <button onClick={() => onNavigate?.("friends")} className="text-sm text-[#47bfff] hover:text-[#66ccff] transition-colors font-medium">
-                          {t("library.viewFriends")}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Achievements */}
-                    <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
-                      <div className="px-4 py-3 border-b border-[#2a2e38] flex justify-between items-center">
-                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.achievements")}</h3>
-                        <span className="text-xs font-bold text-[#67707b]">
-                          {achievementStats.unlocked} / {achievementStats.total}
-                        </span>
-                      </div>
-                      <div className="p-4">
-                        {achievements.length > 0 ? (
-                          <div className="space-y-2">
-                            {achievements.map((ach: any) => (
-                              <AchievementCard key={ach.id} achievement={ach} />
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-[#5e6673] font-medium text-center py-4">{t("library.noAchievements")}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Activity */}
+                    {/* Activity Feed */}
                     <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
                       <div className="px-4 py-3 border-b border-[#2a2e38]">
                         <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.activity")}</h3>
@@ -765,14 +1175,118 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
                         )}
                       </div>
                     </div>
+
+                    {/* Friends Playing */}
+                    <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
+                      <div className="px-4 py-3 border-b border-[#2a2e38]">
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.friendsPlaying")}</h3>
+                      </div>
+                      <div className="p-4">
+                        <button onClick={() => onNavigate?.("friends")} className="text-sm text-[#47bfff] hover:text-[#66ccff] transition-colors font-medium">
+                          {t("library.viewFriends")}
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Right Column */}
+                  {/* Right Column — Achievements */}
                   <div className="space-y-6">
-                    <h3 className="text-sm font-bold text-[#8f98a0] uppercase tracking-wider mb-2">{t("library.devActivity")}</h3>
-                    <div className="bg-[#1a1c23] border border-[#2a2e38] rounded p-6 flex flex-col items-center justify-center text-center">
-                      <svg className="mb-3 text-[#3d4450]" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                      <p className="text-sm text-[#5e6673] font-medium">{t("library.noDevUpdates")}</p>
+                    {/* Achievement Summary */}
+                    <div className="bg-[#1a1c23] border border-[#2a2e38] rounded">
+                      <div className="px-4 py-3 border-b border-[#2a2e38]">
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider">{t("library.achievements")}</h3>
+                      </div>
+                      <div className="p-4">
+                        {achievementStats.total > 0 ? (
+                          <div>
+                            {/* Completion badge */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                achievementStats.unlocked === achievementStats.total
+                                  ? "bg-yellow-500/20 ring-2 ring-yellow-500/40"
+                                  : "bg-[#0a0c10] ring-2 ring-[#2a2e38]"
+                              }`}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={achievementStats.unlocked === achievementStats.total ? "#fbbf24" : "#47bfff"} strokeWidth="1.5">
+                                  <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                                  <path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+                                  <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+                                  <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-bold ${
+                                  achievementStats.unlocked === achievementStats.total ? "text-yellow-400" : "text-white"
+                                }`}>
+                                  {achievementStats.unlocked}/{achievementStats.total}
+                                  {achievementStats.unlocked === achievementStats.total
+                                    ? ` — ${t("library.allAchievementsUnlocked", "Tüm başarımlar kazanıldı!")} (100%)`
+                                    : ` (${Math.round((achievementStats.unlocked / achievementStats.total) * 100)}%)`
+                                  }
+                                </p>
+                                {/* Progress bar */}
+                                <div className="w-full h-2 rounded-full bg-[#0a0c10] overflow-hidden mt-2">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{
+                                      width: `${(achievementStats.unlocked / achievementStats.total) * 100}%`,
+                                      background: achievementStats.unlocked === achievementStats.total
+                                        ? "linear-gradient(90deg, #fbbf24, #f59e0b)"
+                                        : "linear-gradient(90deg, #1a9fff, #47bfff)",
+                                      boxShadow: achievementStats.unlocked === achievementStats.total
+                                        ? "0 0 10px #fbbf24"
+                                        : "0 0 10px #47bfff",
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Individual achievements */}
+                            <div className="space-y-1.5 mt-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                              {[...achievements]
+                                .sort((a: any, b: any) => {
+                          // unlocked first, then visible, then hidden
+                          if (a.unlocked !== b.unlocked) return b.unlocked ? 1 : -1;
+                          if (a.hidden !== b.hidden) return a.hidden ? 1 : -1;
+                          return 0;
+                        })
+                                .map((ach: any) => (
+                                  <div
+                                    key={ach.id}
+                                    className={`flex items-center gap-3 p-2.5 rounded transition-colors ${
+                                      ach.unlocked
+                                        ? "bg-[#0a0c10]/50 hover:bg-[#0a0c10]"
+                                        : "opacity-40"
+                                    }`}
+                                  >
+                                    <div className={`w-9 h-9 rounded flex items-center justify-center flex-shrink-0 border ${
+                                      ach.unlocked ? "bg-[#161920] border-[#2a2e38]" : "bg-[#0a0c10] border-[#1a1c23]"
+                                    }`}>
+                                      {ach.iconUrl ? (
+                                        <img src={ach.iconUrl} alt="" className={`w-6 h-6 object-contain ${!ach.unlocked ? "grayscale" : ""}`} />
+                                      ) : ach.unlocked ? (
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+                                      ) : (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3d4450" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-xs font-bold text-white truncate">{ach.name}</p>
+                                      <p className="text-[10px] text-[#67707b] truncate">{ach.description}</p>
+                                    </div>
+                                    {ach.unlocked && ach.unlockedAt && (
+                                      <span className="text-[9px] text-[#5e6673] font-bold tabular-nums flex-shrink-0">
+                                        {new Date(ach.unlockedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[#5e6673] font-medium text-center py-4">{t("library.noAchievements")}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -860,10 +1374,105 @@ export function LibraryPage({ onNavigate }: { onNavigate?: (page: string, slug?:
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <svg className="mb-4 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            <h2 className="text-2xl font-black text-[#5e6673] tracking-widest uppercase">{t("library.libraryTitle")}</h2>
-            <p className="text-[#3d4450] text-sm font-medium">{t("library.selectGame")}</p>
+          /* Library Home — show recent games grid when no game selected */
+          <div className="p-8 overflow-y-auto h-full">
+            {/* Recent Games */}
+            {(() => {
+              const recentGames = [...localGames]
+                .filter((g) => g.last_played)
+                .sort((a, b) => new Date(b.last_played!).getTime() - new Date(a.last_played!).getTime())
+                .slice(0, 8);
+
+              const allGames = [...localGames]
+                .sort((a, b) => a.title.localeCompare(b.title));
+
+              return (
+                <div className="space-y-8">
+                  {/* Recent */}
+                  {recentGames.length > 0 && (
+                    <section>
+                      <h2 className="text-[11px] font-bold uppercase tracking-widest text-[#5e6673] mb-4">{t("library.recentGames", "Son Oyunlar")}</h2>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                        {recentGames.map((game) => (
+                          <button
+                            key={game.id}
+                            onClick={() => { setSelectedLocalGame(game); setSelectedItem(null); }}
+                            className="group text-left"
+                          >
+                            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-[#2a2e38] border border-[#2a2e38] hover:border-[#47bfff]/40 transition-all relative">
+                              {game.cover_url ? (
+                                <img src={game.cover_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a1c23] to-[#2a2e38]">
+                                  <span className="text-2xl font-black text-[#3d4450]">{game.title.slice(0, 2).toUpperCase()}</span>
+                                </div>
+                              )}
+                              {/* Hover overlay with play button */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-[#47bfff] flex items-center justify-center shadow-lg">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-white uppercase tracking-widest">{t("library.play")}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs font-bold text-[#c6d4df] mt-2 truncate group-hover:text-white transition-colors">{game.title}</p>
+                            {game.last_played && (
+                              <p className="text-[10px] text-[#5e6673]">{formatRelativeDate(game.last_played)}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* All Games */}
+                  {allGames.length > 0 && (
+                    <section>
+                      <h2 className="text-[11px] font-bold uppercase tracking-widest text-[#5e6673] mb-4">{t("library.allGames", "Tüm Oyunlar")} ({allGames.length})</h2>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                        {allGames.map((game) => (
+                          <button
+                            key={game.id}
+                            onClick={() => { setSelectedLocalGame(game); setSelectedItem(null); }}
+                            className="group text-left"
+                          >
+                            <div className="aspect-[3/4] rounded-lg overflow-hidden bg-[#2a2e38] border border-[#2a2e38] hover:border-[#47bfff]/40 transition-all relative">
+                              {game.cover_url ? (
+                                <img src={game.cover_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#1a1c23] to-[#2a2e38]">
+                                  <span className="text-2xl font-black text-[#3d4450]">{game.title.slice(0, 2).toUpperCase()}</span>
+                                </div>
+                              )}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full bg-[#47bfff] flex items-center justify-center shadow-lg">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                  </div>
+                                  <span className="text-[10px] font-bold text-white uppercase tracking-widest">{t("library.play")}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <p className="text-xs font-bold text-[#c6d4df] mt-2 truncate group-hover:text-white transition-colors">{game.title}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Empty state — no games at all */}
+                  {allGames.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-32 text-center">
+                      <svg className="mb-4 text-[#3d4450]" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                      <h2 className="text-2xl font-black text-[#5e6673] tracking-widest uppercase">{t("library.libraryTitle")}</h2>
+                      <p className="text-[#3d4450] text-sm font-medium">{t("library.selectGame")}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>

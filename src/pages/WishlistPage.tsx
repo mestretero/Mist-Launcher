@@ -33,7 +33,7 @@ export function WishlistPage({ onGameClick }: WishlistPageProps) {
     }
   };
 
-  const containerClass = "max-w-[1400px] mx-auto px-10";
+  const containerClass = "max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10";
 
   if (loading) {
     return (
@@ -98,7 +98,7 @@ export function WishlistPage({ onGameClick }: WishlistPageProps) {
           </div>
         ) : (
           /* Grid */
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {items.map((item) => {
               const price = parseFloat(item.game.price);
               const discountedPrice =

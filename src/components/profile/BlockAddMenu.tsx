@@ -21,6 +21,12 @@ const BLOCK_TYPES = [
     descKey: "profile.blocks.achievementsDesc",
   },
   {
+    type: "PERFECT_GAMES",
+    icon: "💯",
+    nameKey: "profile.blocks.perfectGames",
+    descKey: "profile.blocks.perfectGamesDesc",
+  },
+  {
     type: "ACTIVITY",
     icon: "📊",
     nameKey: "profile.blocks.activity",

@@ -18,10 +18,12 @@ interface DownloadState {
   resumeDownload: (gameId: string) => Promise<void>;
   cancelDownload: (gameId: string) => Promise<void>;
   initListener: () => Promise<void>;
+  _unlisten: (() => void) | null;
 }
 
-export const useDownloadStore = create<DownloadState>((set) => ({
+export const useDownloadStore = create<DownloadState>((set, get) => ({
   downloads: {},
+  _unlisten: null,
 
   startDownload: async (gameId, url, destPath) => {
     const downloadId = await invoke<string>("download_game", {
@@ -84,7 +86,9 @@ export const useDownloadStore = create<DownloadState>((set) => ({
   },
 
   initListener: async () => {
-    await listen<any>("download-progress", (event) => {
+    // Cleanup previous listener to prevent leaks
+    get()._unlisten?.();
+    const unlisten = await listen<any>("download-progress", (event) => {
       const { download_id, percent, speed_bps, eta_secs } = event.payload;
       set((state) => {
         const entry = Object.values(state.downloads).find((d) => d.downloadId === download_id);
@@ -97,5 +101,6 @@ export const useDownloadStore = create<DownloadState>((set) => ({
         };
       });
     });
+    set({ _unlisten: unlisten });
   },
 }));

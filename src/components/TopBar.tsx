@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
+import mistLogo from "../assets/mist-logo.png";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useCartStore } from "../stores/cartStore";
 import { useNotificationStore } from "../stores/notificationStore";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "../lib/api";
+import { getAvatarUrl } from "../lib/avatar";
 
 interface TopBarProps {
   currentPage: string;
@@ -90,10 +92,7 @@ export function TopBar({ currentPage, onNavigate, onRefresh, canGoBack, canGoFor
 
         {/* Brand */}
         <button onClick={() => onNavigate("store")} className="flex items-center gap-1.5 px-3 shrink-0" style={noDrag}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.5 9c-.83 0-1.5-.67-1.5-1.5S15.67 8 16.5 8 18 8.67 18 9.5 17.33 11 16.5 11zm-9 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm3.5-2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
-          </svg>
-          <span className="text-sm font-bold text-white tracking-widest hidden sm:inline">MIST</span>
+          <img src={mistLogo} alt="MIST" className="h-9 w-9 object-contain rounded" />
         </button>
 
         {/* Main Nav */}
@@ -165,7 +164,7 @@ export function TopBar({ currentPage, onNavigate, onRefresh, canGoBack, canGoFor
               >
                 <div className="w-6 h-6 rounded bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px] overflow-hidden">
                   {user.avatarUrl
-                    ? <img src={`http://localhost:3001${user.avatarUrl}`} alt="" className="w-full h-full object-cover" />
+                    ? <img src={getAvatarUrl(user.avatarUrl) || ""} alt="" className="w-full h-full object-cover" />
                     : user.username.slice(0, 2).toUpperCase()
                   }
                 </div>
@@ -184,7 +183,7 @@ export function TopBar({ currentPage, onNavigate, onRefresh, canGoBack, canGoFor
                   {/* Wallet */}
                   <div className="px-4 py-2 border-b border-brand-800 flex items-center justify-between">
                     <span className="text-xs text-brand-400">{t("nav.wallet")}</span>
-                    <span className="text-xs font-bold text-brand-200">{user.walletBalance ? Math.floor(parseFloat(user.walletBalance)) : "0"} SC</span>
+                    <span className="text-xs font-bold text-brand-200">{user.walletBalance ? Math.floor(parseFloat(user.walletBalance)) : "0"} MC</span>
                   </div>
                   {/* Menu items */}
                   <div className="py-1">

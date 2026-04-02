@@ -58,6 +58,22 @@ button, nav {
   border-radius: 2px;
 }
 
+/* Login background scrolling columns */
+@keyframes scroll-up {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+@keyframes scroll-down {
+  0% { transform: translateY(-50%); }
+  100% { transform: translateY(0); }
+}
+.animate-scroll-up {
+  animation: scroll-up linear infinite;
+}
+.animate-scroll-down {
+  animation: scroll-down linear infinite;
+}
+
 /* Toast slide-in animation */
 @keyframes slide-in {
   from { transform: translateX(100%); opacity: 0; }

@@ -12,7 +12,7 @@ interface NotificationState {
   receiveNotification: (notification: Notification) => void;
 }
 
-export const useNotificationStore = create<NotificationState>((set, get) => ({
+export const useNotificationStore = create<NotificationState>((set) => ({
   notifications: [],
   unreadCount: 0,
   loading: false,
@@ -24,7 +24,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
       if (!token) return;
       const data = await api.notifications.list();
       set({ notifications: data.notifications, unreadCount: data.unreadCount });
-    } catch {}
+    } catch (err) { console.error("Failed to fetch notifications:", err); }
   },
 
   markRead: async (id) => {

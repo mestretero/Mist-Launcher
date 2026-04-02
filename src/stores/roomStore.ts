@@ -198,7 +198,7 @@ function handleWsMessage(
 
     case "room:player-joined": {
       const room = get().currentRoom;
-      if (!room) break;
+      if (!room?.players) break;
       set({
         currentRoom: {
           ...room,
@@ -223,7 +223,7 @@ function handleWsMessage(
 
     case "room:player-left": {
       const room = get().currentRoom;
-      if (!room) return;
+      if (!room?.players) return;
       set({
         currentRoom: {
           ...room,
@@ -235,7 +235,7 @@ function handleWsMessage(
 
     case "room:player-ready": {
       const room = get().currentRoom;
-      if (!room) return;
+      if (!room?.players) return;
       set({
         currentRoom: {
           ...room,

@@ -1,7 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { gameListSchema, searchSchema } from "../schemas/game.schema.js";
 import * as gameService from "../services/game.service.js";
-import { searchAndAutoAdd, searchSteamGames } from "../services/steam.service.js";
+import { searchAndAutoAdd, searchSteamGames, getSteamAchievements } from "../services/steam.service.js";
 import { prisma } from "../lib/prisma.js";
 
 export default async function gameRoutes(app: FastifyInstance) {
@@ -52,9 +52,54 @@ export default async function gameRoutes(app: FastifyInstance) {
     return reply.code(201).send({ data: req });
   });
 
-  // Shared cache for Steam description lookups
+  // Shared cache for Steam lookups (descriptions + achievements)
+  const MAX_CACHE_SIZE = 500;
   const descCache = new Map<string, { data: any; expiry: number }>();
   const DESC_CACHE_TTL = 1000 * 60 * 60 * 6; // 6 hours
+
+  function cacheSet(key: string, data: any) {
+    // Evict oldest entry if cache is full
+    if (descCache.size >= MAX_CACHE_SIZE && !descCache.has(key)) {
+      const oldest = descCache.keys().next().value;
+      if (oldest) descCache.delete(oldest);
+    }
+    descCache.set(key, { data, expiry: Date.now() + DESC_CACHE_TTL });
+  }
+
+  // Cleanup expired cache entries every hour + enforce size limit
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of descCache) {
+      if (val.expiry < now) descCache.delete(key);
+    }
+    // If still over limit after expiry cleanup, evict oldest entries
+    if (descCache.size > MAX_CACHE_SIZE) {
+      const entries = [...descCache.entries()].sort((a, b) => a[1].expiry - b[1].expiry);
+      const toRemove = entries.slice(0, descCache.size - MAX_CACHE_SIZE);
+      for (const [key] of toRemove) descCache.delete(key);
+    }
+  }, 60 * 60 * 1000);
+
+  // Steam achievements for any game by title (no DB required, used by local/scanned games)
+  app.get("/games/steam-achievements", async (request, reply) => {
+    const { title, lang } = request.query as { title?: string; lang?: string };
+    if (!title) return reply.code(400).send({ error: "title required" });
+
+    const steamLang: Record<string, string> = { tr: "turkish", en: "english", es: "spanish", de: "german" };
+    const resolvedLang = steamLang[lang || ""] || lang || "turkish";
+
+    const cacheKey = `ach:${title.toLowerCase()}:${resolvedLang}`;
+    const cached = descCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      return reply.send({ data: cached.data });
+    }
+
+    const result = await getSteamAchievements(title, resolvedLang);
+    if (result) {
+      cacheSet(cacheKey, result);
+    }
+    return reply.send({ data: result });
+  });
 
   // Localized description by game title (for local/scanned games not in our store)
   app.get("/games/localized-description", async (request, reply) => {
@@ -85,14 +130,14 @@ export default async function gameRoutes(app: FastifyInstance) {
         const detail = json[String(match.id)]?.data;
         if (detail?.short_description) {
           const result = { description: detail.short_description };
-          descCache.set(cacheKey, { data: result, expiry: Date.now() + DESC_CACHE_TTL });
+          cacheSet(cacheKey, result);
           return reply.send({ data: result });
         }
       }
     } catch {}
 
     const empty = { description: null };
-    descCache.set(cacheKey, { data: empty, expiry: Date.now() + DESC_CACHE_TTL });
+    cacheSet(cacheKey, empty);
     return reply.send({ data: empty });
   });
 
@@ -124,7 +169,7 @@ export default async function gameRoutes(app: FastifyInstance) {
     const appIdMatch = game.coverImageUrl?.match(/\/apps\/(\d+)\//);
     if (!appIdMatch) {
       const fallback = { description: game.description };
-      descCache.set(cacheKey, { data: fallback, expiry: Date.now() + DESC_CACHE_TTL });
+      cacheSet(cacheKey, fallback);
       return reply.send({ data: fallback });
     }
 
@@ -135,13 +180,13 @@ export default async function gameRoutes(app: FastifyInstance) {
       const detail = json[appId!]?.data;
       if (detail?.detailed_description) {
         const result = { description: detail.detailed_description, shortDescription: detail.short_description };
-        descCache.set(cacheKey, { data: result, expiry: Date.now() + DESC_CACHE_TTL });
+        cacheSet(cacheKey, result);
         return reply.send({ data: result });
       }
     } catch {}
 
     const fallback = { description: game.description };
-    descCache.set(cacheKey, { data: fallback, expiry: Date.now() + DESC_CACHE_TTL });
+    cacheSet(cacheKey, fallback);
     return reply.send({ data: fallback });
   });
 

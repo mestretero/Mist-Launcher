@@ -1,3 +1,19 @@
+# Signing keys (NEVER commit)
+src-tauri/keys/
+UPDATE-GUIDE.md
+
+# Temp/dev files
+*.xlsx
+generate_games_excel.py
+server/force-seed.ts
+server/mock-*.ts
+server/test-api.ts
+server/export-*.ts
+server/import-*.ts
+server/debug-*.ts
+server/check-*.ts
+server/*-export.json
+
 # Logs
 logs
 *.log
@@ -36,5 +52,6 @@ target/
 # Stealike internal
 .superpowers/
 server/public/downloads/
+server/public/avatars/
 src-tauri/.env
 .worktrees/

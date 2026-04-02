@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { getAvatarUrl } from "../lib/avatar";
 
 interface Friend {
   id: string;
@@ -107,7 +108,7 @@ function FriendRow({ friend, isActive, onClick, onContextMenu }: {
       className={`w-full flex items-center gap-2.5 px-3 py-2 text-left cursor-pointer transition-all ${isActive ? "bg-[#1a9fff]/10 border-l-2 border-[#1a9fff]" : "hover:bg-[#20232c]/60 border-l-2 border-transparent"}`}>
       <div className="relative flex-shrink-0">
         {friend.avatarUrl ? (
-          <img src={friend.avatarUrl.startsWith("http") ? friend.avatarUrl : `http://localhost:3001${friend.avatarUrl}`} alt="" className="w-8 h-8 rounded-lg object-cover" />
+          <img src={getAvatarUrl(friend.avatarUrl) || ""} alt="" className="w-8 h-8 rounded-lg object-cover" />
         ) : (
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${friend.online ? "bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] text-[#c6d4df]" : "bg-[#20232c] text-[#67707b]"}`}>{initials}</div>
         )}

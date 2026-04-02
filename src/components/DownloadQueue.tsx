@@ -1,4 +1,5 @@
 import { useDownloadStore } from "../stores/downloadStore";
+import { useTranslation } from "react-i18next";
 
 function formatSpeed(bps: number): string {
   if (bps > 1024 * 1024) return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
@@ -8,14 +9,15 @@ function formatSpeed(bps: number): string {
 
 function formatEta(secs: number): string {
   if (secs <= 0) return "";
-  if (secs < 60) return `${secs}sn`;
-  if (secs < 3600) return `${Math.floor(secs / 60)}dk ${secs % 60}sn`;
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ${secs % 60}s`;
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
-  return `${h}sa ${m}dk`;
+  return `${h}h ${m}m`;
 }
 
 export function DownloadQueue() {
+  const { t } = useTranslation();
   const downloads = useDownloadStore((s) => s.downloads);
   const pauseDownload = useDownloadStore((s) => s.pauseDownload);
   const resumeDownload = useDownloadStore((s) => s.resumeDownload);
@@ -31,7 +33,7 @@ export function DownloadQueue() {
           <line x1="12" y1="15" x2="12" y2="3" />
         </svg>
         <p className="text-sm font-bold text-brand-500 uppercase tracking-widest">
-          Indirme kuyrugu bos
+          {t("download.queueEmpty")}
         </p>
       </div>
     );
@@ -68,16 +70,16 @@ export function DownloadQueue() {
                     ? "text-green-400 border-green-900/50 hover:border-green-700/50"
                     : "text-brand-400 border-brand-800 hover:text-yellow-400 hover:border-yellow-900/50"
                 }`}
-                title={dl.paused ? "Devam Et" : "Durakla"}
+                title={dl.paused ? t("download.resume") : t("download.pause")}
               >
-                {dl.paused ? "Devam" : "Durakla"}
+                {dl.paused ? t("download.resume") : t("download.pause")}
               </button>
               <button
                 onClick={() => cancelDownload(dl.gameId)}
                 className="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest text-brand-400 bg-brand-950 border border-brand-800 hover:text-red-400 hover:border-red-900/50 transition-colors"
-                title="Iptal"
+                title={t("download.cancel")}
               >
-                Iptal
+                {t("download.cancel")}
               </button>
             </div>
           </div>
@@ -87,7 +89,7 @@ export function DownloadQueue() {
             <span>{dl.percent.toFixed(0)}%</span>
             <div className="flex gap-3">
               {dl.etaSecs > 0 && (
-                <span className="text-brand-500">{formatEta(dl.etaSecs)} kaldi</span>
+                <span className="text-brand-500">{formatEta(dl.etaSecs)} {t("download.remaining")}</span>
               )}
               <span>{formatSpeed(dl.speedBps)}</span>
             </div>

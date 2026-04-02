@@ -50,9 +50,9 @@ export function CreateGroupModal({ friends, preselectedFriend, onClose }: Props)
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-[#1a1c23] border border-[#2a2e38] rounded-2xl w-[340px] max-h-[500px] flex flex-col shadow-2xl shadow-black/50">
+      <div className="bg-[#1a1c23] border border-[#2a2e38] rounded-2xl w-full max-w-[340px] mx-4 max-h-[500px] flex flex-col shadow-2xl shadow-black/50">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2e38]">
           <span className="text-[15px] font-bold text-white">{t("chat.createGroup")}</span>
@@ -100,7 +100,7 @@ export function CreateGroupModal({ friends, preselectedFriend, onClose }: Props)
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black ${f.online ? "bg-gradient-to-br from-[#1a9fff]/30 to-[#1a1c23] text-[#c6d4df]" : "bg-[#20232c] text-[#67707b]"}`}>
                   {f.username.slice(0, 2).toUpperCase()}
                 </div>
-                <span className={`text-[12px] font-medium ${f.online ? "text-[#c6d4df]" : "text-[#67707b]"}`}>{f.username}</span>
+                <span className={`text-[12px] font-medium truncate ${f.online ? "text-[#c6d4df]" : "text-[#67707b]"}`}>{f.username}</span>
                 {f.online && <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-auto" />}
               </button>
             );

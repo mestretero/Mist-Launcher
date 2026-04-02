@@ -84,7 +84,7 @@ export function CommunityLinkModal({ onClose, onSubmit }: CommunityLinkModalProp
           <label className="text-gray-400 text-xs mb-1 block">{t("gameDetail.communityLinks.modal.linkTitle")} *</label>
           <input
             className="w-full bg-[#0a0c10] border border-[#2a2d35] rounded-md px-3 py-2 text-white text-sm focus:border-[#1a9fff] outline-none"
-            placeholder="ör. GTA V - Full Repack v1.68"
+            placeholder={t("gameDetail.communityLinks.modal.titlePlaceholder", "e.g. GTA V - Full Repack v1.68")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={100}
@@ -97,7 +97,7 @@ export function CommunityLinkModal({ onClose, onSubmit }: CommunityLinkModalProp
             <label className="text-gray-400 text-xs mb-1 block">{t("gameDetail.communityLinks.modal.crackInfo")}</label>
             <input
               className="w-full bg-[#0a0c10] border border-[#2a2d35] rounded-md px-3 py-2 text-white text-sm focus:border-[#1a9fff] outline-none"
-              placeholder="ör. EMPRESS v1.68"
+              placeholder={t("gameDetail.communityLinks.modal.crackInfoPlaceholder", "e.g. EMPRESS v1.68")}
               value={crackInfo}
               onChange={(e) => setCrackInfo(e.target.value)}
               maxLength={100}

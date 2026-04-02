@@ -15,7 +15,8 @@ export class WsClient {
     onMessage: MessageHandler,
     onStatusChange: (connected: boolean) => void,
   ) {
-    this.url = `ws://localhost:3001/ws?token=${token}`;
+    const wsBase = import.meta.env.DEV ? "ws://localhost:3001" : "wss://api.mistlauncher.com";
+    this.url = `${wsBase}/ws?token=${token}`;
     this.onMessage = onMessage;
     this.onStatusChange = onStatusChange;
   }

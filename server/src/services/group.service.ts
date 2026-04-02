@@ -84,6 +84,11 @@ export async function sendMessage(groupId: string, senderId: string, content: st
 
 export async function addMember(groupId: string, requesterId: string, newUserId: string) {
   await assertCreator(groupId, requesterId);
+  // Check if already a member
+  const existing = await prisma.groupChatMember.findUnique({
+    where: { groupId_userId: { groupId, userId: newUserId } },
+  });
+  if (existing) throw forbidden("User is already a member of this group");
   const friendship = await prisma.friendship.findFirst({
     where: {
       status: "ACCEPTED",

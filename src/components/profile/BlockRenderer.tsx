@@ -7,6 +7,7 @@ import { FavoriteGameBlock } from "./blocks/FavoriteGameBlock";
 import { SocialLinksBlock } from "./blocks/SocialLinksBlock";
 import { ScreenshotsBlock } from "./blocks/ScreenshotsBlock";
 import { AchievementsBlock } from "./blocks/AchievementsBlock";
+import { PerfectGamesBlock } from "./blocks/PerfectGamesBlock";
 import { CommentWallBlock } from "./blocks/CommentWallBlock";
 import { ReferralBlock } from "./blocks/ReferralBlock";
 
@@ -19,6 +20,7 @@ const BLOCK_MAP: Record<string, React.ComponentType<any>> = {
   SOCIAL_LINKS: SocialLinksBlock,
   SCREENSHOTS: ScreenshotsBlock,
   ACHIEVEMENTS: AchievementsBlock,
+  PERFECT_GAMES: PerfectGamesBlock,
   COMMENT_WALL: CommentWallBlock,
   REFERRAL: ReferralBlock,
 };

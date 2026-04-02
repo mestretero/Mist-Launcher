@@ -23,14 +23,14 @@
     "buy": "Satın Al",
     "owned": "Sahipsin",
     "free": "Ücretsiz",
-    "insufficientBalance": "Yetersiz SC",
+    "insufficientBalance": "Yetersiz MC",
     "purchaseSuccess": "Tema satın alındı!",
     "all": "Tümü",
     "games": "Oyunlar",
     "crossovers": "Crossover",
     "myThemes": "Sahip Olunanlar",
     "noThemes": "Tema bulunamadı.",
-    "dailyBonus": "Günlük 50 SC kazandın!",
+    "dailyBonus": "Günlük 50 MC kazandın!",
     "preview": "Önizleme",
     "categoryGame": "Oyun",
     "categoryCrossover": "Crossover",
@@ -148,6 +148,15 @@
     "lastPlayedDetail": "Son oynama: {{date}}",
     "hoursPlayed": "{{hours}} saat oynandı",
     "noActivity": "Henüz etkinlik yok.",
+    "noFriendsPlaying": "Bu oyunu oynayan arkadaşın yok.",
+    "hoursShort": "Saat",
+    "unlocked": "Açıldı",
+    "completion": "Tamamlama",
+    "viewAchievements": "Başarımları Görüntüle",
+    "hiddenAchievement": "Gizli Başarım",
+    "clickToReveal": "Görmek için tıkla",
+    "noReviews": "Henüz yorum yok.",
+    "achievementUnlocked": "Başarım Kazanıldı!",
     "devActivity": "Geliştirici Etkinliği",
     "noDevUpdates": "Geliştirici güncellemesi yok",
     "free": "Ücretsiz",
@@ -162,7 +171,9 @@
     "faq": "Sık Sorulan Sorular",
     "createSupportTicket": "Destek Talebi Oluştur",
     "selectGame": "Lütfen soldaki listeden bir oyun seçiniz.",
-    "libraryTitle": "Kütüphane"
+    "libraryTitle": "Kütüphane",
+    "recentGames": "Son Oynananlar",
+    "allGames": "Tüm Oyunlar"
   },
   "collections": {
     "title": "Koleksiyonlar",
@@ -186,53 +197,78 @@
   },
   "settings": {
     "title": "Ayarlar",
-    "subtitle": "Hesabınızı ve uygulama tercihlerinizi yönetin.",
+    "subtitle": "Hesabını ve uygulama tercihlerini yönet.",
     "tabs": {
       "account": "Hesap",
-      "payments": "Ödeme Geçmişi",
-      "downloads": "İndirmeler",
+      "security": "Güvenlik",
+      "privacy": "Gizlilik",
+      "notifications": "Bildirimler",
       "scanner": "Tarayıcı",
       "language": "Dil"
     },
     "account": {
       "emailNotVerified": "E-posta Doğrulanmadı",
-      "emailNotVerifiedHint": "Hesabınızı doğrulamak için e-postanızı kontrol edin.",
+      "emailNotVerifiedHint": "Hesabını doğrulamak için e-postanı kontrol et.",
       "resend": "Tekrar Gönder",
-      "profile": "Kayıtlı Profil",
-      "verificationSent": "Doğrulama e-postası gönderildi"
-    },
-    "student": {
-      "title": "Öğrenci İndirimi",
-      "hint": "Üniversite e-postanızla kayıt yapın ve %25 indirim kazanın",
-      "pending": "Bekleniyor...",
-      "activate": "Fırsatı Yakala",
-      "activated": "Öğrenci indirimi aktifleştirildi!",
-      "failed": "Doğrulama başarısız"
+      "profile": "Profil Bilgileri",
+      "verificationSent": "Doğrulama e-postası gönderildi",
+      "memberSince": "Üyelik tarihi",
+      "logout": "Çıkış Yap",
+      "logoutHint": "Hesabından çıkış yapılacak."
     },
     "referral": {
       "title": "Referans Programı",
-      "hint": "Kodunuzu arkadaşlarınızla paylaşın. Arkadaşlarınız kayıt olup oyun aldıklarında onlar %5 indirim kazanır, siz de harcamalarından %1 nakit ödül elde edersiniz.",
+      "hint": "Arkadaşlarını MIST'e davet et. Kodunla katıldıklarında bonus MC ile başlarlar, sen de ödül kazanırsın.",
       "copied": "Kopyalandı!",
       "copy": "Kodu Kopyala"
     },
-    "payments": {
-      "error": "Ödeme geçmişi yüklenemedi",
-      "success": "Başarılı",
-      "pending": "Beklemede",
-      "failed": "Başarısız",
-      "refunded": "İade Edildi"
+    "security": {
+      "emailSection": "E-posta Doğrulama",
+      "emailVerified": "E-posta adresin doğrulandı",
+      "emailNotVerified": "E-posta doğrulanmadı",
+      "emailNotVerifiedHint": "E-posta adresini doğrulamak için gelen kutunu kontrol et.",
+      "resend": "Tekrar Gönder",
+      "twoFaSection": "İki Faktörlü Kimlik Doğrulama",
+      "twoFaHint": "Microsoft Authenticator, Google Authenticator veya TOTP destekli herhangi bir uygulama kullanabilirsin.",
+      "twoFaActive": "2FA aktif — hesabın korunuyor.",
+      "twoFaInactive": "İki faktörlü doğrulama etkin değil.",
+      "enableTwoFa": "2FA Etkinleştir",
+      "disableTwoFa": "2FA Devre Dışı Bırak",
+      "confirmDisable": "Devre Dışı Bırakmayı Onayla",
+      "cancel": "İptal",
+      "scanQr": "Bu QR kodunu doğrulayıcı uygulamanla tarat, ardından 6 haneli kodu gir.",
+      "manualKey": "Manuel anahtar",
+      "enterCode": "Doğrulayıcı uygulamandan 6 haneli kodu gir",
+      "verify": "Doğrula ve Etkinleştir",
+      "back": "Geri"
     },
-    "downloads": {
-      "pathUpdated": "İndirme konumu güncellendi",
-      "pathError": "Kaydedilemedi",
-      "noLimit": "Limit Yok",
-      "cacheCleared": "Önbellek temizlendi"
+    "privacy": {
+      "title": "Gizlilik",
+      "profileSection": "Profil Görünürlüğü",
+      "profilePublic": "Herkese Açık Profil",
+      "profilePublicHint": "Herkes profil sayfanı görüntüleyebilir",
+      "libraryPublic": "Herkese Açık Kütüphane",
+      "libraryPublicHint": "Oyun kütüphaneni profilinde göster",
+      "achievementsPublic": "Herkese Açık Başarımlar",
+      "achievementsPublicHint": "Başarımlarını profilinde göster"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "friendRequests": "Arkadaşlık İstekleri",
+      "friendRequestsHint": "Biri arkadaşlık isteği gönderdiğinde bildirim al",
+      "groupMessages": "Grup Mesajları",
+      "groupMessagesHint": "Gruplarındaki yeni mesajlar için bildirim al",
+      "achievements": "Başarım Bildirimleri",
+      "achievementsHint": "Bir başarım kazandığında bildirim al",
+      "system": "Sistem Bildirimleri",
+      "systemHint": "Güncellemeler, duyurular ve hesap uyarıları"
     },
     "scannerSettings": {
-      "title": "Tarama Ayarları",
+      "title": "Oyun Tarayıcısı",
       "scanPaths": "Tarama Klasörleri",
+      "scanPathsHint": "MIST oyunları bu klasörlerde arayacak.",
       "addFolder": "Klasör Ekle",
-      "launcherFilters": "Varsayılan Hariç Tutulan Launcher'lar"
+      "noFolders": "Henüz klasör eklenmedi."
     },
     "language": {
       "title": "Uygulama Dili",
@@ -324,6 +360,9 @@
     "noSearchResults": "Eşleşen kullanıcı bulunamadı",
     "removed": "Arkadaş kaldırıldı",
     "removeError": "Arkadaş kaldırılamadı",
+    "block": "Engelle",
+    "blocked": "Kullanıcı engellendi",
+    "blockError": "Engellenemedi",
     "requestAccepted": "Arkadaşlık isteği kabul edildi",
     "acceptError": "İstek kabul edilemedi",
     "requestRejected": "Arkadaşlık isteği reddedildi",
@@ -359,6 +398,7 @@
     "noAccount": "Hesabın yok mu?",
     "registerLink": "Kayıt Ol",
     "loginFailed": "Giriş başarısız",
+    "emailNotVerifiedLogin": "Giriş yapmadan önce e-posta adresini doğrulamalısın. Gelen kutunu kontrol et.",
     "twoFATitle": "İKİ FAKTÖRLÜ DOĞRULAMA",
     "twoFAHint": "Doğrulama uygulamanızda görünen 6 haneli kodu girin.",
     "invalidCode": "Geçersiz doğrulama kodu",
@@ -389,7 +429,17 @@
     "backToLogin": "Giriş sayfasına dön",
     "sending": "Gönderiliyor...",
     "sendResetLink": "Şifre Sıfırlama Bağlantısı Gönder",
-    "resetError": "Bir hata oluştu. Lütfen tekrar deneyin."
+    "resetError": "Bir hata oluştu. Lütfen tekrar deneyin.",
+    "rememberMe": "Beni hatırla",
+    "savedAccounts": "Kayıtlı Hesaplar",
+    "differentAccount": "Farklı hesapla giriş yap",
+    "verifyEmailTitle": "E-postanı Doğrula",
+    "verifyEmailHint": "6 haneli kodu şu adrese gönderdik:",
+    "verifyEmailCodeLabel": "Doğrulama Kodu",
+    "referralCodeLabel": "Referral Kodu (İsteğe Bağlı)",
+    "referralCodeHint": "Arkadaşının kodu var mı? Girerek bonus MC kazan.",
+    "referralApplied": "Referral kodu uygulandı — 1000 MC ile başlayacaksın!",
+    "passwordRules": "En az 8 karakter, bir büyük harf, bir küçük harf ve bir rakam içermeli"
   },
   "profile": {
     "chooseTheme": "Tema Seç",
@@ -415,6 +465,7 @@
     "defaultBio": "Oyunlar sadece bir kaçış değil, yeni evrenlere açılan kapılardır.",
     "updated": "Profil güncellendi",
     "updateError": "Profil güncellenemedi",
+    "usernameTaken": "Bu kullanıcı adı zaten alınmış",
     "showEmail": "E-posta adresimi goster",
     "customStatus": "Ozel Durum",
     "customStatusPlaceholder": "Ne yapiyorsun?",
@@ -428,6 +479,14 @@
       "favoriteGameDesc": "Tek bir oyunu buyuk banner olarak goster",
       "achievements": "Basarimlar",
       "achievementsDesc": "En son veya en nadir basarimlarin",
+      "perfectGames": "Mükemmel Oyunlar",
+      "perfectGamesDesc": "Tüm başarımları açtığın oyunlar",
+      "perfectGamesTitle": "Mükemmel Oyunlar",
+      "perfectGamesEmpty": "Henüz mükemmel oyun yok. Bir oyundaki tüm başarımları açarak burada sergile!",
+      "perfectGamesLayout": "Görünüm",
+      "perfectGamesHint": "Tüm başarımlarını açtığın oyunlar.",
+      "grid": "Izgara",
+      "list": "Liste",
       "activity": "Son Aktivite",
       "activityDesc": "Son oynama zamanlari",
       "text": "Metin Blogu",
@@ -553,7 +612,11 @@
     "enterCode": "6 haneli doğrulama kodu girin"
   },
   "download": {
-    "remaining": "kaldı"
+    "remaining": "kaldı",
+    "queueEmpty": "İndirme kuyruğu boş",
+    "resume": "Devam",
+    "pause": "Durakla",
+    "cancel": "İptal"
   },
   "multiplayer": {
     "title": "Çok Oyunculu",
@@ -721,6 +784,8 @@
         "addMirror": "+ Mirror Link Ekle",
         "sourceName": "ör. Fitgirl",
         "sourceUrl": "https://...",
+        "titlePlaceholder": "ör. GTA V - Full Repack v1.68",
+        "crackInfoPlaceholder": "ör. EMPRESS v1.68",
         "submit": "Paylaş",
         "cancel": "İptal"
       },
@@ -760,6 +825,30 @@
     "gameRequestsCount": "Oyun Talepleri",
     "requestedBy": "Talep eden",
     "approve": "Onayla",
-    "reject": "Reddet"
+    "reject": "Reddet",
+    "games": {
+      "tab": "Oyunlar",
+      "steamSync": "Steam'den Oyun Çek",
+      "steamSyncDesc": "Steam API üzerinden mağazaya otomatik oyun ekle. Her buton farklı kategoriden oyunları çeker.",
+      "syncAll": "Tam Senkron",
+      "syncAAA": "AAA Oyunlar",
+      "syncMostPlayed": "En Çok Oynanan",
+      "syncFeatured": "Öne Çıkanlar",
+      "syncing": "Çekiliyor...",
+      "syncDone": "{{count}} yeni oyun eklendi",
+      "syncFailed": "Senkron başarısız",
+      "addByAppId": "Steam App ID ile Ekle",
+      "addByAppIdDesc": "Steam mağaza linkindeki ID numarasını gir. Örnek: store.steampowered.com/app/730 → 730",
+      "appIdPlaceholder": "Steam App ID gir (örn. 730)",
+      "addBtn": "Ekle",
+      "addSuccess": "Oyun başarıyla eklendi",
+      "addFailed": "Oyun eklenemedi",
+      "searchPlaceholder": "Oyun ara...",
+      "totalCount": "Toplam {{count}} oyun",
+      "noGames": "Oyun bulunamadı",
+      "deleteConfirm": "silinecek. Emin misin?",
+      "deleted": "silindi",
+      "deleteFailed": "Silme başarısız"
+    }
   }
 }

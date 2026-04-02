@@ -52,6 +52,7 @@ enum ProfileBlockType {
   GAME_SHOWCASE
   FAVORITE_GAME
   ACHIEVEMENTS
+  PERFECT_GAMES
   ACTIVITY
   TEXT
   SCREENSHOTS
@@ -151,6 +152,7 @@ model User {
   walletBalance       Decimal       @default(0) @map("wallet_balance") @db.Decimal(10, 2)
   isEmailVerified     Boolean       @default(false) @map("is_email_verified")
   emailVerifyToken    String?       @map("email_verify_token")
+  emailVerifyExpiry   DateTime?     @map("email_verify_expiry")
   passwordResetToken  String?       @map("password_reset_token")
   passwordResetExpiry DateTime?     @map("password_reset_expiry")
   twoFactorSecret     String?       @map("two_factor_secret")
@@ -195,8 +197,23 @@ model User {
   reportsMade         UserReport[]         @relation("ReportsBy")
   reportsReceived     UserReport[]         @relation("ReportsAgainst")
   gameRequests        GameRequest[]
+  trustedDevices      TrustedDevice[]
 
   @@map("users")
+}
+
+model TrustedDevice {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  deviceId  String   @map("device_id")
+  label     String?
+  lastUsed  DateTime @default(now()) @map("last_used")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId])
+  @@map("trusted_devices")
 }
 
 model Publisher {
@@ -234,6 +251,7 @@ model Game {
   downloadSize     BigInt?    @map("download_size")
   fileHash         String?    @map("file_hash")
   parentGameId     String?    @map("parent_game_id") @db.Uuid
+  steamAppId       Int?       @unique @map("steam_app_id")
   createdAt        DateTime   @default(now()) @map("created_at")
 
   publisher        Publisher            @relation(fields: [publisherId], references: [id])
@@ -407,6 +425,7 @@ model Achievement {
   id          String            @id @default(uuid()) @db.Uuid
   gameId      String            @map("game_id") @db.Uuid
   name        String
+  apiName     String?           @map("api_name")
   description String
   iconUrl     String?           @map("icon_url")
   createdAt   DateTime          @default(now()) @map("created_at")

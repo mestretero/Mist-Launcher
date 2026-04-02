@@ -1,5 +1,5 @@
 import { hash, verify } from "argon2";
-import { randomBytes } from "crypto";
+import { randomBytes, createHmac } from "crypto";
 import { prisma } from "../lib/prisma.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../lib/jwt.js";
 import { conflict, unauthorized, badRequest, notFound } from "../lib/errors.js";
@@ -11,16 +11,33 @@ function generateReferralCode(username: string): string {
   return `${username.toUpperCase()}-${suffix}`;
 }
 
+function generateEmailOTP(): string {
+  const num = (parseInt(randomBytes(3).toString("hex"), 16) % 900000) + 100000;
+  return num.toString();
+}
+
 export async function registerUser(input: RegisterInput) {
   const existing = await prisma.user.findFirst({
     where: { OR: [{ email: input.email }, { username: input.username }] },
   });
   if (existing) throw conflict("Email or username already exists");
 
+  // Resolve referrer if a referral code was provided
+  let referrerId: string | undefined;
+  if (input.referralCode) {
+    const referral = await prisma.referral.findUnique({
+      where: { code: input.referralCode },
+      select: { ownerId: true },
+    });
+    if (referral) referrerId = referral.ownerId;
+  }
+
   const passwordHash = await hash(input.password);
   const referralCode = generateReferralCode(input.username);
+  const startingBalance = referrerId ? 1000 : 500; // bonus for using a referral code
 
-  const emailVerifyToken = randomBytes(32).toString("hex");
+  const emailVerifyToken = generateEmailOTP();
+  const emailVerifyExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   const user = await prisma.user.create({
     data: {
@@ -28,8 +45,10 @@ export async function registerUser(input: RegisterInput) {
       username: input.username,
       passwordHash,
       referralCode,
+      referredBy: referrerId ?? null,
       emailVerifyToken,
-      walletBalance: 500,
+      emailVerifyExpiry,
+      walletBalance: startingBalance,
     },
   });
 
@@ -38,12 +57,32 @@ export async function registerUser(input: RegisterInput) {
     data: {
       id: randomBytes(16).toString("hex"),
       userId: user.id,
-      amount: 500,
+      amount: startingBalance,
       type: "SIGNUP_BONUS",
-      balanceAfter: 500,
-      description: "Welcome bonus",
+      balanceAfter: startingBalance,
+      description: referrerId ? "Welcome bonus + referral bonus" : "Welcome bonus",
     },
   });
+
+  // Reward the referrer (atomic transaction)
+  if (referrerId) {
+    await prisma.$transaction(async (tx) => {
+      const referrer = await tx.user.update({
+        where: { id: referrerId },
+        data: { walletBalance: { increment: 250 } },
+      });
+      await tx.walletTransaction.create({
+        data: {
+          id: randomBytes(16).toString("hex"),
+          userId: referrerId,
+          amount: 250,
+          type: "REFERRAL_EARNING",
+          balanceAfter: referrer.walletBalance,
+          description: `Referral bonus — ${input.username} joined`,
+        },
+      });
+    });
+  }
 
   await prisma.referral.create({
     data: {
@@ -68,7 +107,7 @@ export async function registerUser(input: RegisterInput) {
   };
 }
 
-export async function loginUser(input: LoginInput) {
+export async function loginUser(input: LoginInput & { deviceId?: string }) {
   const user = await prisma.user.findUnique({ where: { email: input.email } });
   if (!user) throw unauthorized("Invalid credentials");
 
@@ -77,11 +116,27 @@ export async function loginUser(input: LoginInput) {
 
   if (user.isBanned) throw unauthorized("This account has been banned");
 
+  if (!user.isEmailVerified) throw unauthorized("Please verify your email before logging in");
+
   if (user.twoFactorEnabled) {
-    return { requires2FA: true as const, userId: user.id };
+    // Skip 2FA if device is trusted
+    if (input.deviceId) {
+      const hashedId = hashDeviceId(user.id, input.deviceId);
+      const trusted = await prisma.trustedDevice.findUnique({
+        where: { userId_deviceId: { userId: user.id, deviceId: hashedId } },
+      });
+      if (trusted) {
+        await prisma.trustedDevice.update({ where: { id: trusted.id }, data: { lastUsed: new Date() } });
+        // Fall through to normal login (skip 2FA)
+      } else {
+        return { requires2FA: true as const, userId: user.id };
+      }
+    } else {
+      return { requires2FA: true as const, userId: user.id };
+    }
   }
 
-  // Daily login bonus (50 SC, once per UTC day)
+  // Daily login bonus (50 MC, once per UTC day)
   let dailyBonusAwarded = false;
   const today = new Date().toISOString().slice(0, 10);
   const lastBonus = user.lastDailyBonus?.toISOString().slice(0, 10);
@@ -118,13 +173,18 @@ export async function loginUser(input: LoginInput) {
 export async function refreshTokens(refreshToken: string) {
   const payload = verifyRefreshToken(refreshToken);
 
-  const stored = await prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-  if (!stored || stored.expiresAt < new Date()) throw unauthorized("Invalid refresh token");
+  // Atomic: find, validate, and delete old token in one transaction
+  const user = await prisma.$transaction(async (tx) => {
+    const stored = await tx.refreshToken.findUnique({ where: { token: refreshToken } });
+    if (!stored || stored.expiresAt < new Date()) throw unauthorized("Invalid refresh token");
 
-  await prisma.refreshToken.delete({ where: { id: stored.id } });
+    await tx.refreshToken.deleteMany({ where: { userId: payload.userId } });
 
-  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { isAdmin: true, isBanned: true } });
-  if (user?.isBanned) throw unauthorized("This account has been banned");
+    const u = await tx.user.findUnique({ where: { id: payload.userId }, select: { isAdmin: true, isBanned: true } });
+    if (u?.isBanned) throw unauthorized("This account has been banned");
+    return u;
+  });
+
   return createTokens(payload.userId, payload.email, user?.isAdmin ?? false);
 }
 
@@ -160,10 +220,16 @@ export async function updatePreferences(userId: string, prefs: Record<string, an
   return merged;
 }
 
-export async function updateProfile(userId: string, data: { bio?: string; avatarUrl?: string }) {
+export async function updateProfile(userId: string, data: { bio?: string; avatarUrl?: string; username?: string }) {
+  if (data.username) {
+    const taken = await prisma.user.findUnique({ where: { username: data.username } });
+    if (taken && taken.id !== userId) {
+      throw conflict("Username is already taken");
+    }
+  }
   return prisma.user.update({
     where: { id: userId },
-    data: { bio: data.bio, avatarUrl: data.avatarUrl },
+    data: { bio: data.bio, avatarUrl: data.avatarUrl, username: data.username },
     select: {
       id: true, email: true, username: true, bio: true, avatarUrl: true,
       isStudent: true, referralCode: true, walletBalance: true, isEmailVerified: true, twoFactorEnabled: true,
@@ -174,7 +240,7 @@ export async function updateProfile(userId: string, data: { bio?: string; avatar
 
 export async function forgotPassword(email: string) {
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) throw notFound("User not found");
+  if (!user) return { sent: true }; // Don't reveal if email exists
 
   const token = randomBytes(32).toString("hex");
   const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -193,6 +259,7 @@ export async function forgotPassword(email: string) {
 }
 
 export async function resetPassword(token: string, newPassword: string) {
+  // Atomically find AND invalidate token to prevent reuse
   const user = await prisma.user.findFirst({
     where: { passwordResetToken: token },
   });
@@ -201,27 +268,68 @@ export async function resetPassword(token: string, newPassword: string) {
     throw badRequest("Invalid or expired token");
   }
 
+  // Invalidate token first, then update password
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordResetToken: null, passwordResetExpiry: null },
+  });
+
   const passwordHash = await hash(newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash, passwordResetToken: null, passwordResetExpiry: null },
+    data: { passwordHash },
   });
 
   return { reset: true };
 }
 
-export async function verifyEmail(token: string) {
-  const user = await prisma.user.findFirst({
-    where: { emailVerifyToken: token },
-  });
-  if (!user) throw badRequest("Invalid token");
+export async function verifyEmail(userId: string, code: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw notFound("User not found");
+  if (user.isEmailVerified) throw badRequest("Email already verified");
+  if (!user.emailVerifyToken || user.emailVerifyToken !== code) throw badRequest("Invalid code");
+  if (!user.emailVerifyExpiry || user.emailVerifyExpiry < new Date()) throw badRequest("Code expired — request a new one");
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { isEmailVerified: true, emailVerifyToken: null },
+    data: { isEmailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
   });
 
   return { verified: true };
+}
+
+export async function resendEmailVerification(userId: string) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw notFound("User not found");
+  if (user.isEmailVerified) throw badRequest("Email already verified");
+
+  const code = generateEmailOTP();
+  const expiry = new Date(Date.now() + 10 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerifyToken: code, emailVerifyExpiry: expiry },
+  });
+
+  sendEmailVerification(user.email, code).catch((err) =>
+    console.error("Failed to send verification email:", err),
+  );
+
+  return { sent: true };
+}
+
+function hashDeviceId(userId: string, deviceId: string): string {
+  const secret = process.env.JWT_SECRET!;
+  return createHmac("sha256", secret).update(`${userId}:${deviceId}`).digest("hex");
+}
+
+export async function trustDevice(userId: string, deviceId: string, label?: string) {
+  const hashedId = hashDeviceId(userId, deviceId);
+  await prisma.trustedDevice.upsert({
+    where: { userId_deviceId: { userId, deviceId: hashedId } },
+    update: { lastUsed: new Date(), label: label || undefined },
+    create: { userId, deviceId: hashedId, label },
+  });
 }
 
 export async function createTokens(userId: string, email: string, isAdmin = false) {
@@ -240,4 +348,9 @@ export async function createTokens(userId: string, email: string, isAdmin = fals
   });
 
   return { accessToken, refreshToken };
+}
+
+export async function logout(userId: string) {
+  await prisma.refreshToken.deleteMany({ where: { userId } });
+  return { loggedOut: true };
 }

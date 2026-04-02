@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface BlockProps {
@@ -9,6 +10,14 @@ interface BlockProps {
 
 export function ReferralBlock({ config: _config, isEditing, onConfigChange: _onConfigChange, referralCode }: BlockProps) {
   const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!referralCode) return;
+    navigator.clipboard.writeText(referralCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (isEditing) {
     return (
@@ -29,10 +38,19 @@ export function ReferralBlock({ config: _config, isEditing, onConfigChange: _onC
       <div className="flex items-center justify-between p-3 rounded-lg bg-[#20232c]/50 border border-[#2a2e38]">
         <span className="text-sm font-black text-[#47bfff] tracking-widest">{referralCode}</span>
         <button
-          onClick={() => navigator.clipboard.writeText(referralCode)}
-          className="text-[10px] font-bold text-[#8f98a0] hover:text-white uppercase tracking-widest transition-colors"
+          onClick={handleCopy}
+          className={`text-[10px] font-bold uppercase tracking-widest transition-all ${
+            copied
+              ? "text-green-400"
+              : "text-[#8f98a0] hover:text-white"
+          }`}
         >
-          {t("profile.copy")}
+          {copied ? (
+            <span className="flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
+              {t("settings.referral.copied")}
+            </span>
+          ) : t("profile.copy")}
         </button>
       </div>
     </div>

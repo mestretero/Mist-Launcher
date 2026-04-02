@@ -64,7 +64,6 @@ export async function checkVisibility(profileUserId: string, viewerId: string | 
   if (!profile) return true; // Profile doesn't exist yet — will be created on access
 
   if (profile.visibility === "PRIVATE") {
-    if (!viewerId) throw notFound("Profile not found");
     throw notFound("Profile not found");
   }
 
@@ -92,7 +91,7 @@ export async function checkVisibility(profileUserId: string, viewerId: string | 
 export async function getProfileByUsername(username: string, viewerId: string | undefined) {
   const user = await prisma.user.findUnique({
     where: { username },
-    select: { id: true, username: true, avatarUrl: true, bio: true, createdAt: true },
+    select: { id: true, username: true, avatarUrl: true, bio: true, isStudent: true, referralCode: true, createdAt: true },
   });
   if (!user) throw notFound("User not found");
 
@@ -104,6 +103,149 @@ export async function getProfileByUsername(username: string, viewerId: string | 
 }
 
 /**
+ * Get a user's library summary for public profile display.
+ * Merges store games (LibraryItem) + local games (ProfileGameCache).
+ */
+export async function getLibrarySummary(username: string, viewerId: string | undefined) {
+  const user = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true },
+  });
+  if (!user) throw notFound("User not found");
+
+  await checkVisibility(user.id, viewerId);
+
+  // Store games
+  const storeItems = await prisma.libraryItem.findMany({
+    where: { userId: user.id },
+    include: {
+      game: { select: { id: true, title: true, coverImageUrl: true } },
+    },
+  });
+
+  // Local games (cache, exclude soft-deleted)
+  const localItems = await prisma.profileGameCache.findMany({
+    where: { userId: user.id, deletedAt: null },
+  });
+
+  const libraryItems = [
+    ...storeItems.map((i) => ({
+      id: i.game.id,
+      title: i.game.title,
+      coverUrl: i.game.coverImageUrl,
+      playTime: i.playTimeMins,
+      source: "store" as const,
+    })),
+    ...localItems.map((i) => ({
+      id: i.id,
+      title: i.title,
+      coverUrl: i.coverUrl,
+      playTime: i.playTimeMins,
+      source: "local" as const,
+    })),
+  ];
+
+  const totalMins = storeItems.reduce((s, i) => s + i.playTimeMins, 0)
+    + localItems.reduce((s, i) => s + i.playTimeMins, 0);
+  const achievementCount = await prisma.userAchievement.count({ where: { userId: user.id } });
+
+  const stats = {
+    games: storeItems.length + localItems.length,
+    hours: Math.round(totalMins / 60),
+    achievements: achievementCount,
+  };
+
+  // Recently played — merge both sources, sort by lastPlayed desc
+  const allWithLastPlayed = [
+    ...storeItems
+      .filter((i) => i.lastPlayedAt)
+      .map((i) => ({
+        id: i.game.id, title: i.game.title, coverUrl: i.game.coverImageUrl,
+        playTime: i.playTimeMins, lastPlayed: i.lastPlayedAt!.toISOString(), source: "store" as const,
+      })),
+    ...localItems
+      .filter((i) => i.lastPlayedAt)
+      .map((i) => ({
+        id: i.id, title: i.title, coverUrl: i.coverUrl,
+        playTime: i.playTimeMins, lastPlayed: i.lastPlayedAt!.toISOString(), source: "local" as const,
+      })),
+  ];
+
+  const recentlyPlayed = allWithLastPlayed
+    .sort((a, b) => new Date(b.lastPlayed).getTime() - new Date(a.lastPlayed).getTime())
+    .slice(0, 10);
+
+  return { libraryItems, stats, recentlyPlayed };
+}
+
+/**
+ * Bulk sync local games from client. Upserts by exePathHash, soft-deletes missing.
+ */
+export async function syncGames(
+  userId: string,
+  games: Array<{
+    title: string;
+    coverUrl?: string | null;
+    playTimeMins: number;
+    exePathHash: string;
+    lastPlayedAt?: string | null;
+  }>
+) {
+  if (games.length > 500) throw badRequest("Maximum 500 games per sync");
+
+  const incomingHashes = games.map((g) => g.exePathHash);
+
+  // Soft-delete games not in the incoming list
+  await prisma.profileGameCache.updateMany({
+    where: { userId, exePathHash: { notIn: incomingHashes }, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+
+  // Upsert each game in a transaction
+  const results = await prisma.$transaction(
+    games.map((g) =>
+      prisma.profileGameCache.upsert({
+        where: { userId_exePathHash: { userId, exePathHash: g.exePathHash } },
+        update: {
+          title: g.title, coverUrl: g.coverUrl, playTimeMins: g.playTimeMins,
+          lastPlayedAt: g.lastPlayedAt ? new Date(g.lastPlayedAt) : undefined,
+          deletedAt: null,
+        },
+        create: {
+          userId, title: g.title, coverUrl: g.coverUrl, playTimeMins: g.playTimeMins,
+          exePathHash: g.exePathHash,
+          lastPlayedAt: g.lastPlayedAt ? new Date(g.lastPlayedAt) : undefined,
+        },
+      })
+    )
+  );
+
+  return results.map((r: any) => ({ id: r.id, title: r.title, exePathHash: r.exePathHash }));
+}
+
+/**
+ * Single game sync (after game close). Upserts by exePathHash.
+ */
+export async function updateSyncGame(
+  userId: string,
+  data: { exePathHash: string; playTimeMins: number; lastPlayedAt?: string | null; title?: string }
+) {
+  return prisma.profileGameCache.upsert({
+    where: { userId_exePathHash: { userId, exePathHash: data.exePathHash } },
+    update: {
+      playTimeMins: data.playTimeMins,
+      lastPlayedAt: data.lastPlayedAt ? new Date(data.lastPlayedAt) : new Date(),
+      deletedAt: null,
+    },
+    create: {
+      userId, title: data.title || "Unknown Game", playTimeMins: data.playTimeMins,
+      exePathHash: data.exePathHash,
+      lastPlayedAt: data.lastPlayedAt ? new Date(data.lastPlayedAt) : new Date(),
+    },
+  });
+}
+
+/**
  * Update a user's profile settings.
  */
 export async function updateProfile(
@@ -112,6 +254,7 @@ export async function updateProfile(
     visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
     allowComments?: boolean;
     bannerTheme?: string;
+    bannerMirrored?: boolean;
     customStatus?: string | null;
   }
 ) {

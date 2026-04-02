@@ -9,9 +9,10 @@ import type { CommunityLink } from "../lib/types";
 interface CommunityLinksProps {
   slug: string;
   onNavigateToUser?: (username: string) => void;
+  onLinkCountChange?: (count: number) => void;
 }
 
-export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) {
+export function CommunityLinks({ slug, onNavigateToUser, onLinkCountChange }: CommunityLinksProps) {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const [links, setLinks] = useState<CommunityLink[]>([]);
@@ -23,8 +24,10 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
     try {
       const res = await api.communityLinks.list(slug);
       setLinks(res.links);
+      onLinkCountChange?.(res.links.length);
     } catch {
       setLinks([]);
+      onLinkCountChange?.(0);
     } finally {
       setLoading(false);
     }
@@ -45,7 +48,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
       setLinks((prev) =>
         prev.map((l) => (l.id === linkId ? { ...l, score: res.score, userVote: res.userVote as "UP" | "DOWN" | null } : l)),
       );
-    } catch {}
+    } catch (err) { console.error("Community link action failed:", err); }
   };
 
   const handleReport = (linkId: string) => {
@@ -58,7 +61,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
           setLinks((prev) =>
             prev.map((l) => (l.id === linkId ? { ...l, virusReports: res.virusReports, hasReported: true } : l)),
           );
-        } catch {}
+        } catch (err) { console.error("Community link action failed:", err); }
         setConfirmAction(null);
       },
     });
@@ -71,7 +74,7 @@ export function CommunityLinks({ slug, onNavigateToUser }: CommunityLinksProps) 
         try {
           await api.communityLinks.delete(slug, linkId);
           setLinks((prev) => prev.filter((l) => l.id !== linkId));
-        } catch {}
+        } catch (err) { console.error("Community link action failed:", err); }
         setConfirmAction(null);
       },
     });

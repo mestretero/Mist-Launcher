@@ -23,14 +23,14 @@
     "buy": "Buy",
     "owned": "Owned",
     "free": "Free",
-    "insufficientBalance": "Insufficient SC",
+    "insufficientBalance": "Insufficient MC",
     "purchaseSuccess": "Theme purchased!",
     "all": "All",
     "games": "Games",
     "crossovers": "Crossover",
     "myThemes": "Owned",
     "noThemes": "No themes found.",
-    "dailyBonus": "Daily 50 SC earned!",
+    "dailyBonus": "Daily 50 MC earned!",
     "preview": "Preview",
     "categoryGame": "Game",
     "categoryCrossover": "Crossover",
@@ -148,6 +148,15 @@
     "lastPlayedDetail": "Last played: {{date}}",
     "hoursPlayed": "{{hours}} hours played",
     "noActivity": "No activity yet.",
+    "noFriendsPlaying": "None of your friends play this game.",
+    "hoursShort": "Hours",
+    "unlocked": "Unlocked",
+    "completion": "Completion",
+    "viewAchievements": "View Achievements",
+    "hiddenAchievement": "Hidden Achievement",
+    "clickToReveal": "Click to reveal",
+    "noReviews": "No reviews yet.",
+    "achievementUnlocked": "Achievement Unlocked!",
     "devActivity": "Developer Activity",
     "noDevUpdates": "No developer updates",
     "free": "Free",
@@ -162,7 +171,9 @@
     "faq": "Frequently Asked Questions",
     "createSupportTicket": "Create Support Ticket",
     "selectGame": "Please select a game from the list on the left.",
-    "libraryTitle": "Library"
+    "libraryTitle": "Library",
+    "recentGames": "Recently Played",
+    "allGames": "All Games"
   },
   "collections": {
     "title": "Collections",
@@ -189,8 +200,9 @@
     "subtitle": "Manage your account and app preferences.",
     "tabs": {
       "account": "Account",
-      "payments": "Payment History",
-      "downloads": "Downloads",
+      "security": "Security",
+      "privacy": "Privacy",
+      "notifications": "Notifications",
       "scanner": "Scanner",
       "language": "Language"
     },
@@ -199,40 +211,64 @@
       "emailNotVerifiedHint": "Check your email to verify your account.",
       "resend": "Resend",
       "profile": "Profile Info",
-      "verificationSent": "Verification email sent"
-    },
-    "student": {
-      "title": "Student Discount",
-      "hint": "Register with your university email and get 25% off",
-      "pending": "Pending...",
-      "activate": "Activate",
-      "activated": "Student discount activated!",
-      "failed": "Verification failed"
+      "verificationSent": "Verification email sent",
+      "memberSince": "Member since",
+      "logout": "Log Out",
+      "logoutHint": "You will be signed out of your account."
     },
     "referral": {
       "title": "Referral Program",
-      "hint": "Share your code with friends. When they sign up and buy games, they get 5% off and you earn 1% cashback.",
+      "hint": "Invite friends to MIST. When they join using your code, they start with bonus MC and you earn rewards.",
       "copied": "Copied!",
       "copy": "Copy Code"
     },
-    "payments": {
-      "error": "Could not load payment history",
-      "success": "Success",
-      "pending": "Pending",
-      "failed": "Failed",
-      "refunded": "Refunded"
+    "security": {
+      "emailSection": "Email Verification",
+      "emailVerified": "Your email is verified",
+      "emailNotVerified": "Email not verified",
+      "emailNotVerifiedHint": "Check your inbox to verify your email address.",
+      "resend": "Send Again",
+      "twoFaSection": "Two-Factor Authentication",
+      "twoFaHint": "Use Microsoft Authenticator, Google Authenticator, or any TOTP-compatible app.",
+      "twoFaActive": "2FA is active — your account is protected.",
+      "twoFaInactive": "Two-factor authentication is not enabled.",
+      "enableTwoFa": "Enable 2FA",
+      "disableTwoFa": "Disable 2FA",
+      "confirmDisable": "Confirm Disable",
+      "cancel": "Cancel",
+      "scanQr": "Scan this QR code with your authenticator app, then enter the 6-digit code.",
+      "manualKey": "Manual key",
+      "enterCode": "Enter the 6-digit code from your authenticator app",
+      "verify": "Verify & Activate",
+      "back": "Back"
     },
-    "downloads": {
-      "pathUpdated": "Download location updated",
-      "pathError": "Could not save",
-      "noLimit": "No Limit",
-      "cacheCleared": "Cache cleared"
+    "privacy": {
+      "title": "Privacy",
+      "profileSection": "Profile Visibility",
+      "profilePublic": "Public Profile",
+      "profilePublicHint": "Anyone can view your profile page",
+      "libraryPublic": "Public Library",
+      "libraryPublicHint": "Show your game library on your profile",
+      "achievementsPublic": "Public Achievements",
+      "achievementsPublicHint": "Show your achievements on your profile"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "friendRequests": "Friend Requests",
+      "friendRequestsHint": "Notifications when someone sends you a friend request",
+      "groupMessages": "Group Messages",
+      "groupMessagesHint": "Notifications for new messages in your groups",
+      "achievements": "Achievement Unlocks",
+      "achievementsHint": "Notifications when you unlock an achievement",
+      "system": "System Notifications",
+      "systemHint": "Updates, announcements and account alerts"
     },
     "scannerSettings": {
-      "title": "Scan Settings",
+      "title": "Game Scanner",
       "scanPaths": "Scan Folders",
+      "scanPathsHint": "MIST will look for games in these folders.",
       "addFolder": "Add Folder",
-      "launcherFilters": "Default Excluded Launchers"
+      "noFolders": "No folders added yet."
     },
     "language": {
       "title": "App Language",
@@ -324,6 +360,9 @@
     "noSearchResults": "No matching users found",
     "removed": "Friend removed",
     "removeError": "Could not remove friend",
+    "block": "Block",
+    "blocked": "User blocked",
+    "blockError": "Could not block user",
     "requestAccepted": "Friend request accepted",
     "acceptError": "Could not accept request",
     "requestRejected": "Friend request rejected",
@@ -359,6 +398,7 @@
     "noAccount": "Don't have an account?",
     "registerLink": "Register",
     "loginFailed": "Login failed",
+    "emailNotVerifiedLogin": "Please verify your email before logging in. Check your inbox.",
     "twoFATitle": "TWO-FACTOR AUTHENTICATION",
     "twoFAHint": "Enter the 6-digit code shown in your authentication app.",
     "invalidCode": "Invalid verification code",
@@ -389,7 +429,18 @@
     "backToLogin": "Back to login",
     "sending": "Sending...",
     "sendResetLink": "Send Password Reset Link",
-    "resetError": "An error occurred. Please try again."
+    "resetError": "An error occurred. Please try again.",
+    "rememberMe": "Remember me",
+    "savedAccounts": "Saved Accounts",
+    "differentAccount": "Use different account",
+    "verifyEmailTitle": "Verify Your Email",
+    "verifyEmailHint": "We sent a 6-digit code to",
+    "verifyEmailCodeLabel": "Verification Code",
+    "differentAccount": "Use different account",
+    "referralCodeLabel": "Referral Code (Optional)",
+    "referralCodeHint": "Have a friend's code? Enter it to get bonus MC.",
+    "referralApplied": "Referral code applied — you'll start with 1000 MC!",
+    "passwordRules": "Min 8 characters, at least one uppercase, one lowercase, and one number"
   },
   "profile": {
     "chooseTheme": "Choose Theme",
@@ -415,6 +466,7 @@
     "defaultBio": "Games are not just an escape, they are gateways to new universes.",
     "updated": "Profile updated",
     "updateError": "Could not update profile",
+    "usernameTaken": "This username is already taken",
     "showEmail": "Show my email address",
     "customStatus": "Custom Status",
     "customStatusPlaceholder": "What are you up to?",
@@ -428,6 +480,14 @@
       "favoriteGameDesc": "Feature one game as a large banner",
       "achievements": "Achievements",
       "achievementsDesc": "Your latest or rarest achievements",
+      "perfectGames": "Perfect Games",
+      "perfectGamesDesc": "Games where you unlocked every achievement",
+      "perfectGamesTitle": "Perfect Games",
+      "perfectGamesEmpty": "No perfect games yet. Unlock all achievements in a game to showcase it here!",
+      "perfectGamesLayout": "Layout",
+      "perfectGamesHint": "Games where you've unlocked every achievement.",
+      "grid": "Grid",
+      "list": "List",
       "activity": "Recent Activity",
       "activityDesc": "Recent play sessions",
       "text": "Text Block",
@@ -553,7 +613,11 @@
     "enterCode": "Enter a 6-digit verification code"
   },
   "download": {
-    "remaining": "remaining"
+    "remaining": "remaining",
+    "queueEmpty": "Download queue is empty",
+    "resume": "Resume",
+    "pause": "Pause",
+    "cancel": "Cancel"
   },
   "multiplayer": {
     "title": "Multiplayer",
@@ -721,6 +785,8 @@
         "addMirror": "+ Add Mirror Link",
         "sourceName": "e.g. Fitgirl",
         "sourceUrl": "https://...",
+        "titlePlaceholder": "e.g. GTA V - Full Repack v1.68",
+        "crackInfoPlaceholder": "e.g. EMPRESS v1.68",
         "submit": "Share",
         "cancel": "Cancel"
       },
@@ -760,6 +826,30 @@
     "gameRequestsCount": "Game Requests",
     "requestedBy": "Requested by",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "games": {
+      "tab": "Games",
+      "steamSync": "Sync from Steam",
+      "steamSyncDesc": "Automatically add games from Steam API. Each button pulls from a different category.",
+      "syncAll": "Full Sync",
+      "syncAAA": "AAA Games",
+      "syncMostPlayed": "Most Played",
+      "syncFeatured": "Featured",
+      "syncing": "Syncing...",
+      "syncDone": "{{count}} new games added",
+      "syncFailed": "Sync failed",
+      "addByAppId": "Add by Steam App ID",
+      "addByAppIdDesc": "Enter the ID from the Steam store URL. Example: store.steampowered.com/app/730 → 730",
+      "appIdPlaceholder": "Steam App ID (e.g. 730)",
+      "addBtn": "Add",
+      "addSuccess": "Game added successfully",
+      "addFailed": "Failed to add game",
+      "searchPlaceholder": "Search games...",
+      "totalCount": "{{count}} games total",
+      "noGames": "No games found",
+      "deleteConfirm": "will be deleted. Are you sure?",
+      "deleted": "deleted",
+      "deleteFailed": "Delete failed"
+    }
   }
 }

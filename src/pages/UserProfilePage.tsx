@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
 import { api, API_URL } from "../lib/api";
+import { getAvatarUrl } from "../lib/avatar";
 import { BlockRenderer } from "../components/profile/BlockRenderer";
 
 interface UserProfilePageProps {
@@ -20,12 +21,16 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
   const [comments, setComments] = useState<any[]>([]);
   const [librarySummary, setLibrarySummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [profileAchievements, setProfileAchievements] = useState<any[]>([]);
+  const [perfectGames, setPerfectGames] = useState<any[]>([]);
 
   useEffect(() => {
     setLoading(true);
     setProfileData(null);
     setRestricted(null);
     setLibrarySummary(null);
+    setProfileAchievements([]);
+    setPerfectGames([]);
 
     api.profiles.get(username)
       .then((data: any) => {
@@ -39,6 +44,13 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
           // Fetch library summary for block data
           api.profiles.getLibrarySummary(username)
             .then((summary: any) => setLibrarySummary(summary))
+            .catch(() => {});
+          // Fetch achievements + perfect games
+          api.profiles.getAchievements(username)
+            .then((data: any) => setProfileAchievements(Array.isArray(data) ? data : []))
+            .catch(() => {});
+          api.profiles.getPerfectGames(username)
+            .then((data: any) => setPerfectGames(Array.isArray(data) ? data : []))
             .catch(() => {});
         }
       })
@@ -54,7 +66,7 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
     try {
       const data = await api.profiles.getComments(username);
       setComments(Array.isArray(data?.comments) ? data.comments : []);
-    } catch {}
+    } catch (err) { console.error("Failed to load comments:", err); }
   }, [username, profile]);
 
   useEffect(() => { fetchComments(); }, [fetchComments]);
@@ -110,7 +122,7 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
   const bannerSlug = profile?.bannerTheme || "midnight-bus-stop";
   const bgUrl = `${API_URL}/public/themes/${bannerSlug}.jpeg`;
   const bgMirrored = profile?.bannerMirrored || false;
-  const avatarUrl = user.avatarUrl ? (user.avatarUrl.startsWith("http") ? user.avatarUrl : `http://localhost:3001${user.avatarUrl}`) : null;
+  const avatarUrl = getAvatarUrl(user.avatarUrl);
 
   const getExtraProps = (block: any) => {
     const extras: any = {};
@@ -129,7 +141,8 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
     if (block.type === "STATS") extras.stats = librarySummary?.stats || { games: 0, hours: 0, achievements: 0 };
     if (block.type === "ACTIVITY") extras.recentlyPlayed = librarySummary?.recentlyPlayed || [];
     if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") extras.libraryItems = librarySummary?.libraryItems || [];
-    if (block.type === "ACHIEVEMENTS") extras.achievements = [];
+    if (block.type === "ACHIEVEMENTS") extras.achievements = profileAchievements;
+    if (block.type === "PERFECT_GAMES") extras.perfectGames = perfectGames;
     if (block.type === "REFERRAL") extras.referralCode = user?.referralCode;
     return extras;
   };

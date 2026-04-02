@@ -1,5 +1,11 @@
 import { FastifyInstance } from "fastify";
+import { z } from "zod";
 import * as profileService from "../services/profile.service.js";
+import * as achievementService from "../services/achievement.service.js";
+
+const commentSchema = z.object({
+  content: z.string().min(1, "Comment cannot be empty").max(500, "Comment too long (max 500 chars)").transform(s => s.trim()),
+});
 
 export default async function profileRoutes(app: FastifyInstance) {
   // ─── /profiles/me routes (auth required) ─────────────────────────────────
@@ -16,6 +22,7 @@ export default async function profileRoutes(app: FastifyInstance) {
       visibility?: "PUBLIC" | "FRIENDS" | "PRIVATE";
       allowComments?: boolean;
       bannerTheme?: string;
+      bannerMirrored?: boolean;
       customStatus?: string | null;
     };
     const profile = await profileService.updateProfile(request.user!.userId, body);
@@ -52,6 +59,31 @@ export default async function profileRoutes(app: FastifyInstance) {
     }
   );
 
+  // ─── Sync local games (must be before :username routes) ─────────────────
+  app.post("/profiles/me/sync-games", { preHandler: [app.authenticate] }, async (request) => {
+    const games = request.body as Array<{
+      title: string;
+      coverUrl?: string | null;
+      playTimeMins: number;
+      exePathHash: string;
+      lastPlayedAt?: string | null;
+    }>;
+    if (!Array.isArray(games)) throw new Error("Body must be an array");
+    const result = await profileService.syncGames(request.user!.userId, games);
+    return { data: result };
+  });
+
+  app.patch("/profiles/me/sync-games", { preHandler: [app.authenticate] }, async (request) => {
+    const data = request.body as {
+      exePathHash: string;
+      playTimeMins: number;
+      lastPlayedAt?: string | null;
+      title?: string;
+    };
+    const result = await profileService.updateSyncGame(request.user!.userId, data);
+    return { data: result };
+  });
+
   // ─── /profiles/:username routes ───────────────────────────────────────────
 
   app.get("/profiles/:username", async (request) => {
@@ -59,6 +91,29 @@ export default async function profileRoutes(app: FastifyInstance) {
     const viewerId = (request as any).user?.userId as string | undefined;
     const result = await profileService.getProfileByUsername(username, viewerId);
     return { data: result };
+  });
+
+  app.get("/profiles/:username/library-summary", async (request) => {
+    const { username } = request.params as { username: string };
+    const viewerId = (request as any).user?.userId as string | undefined;
+    const result = await profileService.getLibrarySummary(username, viewerId);
+    return { data: result };
+  });
+
+  app.get("/profiles/:username/achievements", async (request) => {
+    const { username } = request.params as { username: string };
+    const viewerId = (request as any).user?.userId as string | undefined;
+    const user = await profileService.getProfileByUsername(username, viewerId);
+    const achievements = await achievementService.getUserAllAchievements(user.user.id);
+    return { data: achievements };
+  });
+
+  app.get("/profiles/:username/perfect-games", async (request) => {
+    const { username } = request.params as { username: string };
+    const viewerId = (request as any).user?.userId as string | undefined;
+    const user = await profileService.getProfileByUsername(username, viewerId);
+    const perfectGames = await achievementService.getUserPerfectGames(user.user.id);
+    return { data: perfectGames };
   });
 
   app.get(
@@ -82,7 +137,7 @@ export default async function profileRoutes(app: FastifyInstance) {
     { preHandler: [app.authenticate] },
     async (request) => {
       const { username } = request.params as { username: string };
-      const { content } = request.body as { content: string };
+      const { content } = commentSchema.parse(request.body);
       const comment = await profileService.addComment(
         username,
         request.user!.userId,

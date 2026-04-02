@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
+import { useToastStore } from "../stores/toastStore";
 
-type Tab = "users" | "reportedUsers" | "reportedLinks" | "gameRequests";
+type Tab = "users" | "reportedUsers" | "reportedLinks" | "gameRequests" | "games";
 
 export function AdminPage() {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("users");
-  const [stats, setStats] = useState<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number; gameRequests: number } | null>(null);
+  const [stats, setStats] = useState<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number; gameRequests: number; totalGames: number } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; resolve: (v: boolean) => void } | null>(null);
 
   const confirm = useCallback((message: string) => new Promise<boolean>((resolve) => {
@@ -28,13 +29,14 @@ export function AdminPage() {
 
       {/* Stats bar */}
       {stats && (
-        <div className="grid grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
           {[
             { label: t("admin.totalUsers"), value: stats.totalUsers },
             { label: t("admin.bannedUsers"), value: stats.bannedUsers, red: true },
             { label: t("admin.openReports"), value: stats.openReports, red: stats.openReports > 0 },
             { label: t("admin.reportedLinksCount"), value: stats.reportedLinks, red: stats.reportedLinks > 0 },
             { label: t("admin.gameRequestsCount"), value: stats.gameRequests, red: stats.gameRequests > 0 },
+            { label: t("admin.games.tab"), value: stats.totalGames },
           ].map((s) => (
             <div key={s.label} className="bg-brand-900 border border-brand-800 rounded-lg p-4 text-center">
               <p className={`text-2xl font-black ${s.red ? "text-red-400" : "text-white"}`}>{s.value}</p>
@@ -47,6 +49,7 @@ export function AdminPage() {
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-brand-800">
         {([
+          { id: "games", label: t("admin.games.tab") },
           { id: "users", label: t("admin.users") },
           { id: "reportedUsers", label: t("admin.reportedUsers") },
           { id: "reportedLinks", label: t("admin.reportedLinks") },
@@ -64,6 +67,7 @@ export function AdminPage() {
         ))}
       </div>
 
+      {tab === "games" && <GamesTab onStatsChange={refreshStats} confirm={confirm} />}
       {tab === "users" && <UsersTab onStatsChange={refreshStats} confirm={confirm} />}
       {tab === "reportedUsers" && <ReportedUsersTab onStatsChange={refreshStats} confirm={confirm} />}
       {tab === "reportedLinks" && <ReportedLinksTab onStatsChange={refreshStats} confirm={confirm} />}
@@ -115,7 +119,7 @@ function UsersTab({ onStatsChange, confirm }: { onStatsChange: () => void; confi
       setUsers(res.users);
       setTotal(res.total);
       setPage(p);
-    } catch {} finally { setLoading(false); }
+    } catch (err) { console.error("Admin load failed:", err); } finally { setLoading(false); }
   }, [search]);
 
   useEffect(() => { load(1); }, []);
@@ -127,7 +131,7 @@ function UsersTab({ onStatsChange, confirm }: { onStatsChange: () => void; confi
       else await api.admin.banUser(id);
       load(page);
       onStatsChange();
-    } catch {}
+    } catch (err) { console.error("Admin action failed:", err); }
   }
 
   return (
@@ -207,7 +211,7 @@ function ReportedUsersTab({ onStatsChange, confirm }: { onStatsChange: () => voi
       setUsers(res.users);
       setTotal(res.total);
       setPage(p);
-    } catch {} finally { setLoading(false); }
+    } catch (err) { console.error("Admin load failed:", err); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(1); }, []);
@@ -228,7 +232,7 @@ function ReportedUsersTab({ onStatsChange, confirm }: { onStatsChange: () => voi
     onStatsChange();
   }
 
-  async function handleDismissAll(userId: string, reports: any[]) {
+  async function handleDismissAll(_userId: string, reports: any[]) {
     await Promise.all(reports.map((r) => api.admin.resolveReport(r.id, "DISMISSED")));
     load(page);
     onStatsChange();
@@ -310,7 +314,7 @@ function ReportedLinksTab({ onStatsChange, confirm }: { onStatsChange: () => voi
       setLinks(res.links);
       setTotal(res.total);
       setPage(p);
-    } catch {} finally { setLoading(false); }
+    } catch (err) { console.error("Admin load failed:", err); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(1); }, []);
@@ -384,6 +388,160 @@ function ReportedLinksTab({ onStatsChange, confirm }: { onStatsChange: () => voi
   );
 }
 
+// ── Games Tab ─────────────────────────────────────────────────────────────
+
+function GamesTab({ onStatsChange, confirm }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean> }) {
+  const { t } = useTranslation();
+  const addToast = useToastStore((s) => s.addToast);
+  const [search, setSearch] = useState("");
+  const [games, setGames] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [appId, setAppId] = useState("");
+  const [syncing, setSyncing] = useState<string | null>(null);
+
+  const load = useCallback(async (p = 1, q = search) => {
+    setLoading(true);
+    try {
+      const res = await api.admin.listGames(q || undefined, p, 20);
+      setGames(res.games);
+      setTotal(res.total);
+      setPage(p);
+    } catch { } finally { setLoading(false); }
+  }, [search]);
+
+  useEffect(() => { load(1); }, []);
+
+  async function handleSync(type: string) {
+    setSyncing(type);
+    try {
+      let res;
+      if (type === "all") res = await api.admin.steamSyncAll();
+      else if (type === "aaa") res = await api.admin.steamSyncAAA();
+      else if (type === "most-played") res = await api.admin.steamSyncMostPlayed();
+      else res = await api.admin.steamSyncFeatured();
+      addToast(t("admin.games.syncDone", { count: res.totalAdded || res.added || 0 }), "success");
+      load(1);
+      onStatsChange();
+    } catch (err: any) {
+      addToast(err?.message || t("admin.games.syncFailed"), "error");
+    } finally { setSyncing(null); }
+  }
+
+  async function handleAddByAppId() {
+    const id = parseInt(appId);
+    if (!id) return;
+    try {
+      await api.admin.addGameByAppId(id);
+      addToast(t("admin.games.addSuccess"), "success");
+      setAppId("");
+      load(1);
+      onStatsChange();
+    } catch (err: any) {
+      addToast(err?.message || t("admin.games.addFailed"), "error");
+    }
+  }
+
+  async function handleDelete(id: string, title: string) {
+    if (!await confirm(`"${title}" ${t("admin.games.deleteConfirm")}`)) return;
+    try {
+      await api.admin.deleteGame(id);
+      addToast(`${title} ${t("admin.games.deleted")}`, "info");
+      load(page);
+      onStatsChange();
+    } catch (err: any) {
+      addToast(err?.message || t("admin.games.deleteFailed"), "error");
+    }
+  }
+
+  return (
+    <div>
+      {/* Steam'den Oyun Çek */}
+      <div className="bg-brand-900 border border-brand-800 rounded-lg p-5 mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-brand-500 mb-3">{t("admin.games.steamSync")}</p>
+        <p className="text-[11px] text-brand-600 mb-4">{t("admin.games.steamSyncDesc")}</p>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { id: "all", label: t("admin.games.syncAll"), desc: "AAA + Popüler + Öne Çıkan" },
+            { id: "aaa", label: t("admin.games.syncAAA") },
+            { id: "most-played", label: t("admin.games.syncMostPlayed") },
+            { id: "featured", label: t("admin.games.syncFeatured") },
+          ].map((btn) => (
+            <button key={btn.id} onClick={() => handleSync(btn.id)} disabled={syncing !== null}
+              className={`px-5 py-2.5 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-40 cursor-pointer ${
+                btn.id === "all"
+                  ? "bg-[#1a9fff] text-white hover:bg-[#1a9fff]/80"
+                  : "bg-[#1a9fff]/10 border border-[#1a9fff]/30 text-[#1a9fff] hover:bg-[#1a9fff]/20"
+              }`}>
+              {syncing === btn.id ? t("admin.games.syncing") : btn.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* App ID ile Ekle */}
+      <div className="bg-brand-900 border border-brand-800 rounded-lg p-5 mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-brand-500 mb-1">{t("admin.games.addByAppId")}</p>
+        <p className="text-[11px] text-brand-600 mb-3">{t("admin.games.addByAppIdDesc")}</p>
+        <div className="flex gap-2">
+          <input value={appId} onChange={(e) => setAppId(e.target.value.replace(/\D/g, ""))}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddByAppId(); }}
+            placeholder={t("admin.games.appIdPlaceholder")}
+            className="flex-1 px-3 py-2.5 bg-brand-950 border border-brand-800 rounded-lg text-sm text-brand-100 placeholder:text-brand-600 focus:border-[#1a9fff] outline-none" />
+          <button onClick={handleAddByAppId} disabled={!appId}
+            className="px-5 py-2.5 bg-[#1a9fff] hover:bg-[#1a9fff]/80 rounded-lg text-xs font-bold text-white uppercase tracking-widest transition-colors disabled:opacity-40 cursor-pointer">
+            {t("admin.games.addBtn")}
+          </button>
+        </div>
+      </div>
+
+      {/* Oyun Listesi */}
+      <div className="flex gap-2 mb-4">
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") load(1, search); }}
+          placeholder={t("admin.games.searchPlaceholder")}
+          className="flex-1 px-3 py-2.5 bg-brand-900 border border-brand-800 rounded-lg text-sm text-brand-100 placeholder:text-brand-600 focus:border-brand-600 outline-none" />
+        <button onClick={() => load(1, search)} className="px-5 py-2.5 bg-brand-800 hover:bg-brand-700 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors cursor-pointer">
+          {t("admin.search")}
+        </button>
+      </div>
+
+      <p className="text-xs text-brand-500 mb-3">{t("admin.games.totalCount", { count: total })}</p>
+
+      {loading ? (
+        <div className="text-center py-10 text-brand-500 text-sm">{t("common.loading")}</div>
+      ) : games.length === 0 ? (
+        <div className="text-center py-10 text-brand-500 text-sm">{t("admin.games.noGames")}</div>
+      ) : (
+        <div className="space-y-1">
+          {games.map((game) => (
+            <div key={game.id} className="flex items-center gap-3 px-3 py-2 bg-brand-900 border border-brand-800 rounded-lg hover:border-brand-700 transition-colors">
+              {game.coverImageUrl && <img src={game.coverImageUrl} alt="" className="w-10 h-14 object-cover rounded flex-shrink-0" />}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-brand-100 truncate">{game.title}</p>
+                <p className="text-[10px] text-brand-600">{game.publisher?.name || "—"} · {game.steamAppId ? `ID: ${game.steamAppId}` : "—"}</p>
+              </div>
+              <button onClick={() => handleDelete(game.id, game.title)}
+                className="text-xs px-3 py-1.5 rounded bg-red-400/20 text-red-400 hover:bg-red-400/30 transition-colors cursor-pointer shrink-0">
+                {t("admin.delete")}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {total > 20 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <button onClick={() => load(page - 1)} disabled={page === 1} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">&larr;</button>
+          <span className="text-xs text-brand-500 self-center">{page} / {Math.ceil(total / 20)}</span>
+          <button onClick={() => load(page + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">&rarr;</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Game Requests Tab ─────────────────────────────────────────────────────
 
 function GameRequestsTab({ onStatsChange, confirm }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean> }) {
@@ -400,7 +558,7 @@ function GameRequestsTab({ onStatsChange, confirm }: { onStatsChange: () => void
       setRequests(res.requests);
       setTotal(res.total);
       setPage(p);
-    } catch {} finally { setLoading(false); }
+    } catch (err) { console.error("Admin load failed:", err); } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(1); }, []);

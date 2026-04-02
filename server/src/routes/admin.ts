@@ -128,4 +128,23 @@ export default async function adminRoutes(app: FastifyInstance) {
     await adminService.deleteGameRequest(id);
     return reply.status(204).send();
   });
+
+  // ── Game management ──────────────────────────────────
+  app.get("/admin/games", async (request) => {
+    const { search, page = "1", limit = "20" } = request.query as { search?: string; page?: string; limit?: string };
+    const result = await adminService.listGames(search, parseInt(page), parseInt(limit));
+    return { data: result };
+  });
+
+  app.delete("/admin/games/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await adminService.deleteGame(id);
+    return reply.status(204).send();
+  });
+
+  app.post("/admin/steam/add/:appId", async (request) => {
+    const { appId } = request.params as { appId: string };
+    const result = await steamService.syncByAppIds([parseInt(appId)]);
+    return { data: result };
+  });
 }

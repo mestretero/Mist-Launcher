@@ -500,12 +500,14 @@ pub async fn scan_games(
 
     // Load already-known exe paths from DB to skip them
     let known_exes: HashSet<String> = {
-        let conn = db.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT LOWER(exe_path) FROM games").unwrap();
-        stmt.query_map([], |row| row.get::<_, String>(0))
-            .unwrap()
+        let conn = db.lock().map_err(|e| format!("DB lock failed: {e}"))?;
+        let mut stmt = conn.prepare("SELECT LOWER(exe_path) FROM games")
+            .map_err(|e| format!("DB prepare failed: {e}"))?;
+        let result = stmt.query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| format!("DB query failed: {e}"))?
             .filter_map(|r| r.ok())
-            .collect()
+            .collect();
+        result
     };
 
     let mut all_games: Vec<ScannedGame> = Vec::new();

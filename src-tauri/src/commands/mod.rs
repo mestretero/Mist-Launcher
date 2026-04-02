@@ -5,3 +5,4 @@ pub mod files;
 pub mod scanner;
 pub mod tunnel;
 pub mod server_manager;
+pub mod achievements;

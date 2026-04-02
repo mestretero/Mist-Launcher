@@ -14,11 +14,13 @@ export default async function walletRoutes(app: FastifyInstance) {
     return { data: result };
   });
 
-  app.post("/wallet/deposit", async (request) => {
-    const { amount } = depositSchema.parse(request.body);
-    const result = await walletService.deposit(request.user!.userId, amount);
-    return { data: result };
-  });
+  // Deposit disabled — no payment integration active
+  // Re-enable when iyzico or another payment provider is integrated
+  // app.post("/wallet/deposit", async (request) => {
+  //   const { amount } = depositSchema.parse(request.body);
+  //   const result = await walletService.deposit(request.user!.userId, amount);
+  //   return { data: result };
+  // });
 
   app.get("/wallet/history", async (request) => {
     const transactions = await walletService.getHistory(request.user!.userId);

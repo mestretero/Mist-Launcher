@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { getAvatarUrl } from "../../../lib/avatar";
 
 interface Comment {
   id: string;
@@ -38,7 +39,7 @@ function formatRelativeTime(dateStr: string, t: (key: string, opts?: any) => str
 function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string }) {
   const initials = (name || "??").slice(0, 2).toUpperCase();
   if (avatarUrl) {
-    const src = avatarUrl.startsWith("http") ? avatarUrl : `http://localhost:3001${avatarUrl}`;
+    const src = getAvatarUrl(avatarUrl) || "";
     return (
       <img
         src={src}

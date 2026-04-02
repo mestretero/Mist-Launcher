@@ -11,6 +11,7 @@ import { BlockAddMenu } from "../components/profile/BlockAddMenu";
 import { EditToolbar } from "../components/profile/EditToolbar";
 
 import { API_URL } from "../lib/api";
+import { getAvatarUrl } from "../lib/avatar";
 
 interface ProfilePageProps {
   onNavigate?: (page: string) => void;
@@ -40,6 +41,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [editAllowComments, setEditAllowComments] = useState(true);
   const [savingBlocks, setSavingBlocks] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
+  const [profileAchievements, setProfileAchievements] = useState<any[]>([]);
+  const [perfectGames, setPerfectGames] = useState<any[]>([]);
 
   useEffect(() => {
     // Ensure we have the latest user data (avatarUrl, bio, etc.)
@@ -76,6 +79,15 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     if (user?.username) {
       api.profiles.getComments(user.username).then((data: any) => {
         setComments(data.comments || []);
+      }).catch(() => {});
+
+      // Fetch achievements + perfect games for profile blocks
+      api.profiles.getAchievements(user.username).then((data: any) => {
+        setProfileAchievements(Array.isArray(data) ? data : []);
+      }).catch(() => {});
+
+      api.profiles.getPerfectGames(user.username).then((data: any) => {
+        setPerfectGames(Array.isArray(data) ? data : []);
       }).catch(() => {});
     }
   }, []);
@@ -136,7 +148,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     if (block.type === "GAME_SHOWCASE" || block.type === "FAVORITE_GAME") {
       extras.libraryItems = librarySummary?.libraryItems || [];
     }
-    if (block.type === "ACHIEVEMENTS") extras.achievements = [];
+    if (block.type === "ACHIEVEMENTS") extras.achievements = profileAchievements;
+    if (block.type === "PERFECT_GAMES") extras.perfectGames = perfectGames;
     if (block.type === "REFERRAL") extras.referralCode = user?.referralCode;
     if (block.type === "COMMENT_WALL") {
       extras.username = user?.username;
@@ -229,7 +242,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             <div className="relative mb-6">
               <div className="w-32 h-32 bg-[#2a2e38] border-2 border-[#47bfff] rounded-full shadow-[0_0_20px_rgba(71,191,255,0.2)] overflow-hidden flex items-center justify-center relative z-10">
                 {user.avatarUrl ? (
-                  <img src={`http://localhost:3001${user.avatarUrl}`} alt={user.username} className="w-full h-full object-cover" />
+                  <img src={getAvatarUrl(user.avatarUrl) || ""} alt={user.username} className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-4xl font-black text-[#8f98a0]">{user.username.slice(0, 2).toUpperCase()}</span>
                 )}
@@ -470,28 +483,33 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   try {
                     // Save everything in parallel
                     const blockData = editBlocks.map((b, i) => ({ id: b.id, type: b.type, position: i, config: b.config, visible: b.visible }));
+                    const usernameChanged = editUsername.trim().length >= 3 && editUsername.trim() !== user?.username;
                     await Promise.all([
                       api.profiles.saveBlocks(blockData),
                       api.profiles.updateMe({ visibility: editVisibility as any, allowComments: editAllowComments }),
-                      api.auth.updateProfile({ bio: editBio }),
+                      api.auth.updateProfile({ bio: editBio, ...(usernameChanged ? { username: editUsername.trim() } : {}) }),
                       api.auth.updatePreferences({ customStatus: editCustomStatus || null }),
-                      (editUsername !== user?.username && editUsername.trim().length >= 3)
-                        ? api.auth.updateProfile({ username: editUsername.trim() } as any)
-                        : Promise.resolve(),
                     ]);
                     if (profileData) {
                       await api.profiles.updateMe({ customStatus: editCustomStatus || undefined });
                     }
-                    // Refresh
+                    // Optimistic update — reflect changes in UI immediately
+                    useAuthStore.getState().updateUser({
+                      bio: editBio,
+                      ...(usernameChanged ? { username: editUsername.trim() } : {}),
+                    });
+                    // Refresh profile data & session
                     const fresh = await api.profiles.getMe();
                     setProfileData(fresh);
                     setBlocks(fresh.blocks || []);
-                    setIsEditingBlocks(false);
                     setSavedBio(editBio);
+                    setEditUsername(usernameChanged ? editUsername.trim() : (user?.username || ""));
+                    setIsEditingBlocks(false);
                     await useAuthStore.getState().loadSession();
                     addToast(t("profile.updated"), "success");
                   } catch (err: any) {
-                    addToast(err?.message || t("common.error"), "error");
+                    const msg = err?.code === "CONFLICT" ? t("profile.usernameTaken") : (err?.message || t("common.error"));
+                    addToast(msg, "error");
                   } finally {
                     setSavingBlocks(false);
                   }

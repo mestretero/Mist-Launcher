@@ -6,7 +6,7 @@ const VIRUS_HIDE_THRESHOLD = 3;
 const MAX_LINKS_PER_USER_PER_GAME = 5;
 const MAX_LINKS_PER_USER_PER_DAY = 20;
 
-export async function getLinksForGame(gameId: string, userId?: string, isAdmin = false) {
+export async function getLinksForGame(gameId: string, userId?: string, isAdmin = false, page = 1, limit = 20) {
   const where: any = { gameId };
   if (!isAdmin) where.isHidden = false;
 
@@ -19,6 +19,8 @@ export async function getLinksForGame(gameId: string, userId?: string, isAdmin =
       reports: userId ? { where: { userId }, select: { id: true } } : false,
     },
     orderBy: [{ isAdminPost: "desc" }, { score: "desc" }, { createdAt: "desc" }],
+    skip: (page - 1) * limit,
+    take: limit,
   });
 
   return links.map((link) => ({

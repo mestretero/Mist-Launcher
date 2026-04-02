@@ -47,7 +47,7 @@ export function CartPage({ onGameClick, onNavigate }: CartPageProps) {
     return sum + discounted;
   }, 0);
 
-  const containerClass = "max-w-[1400px] mx-auto px-10";
+  const containerClass = "max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-10";
 
   if (loading) {
     return (
@@ -120,7 +120,7 @@ export function CartPage({ onGameClick, onNavigate }: CartPageProps) {
           </div>
         ) : (
           /* Cart Content */
-          <div className="grid grid-cols-[1fr_360px] gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
             {/* Left: Item list */}
             <div className="space-y-4">
               {items.map((item) => {
