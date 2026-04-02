@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/mist-logo.png" width="128" />
+<img src="https://raw.githubusercontent.com/mestretero/Mist-Launcher/main/src/assets/mist-logo.png" width="128" />
 
 # MIST Launcher
 
@@ -13,6 +13,8 @@
   <a href="https://discord.gg/mist">Discord</a> &bull;
   <a href="https://github.com/mestretero/Mist-Launcher/releases">Download</a>
 </p>
+
+![MIST Launcher](https://raw.githubusercontent.com/mestretero/Mist-Launcher/main/docs/screenshot.png)
 
 </div>
 
