@@ -129,6 +129,38 @@ export default async function adminRoutes(app: FastifyInstance) {
     return reply.status(204).send();
   });
 
+  // ── Comments moderation ───────────────────────────────
+  app.get("/admin/comments", async (request) => {
+    const { userSearch, startDate, endDate, includeDeleted, page = "1", limit = "20" } = request.query as {
+      userSearch?: string; startDate?: string; endDate?: string; includeDeleted?: string; page?: string; limit?: string;
+    };
+    const result = await adminService.listAllComments({
+      userSearch, startDate, endDate,
+      includeDeleted: includeDeleted === "true",
+      page: parseInt(page), limit: parseInt(limit),
+    });
+    return { data: result };
+  });
+
+  app.delete("/admin/comments/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    await adminService.adminDeleteComment(id);
+    return reply.status(204).send();
+  });
+
+  // ── All community links (browse) ──────────────────────
+  app.get("/admin/all-links", async (request) => {
+    const { userSearch, gameSearch, startDate, endDate, includeHidden, page = "1", limit = "20" } = request.query as {
+      userSearch?: string; gameSearch?: string; startDate?: string; endDate?: string; includeHidden?: string; page?: string; limit?: string;
+    };
+    const result = await adminService.listAllCommunityLinks({
+      userSearch, gameSearch, startDate, endDate,
+      includeHidden: includeHidden === "true",
+      page: parseInt(page), limit: parseInt(limit),
+    });
+    return { data: result };
+  });
+
   // ── Game management ──────────────────────────────────
   app.get("/admin/games", async (request) => {
     const { search, page = "1", limit = "20" } = request.query as { search?: string; page?: string; limit?: string };

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import mistLogo from "../assets/mist-logo.png";
 import { useTranslation } from "react-i18next";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useAuthStore } from "../stores/authStore";
 import { useToastStore } from "../stores/toastStore";
 import { api, setAccessToken, API_URL } from "../lib/api";
@@ -159,6 +160,9 @@ export function LoginPage({ onSwitch, onForgotPassword }: { onSwitch: () => void
     }
   };
 
+  const [appVersion, setAppVersion] = useState("");
+  useEffect(() => { getVersion().then(setAppVersion).catch(() => {}); }, []);
+
   const hasSaved = savedAccounts.length > 0;
 
   const COLS = 28;
@@ -252,10 +256,10 @@ export function LoginPage({ onSwitch, onForgotPassword }: { onSwitch: () => void
                       {savedAccounts.map((acc) => {
                         const isSelected = selectedAccount?.email === acc.email;
                         return (
-                          <button
+                          <div
                             key={acc.email}
                             onClick={() => handleSelectAccount(acc)}
-                            className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg transition-all text-left group relative ${
+                            className={`w-full flex items-center gap-2.5 p-2.5 rounded-lg transition-all text-left group relative cursor-pointer ${
                               isSelected
                                 ? "bg-[#1a9fff]/10 border border-[#1a9fff]/30"
                                 : "hover:bg-white/[0.03] border border-transparent"
@@ -288,7 +292,7 @@ export function LoginPage({ onSwitch, onForgotPassword }: { onSwitch: () => void
                                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                               </svg>
                             </button>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -431,6 +435,7 @@ export function LoginPage({ onSwitch, onForgotPassword }: { onSwitch: () => void
               <button onClick={onSwitch} className="text-[11px] text-[#5e6673] hover:text-[#1a9fff] font-semibold transition-colors">
                 {t("auth.registerLink")}
               </button>
+              {appVersion && <span className="text-[10px] text-[#3d4450] font-mono">v{appVersion}</span>}
             </div>
           </div>
         </div>

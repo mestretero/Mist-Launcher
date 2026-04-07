@@ -27,10 +27,13 @@ import { ToastContainer } from "./components/ToastContainer";
 import { ChatPanel } from "./components/ChatPanel";
 import { AchievementNotification } from "./components/AchievementNotification";
 import { useAutoUpdate } from "./hooks/useAutoUpdate";
+import { useTranslation } from "react-i18next";
 
 function App() {
+  const { t } = useTranslation();
   const { isAuthenticated, isLoading, pendingEmailVerification, loadSession } = useAuthStore();
-  const { update, downloading, progress, installUpdate } = useAutoUpdate();
+  const { update, phase: updatePhase, progress: updateProgress, isBlocking: updateBlocking } = useAutoUpdate();
+  const [changelog, setChangelog] = useState<{ version: string; notes: string } | null>(null);
   // const { initListener } = useDownloadStore(); // disabled: download system not active
   const [authPage, setAuthPage] = useState<"login" | "register">("login");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
@@ -39,6 +42,40 @@ function App() {
   const [history, setHistory] = useState<{page: string, slug?: string}[]>([{page: "store"}]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Show changelog modal once per version after a successful update
+  useEffect(() => {
+    if (updateBlocking) return; // wait until any in-progress update finishes
+    (async () => {
+      try {
+        const { getVersion } = await import("@tauri-apps/api/app");
+        const current = await getVersion();
+        const lastSeen = localStorage.getItem("lastSeenVersion");
+        if (lastSeen === current) return;
+
+        // First launch ever — record but don't show
+        if (!lastSeen) {
+          localStorage.setItem("lastSeenVersion", current);
+          return;
+        }
+
+        // Version changed — fetch release notes from server
+        const { API_URL } = await import("./lib/api");
+        const res = await fetch(`${API_URL}/public/updates/latest.json`);
+        if (!res.ok) {
+          localStorage.setItem("lastSeenVersion", current);
+          return;
+        }
+        const data = await res.json();
+        if (data?.version === current && data?.notes) {
+          setChangelog({ version: current, notes: data.notes });
+        }
+        localStorage.setItem("lastSeenVersion", current);
+      } catch (err) {
+        console.error("[changelog] failed:", err);
+      }
+    })();
+  }, [updateBlocking]);
 
   useEffect(() => {
     loadSession();
@@ -115,6 +152,51 @@ function App() {
       }).catch(() => {});
     }
   }, [isAuthenticated]);
+
+  // ─── Blocking update screen — Steam-style forced update ──────────────
+  if (updateBlocking) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#030712] text-white font-sans select-none" style={{ WebkitAppRegion: "drag" } as React.CSSProperties}>
+        <div className="flex flex-col items-center gap-8 max-w-md px-8 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-[#1a9fff]/10 border border-[#1a9fff]/30 flex items-center justify-center">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a9fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={updatePhase === "installing" ? "" : "animate-pulse"}>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-black text-white mb-2 tracking-tight">
+              {update ? `MIST ${update.version}` : "MIST"}
+            </h1>
+            <p className="text-sm text-[#8f98a0] leading-relaxed">
+              {updatePhase === "downloading" && t("updater.downloadingFull")}
+              {updatePhase === "installing" && t("updater.installingFull")}
+              {updatePhase === "ready" && t("updater.restarting")}
+            </p>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full">
+            <div className="h-2 bg-[#1a1f2e] rounded-full overflow-hidden border border-white/[0.04]">
+              <div
+                className="h-full bg-gradient-to-r from-[#1a9fff] to-[#0077e6] rounded-full transition-all duration-300"
+                style={{ width: `${updatePhase === "downloading" ? updateProgress : 100}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-[#5e6673] mt-2 font-mono tracking-wider">
+              {updatePhase === "downloading" ? `${updateProgress}%` : "100%"}
+            </p>
+          </div>
+
+          <p className="text-[10px] text-[#3d4450] uppercase tracking-widest font-bold">
+            {t("updater.doNotClose")}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -196,28 +278,40 @@ function App() {
       {page === "user-profile" && gameSlug && (
         <UserProfilePage username={gameSlug} onNavigate={navigate} />
       )}
-      {page === "admin" && <AdminPage />}
+      {page === "admin" && <AdminPage onNavigate={navigate} />}
       <ToastContainer />
       <ChatPanel onNavigate={navigate} />
       <AchievementNotification />
-      {update && (
-        <div className="fixed bottom-4 right-4 z-[9999] bg-[#0f1923] border border-[#1a9fff]/30 rounded-xl px-5 py-3 shadow-2xl shadow-black/50 flex items-center gap-4 max-w-sm">
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-bold text-white">MIST {update.version}</p>
-            <p className="text-[11px] text-[#8f98a0] mt-0.5">
-              {downloading ? `Downloading... ${progress}%` : "A new version is available"}
-            </p>
-            {downloading && (
-              <div className="mt-2 h-1.5 bg-[#1a1f2e] rounded-full overflow-hidden">
-                <div className="h-full bg-[#1a9fff] rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+      {/* Changelog modal — shown once after a successful update */}
+      {changelog && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setChangelog(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg mx-4 bg-[#0f1923] border border-[#1a9fff]/30 rounded-2xl shadow-2xl shadow-black/70 overflow-hidden"
+          >
+            <div className="px-6 py-5 border-b border-white/[0.06] flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-[#1a9fff]/15 border border-[#1a9fff]/30 flex items-center justify-center flex-shrink-0">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1a9fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
               </div>
-            )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#1a9fff]">{t("updater.whatsNew")}</p>
+                <h2 className="text-xl font-black text-white tracking-tight">MIST {changelog.version}</h2>
+              </div>
+            </div>
+            <div className="px-6 py-5 max-h-[50vh] overflow-y-auto">
+              <p className="text-sm text-[#c6d4df] leading-relaxed whitespace-pre-wrap">{changelog.notes}</p>
+            </div>
+            <div className="px-6 py-4 border-t border-white/[0.06] bg-white/[0.01]">
+              <button
+                onClick={() => setChangelog(null)}
+                className="w-full py-3 bg-gradient-to-r from-[#1a9fff] to-[#0077e6] hover:from-[#3dafff] hover:to-[#1a9fff] text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all cursor-pointer"
+              >
+                {t("updater.gotIt")}
+              </button>
+            </div>
           </div>
-          {!downloading && (
-            <button onClick={installUpdate} className="px-4 py-2 bg-[#1a9fff] hover:bg-[#1a9fff]/80 text-white text-[11px] font-bold uppercase tracking-wider rounded-lg transition-colors flex-shrink-0">
-              Update
-            </button>
-          )}
         </div>
       )}
     </Layout>

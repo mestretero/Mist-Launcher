@@ -214,6 +214,100 @@ export async function listGames(search: string | undefined, page: number, limit:
   return { games, total };
 }
 
+// ── Comments moderation ─────────────────────────────────
+export async function listAllComments(opts: {
+  userSearch?: string;
+  startDate?: string;
+  endDate?: string;
+  includeDeleted?: boolean;
+  page: number;
+  limit: number;
+}) {
+  const { userSearch, startDate, endDate, includeDeleted, page, limit } = opts;
+  const where: any = {};
+  if (!includeDeleted) where.deletedAt = null;
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = new Date(startDate);
+    if (endDate) where.createdAt.lte = new Date(endDate);
+  }
+  if (userSearch) {
+    where.OR = [
+      { author: { username: { contains: userSearch, mode: "insensitive" } } },
+      { profile: { user: { username: { contains: userSearch, mode: "insensitive" } } } },
+    ];
+  }
+
+  const [comments, total] = await Promise.all([
+    prisma.profileComment.findMany({
+      where,
+      include: {
+        author: { select: { id: true, username: true, avatarUrl: true } },
+        profile: { select: { user: { select: { id: true, username: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.profileComment.count({ where }),
+  ]);
+
+  return { comments, total, page, limit };
+}
+
+export async function adminDeleteComment(commentId: string) {
+  const comment = await prisma.profileComment.findUnique({ where: { id: commentId } });
+  if (!comment) throw notFound("Comment not found");
+  await prisma.profileComment.update({
+    where: { id: commentId },
+    data: { deletedAt: new Date() },
+  });
+  return { success: true };
+}
+
+// ── All community links (browse, not just reported) ─────
+export async function listAllCommunityLinks(opts: {
+  userSearch?: string;
+  gameSearch?: string;
+  startDate?: string;
+  endDate?: string;
+  includeHidden?: boolean;
+  page: number;
+  limit: number;
+}) {
+  const { userSearch, gameSearch, startDate, endDate, includeHidden, page, limit } = opts;
+  const where: any = {};
+  if (!includeHidden) where.isHidden = false;
+  if (startDate || endDate) {
+    where.createdAt = {};
+    if (startDate) where.createdAt.gte = new Date(startDate);
+    if (endDate) where.createdAt.lte = new Date(endDate);
+  }
+  if (userSearch) {
+    where.user = { username: { contains: userSearch, mode: "insensitive" } };
+  }
+  if (gameSearch) {
+    where.game = { title: { contains: gameSearch, mode: "insensitive" } };
+  }
+
+  const [links, total] = await Promise.all([
+    prisma.communityLink.findMany({
+      where,
+      include: {
+        user: { select: { id: true, username: true } },
+        game: { select: { id: true, title: true, slug: true } },
+        mirrors: { select: { id: true, sourceName: true, url: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.communityLink.count({ where }),
+  ]);
+
+  return { links, total, page, limit };
+}
+
 export async function deleteGame(gameId: string) {
   // Clear related records first
   await prisma.communityLink.deleteMany({ where: { gameId } });

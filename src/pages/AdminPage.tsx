@@ -3,9 +3,11 @@ import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import { useToastStore } from "../stores/toastStore";
 
-type Tab = "users" | "reportedUsers" | "reportedLinks" | "gameRequests" | "games";
+type Tab = "users" | "reportedUsers" | "reportedLinks" | "gameRequests" | "games" | "comments" | "allLinks";
 
-export function AdminPage() {
+type NavigateFn = (page: string, slug?: string) => void;
+
+export function AdminPage({ onNavigate }: { onNavigate?: NavigateFn }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>("users");
   const [stats, setStats] = useState<{ totalUsers: number; bannedUsers: number; openReports: number; reportedLinks: number; gameRequests: number; totalGames: number } | null>(null);
@@ -53,6 +55,8 @@ export function AdminPage() {
           { id: "users", label: t("admin.users") },
           { id: "reportedUsers", label: t("admin.reportedUsers") },
           { id: "reportedLinks", label: t("admin.reportedLinks") },
+          { id: "allLinks", label: "Tüm Linkler" },
+          { id: "comments", label: "Yorumlar" },
           { id: "gameRequests", label: t("admin.gameRequests") },
         ] as { id: Tab; label: string }[]).map((item) => (
           <button
@@ -71,6 +75,8 @@ export function AdminPage() {
       {tab === "users" && <UsersTab onStatsChange={refreshStats} confirm={confirm} />}
       {tab === "reportedUsers" && <ReportedUsersTab onStatsChange={refreshStats} confirm={confirm} />}
       {tab === "reportedLinks" && <ReportedLinksTab onStatsChange={refreshStats} confirm={confirm} />}
+      {tab === "comments" && <CommentsTab confirm={confirm} onNavigate={onNavigate} />}
+      {tab === "allLinks" && <AllLinksTab onStatsChange={refreshStats} confirm={confirm} onNavigate={onNavigate} />}
       {tab === "gameRequests" && <GameRequestsTab onStatsChange={refreshStats} confirm={confirm} />}
 
       {/* Confirm Dialog */}
@@ -632,6 +638,254 @@ function GameRequestsTab({ onStatsChange, confirm }: { onStatsChange: () => void
           ))}
         </div>
       )}
+      {total > 20 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <button onClick={() => load(page - 1)} disabled={page === 1} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">←</button>
+          <span className="text-xs text-brand-500 self-center">{page} / {Math.ceil(total / 20)}</span>
+          <button onClick={() => load(page + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">→</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Comments Tab ──────────────────────────────────────────────────────────
+
+function CommentsTab({ confirm, onNavigate }: { confirm: (msg: string) => Promise<boolean>; onNavigate?: NavigateFn }) {
+  const [userSearch, setUserSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (p = 1) => {
+    setLoading(true);
+    try {
+      const res = await api.admin.listComments({
+        userSearch: userSearch || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        includeDeleted,
+        page: p,
+        limit: 20,
+      });
+      setComments(res.comments);
+      setTotal(res.total);
+      setPage(p);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  }, [userSearch, startDate, endDate, includeDeleted]);
+
+  useEffect(() => { load(1); }, []);
+
+  async function handleDelete(id: string) {
+    if (!await confirm("Yorum silinsin mi?")) return;
+    await api.admin.deleteCommentById(id);
+    load(page);
+  }
+
+  return (
+    <div>
+      <div className="bg-brand-900 border border-brand-800 rounded-lg p-4 mb-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+          <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Kullanıcı adı"
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 placeholder:text-brand-600 outline-none focus:border-brand-600" />
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 outline-none focus:border-brand-600" />
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 outline-none focus:border-brand-600" />
+          <button onClick={() => load(1)} className="px-4 py-2 bg-[#1a9fff] hover:bg-[#1a9fff]/80 rounded text-xs font-bold uppercase tracking-widest text-white cursor-pointer">Filtrele</button>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-brand-400 cursor-pointer">
+          <input type="checkbox" checked={includeDeleted} onChange={(e) => setIncludeDeleted(e.target.checked)} />
+          Silinmişleri göster
+        </label>
+      </div>
+
+      <p className="text-xs text-brand-500 mb-3">Toplam: {total}</p>
+
+      {loading ? (
+        <div className="text-center py-10 text-brand-500 text-sm">Yükleniyor...</div>
+      ) : comments.length === 0 ? (
+        <div className="text-center py-10 text-brand-500 text-sm">Sonuç yok</div>
+      ) : (
+        <div className="space-y-2">
+          {comments.map((c) => (
+            <div key={c.id} className="bg-brand-900 border border-brand-800 rounded-lg px-4 py-3">
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <button
+                      onClick={() => c.author?.username && onNavigate?.("user-profile", c.author.username)}
+                      className="text-sm font-bold text-white hover:text-[#1a9fff] hover:underline transition-colors cursor-pointer"
+                    >
+                      {c.author?.username}
+                    </button>
+                    <span className="text-xs text-brand-500">→</span>
+                    <button
+                      onClick={() => c.profile?.user?.username && onNavigate?.("user-profile", c.profile.user.username)}
+                      className="text-sm font-bold text-brand-300 hover:text-[#1a9fff] hover:underline transition-colors cursor-pointer"
+                    >
+                      {c.profile?.user?.username}
+                    </button>
+                    {c.deletedAt && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-400/20 text-red-400 rounded">SİLİNDİ</span>}
+                    <span className="text-[10px] text-brand-600 ml-auto">{new Date(c.createdAt).toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-brand-200 whitespace-pre-wrap break-words">{c.content}</p>
+                </div>
+                {!c.deletedAt && (
+                  <button onClick={() => handleDelete(c.id)} className="text-xs px-3 py-1.5 rounded bg-red-400/20 text-red-400 hover:bg-red-400/30 transition-colors cursor-pointer shrink-0">
+                    Sil
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {total > 20 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <button onClick={() => load(page - 1)} disabled={page === 1} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">←</button>
+          <span className="text-xs text-brand-500 self-center">{page} / {Math.ceil(total / 20)}</span>
+          <button onClick={() => load(page + 1)} disabled={page >= Math.ceil(total / 20)} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">→</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── All Community Links Tab ───────────────────────────────────────────────
+
+function AllLinksTab({ onStatsChange, confirm, onNavigate }: { onStatsChange: () => void; confirm: (msg: string) => Promise<boolean>; onNavigate?: NavigateFn }) {
+  const [userSearch, setUserSearch] = useState("");
+  const [gameSearch, setGameSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [includeHidden, setIncludeHidden] = useState(false);
+  const [links, setLinks] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async (p = 1) => {
+    setLoading(true);
+    try {
+      const res = await api.admin.listAllLinks({
+        userSearch: userSearch || undefined,
+        gameSearch: gameSearch || undefined,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        includeHidden,
+        page: p,
+        limit: 20,
+      });
+      setLinks(res.links);
+      setTotal(res.total);
+      setPage(p);
+    } catch (err) { console.error(err); } finally { setLoading(false); }
+  }, [userSearch, gameSearch, startDate, endDate, includeHidden]);
+
+  useEffect(() => { load(1); }, []);
+
+  async function handleHide(id: string) {
+    await api.admin.hideLink(id);
+    load(page);
+    onStatsChange();
+  }
+
+  async function handleDelete(id: string) {
+    if (!await confirm("Link silinsin mi?")) return;
+    await api.admin.deleteLink(id);
+    load(page);
+    onStatsChange();
+  }
+
+  return (
+    <div>
+      <div className="bg-brand-900 border border-brand-800 rounded-lg p-4 mb-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+          <input value={userSearch} onChange={(e) => setUserSearch(e.target.value)} placeholder="Kullanıcı adı"
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 placeholder:text-brand-600 outline-none focus:border-brand-600" />
+          <input value={gameSearch} onChange={(e) => setGameSearch(e.target.value)} placeholder="Oyun adı"
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 placeholder:text-brand-600 outline-none focus:border-brand-600" />
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 outline-none focus:border-brand-600" />
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+            className="px-3 py-2 bg-brand-950 border border-brand-800 rounded text-sm text-brand-100 outline-none focus:border-brand-600" />
+          <button onClick={() => load(1)} className="px-4 py-2 bg-[#1a9fff] hover:bg-[#1a9fff]/80 rounded text-xs font-bold uppercase tracking-widest text-white cursor-pointer">Filtrele</button>
+        </div>
+        <label className="flex items-center gap-2 text-xs text-brand-400 cursor-pointer">
+          <input type="checkbox" checked={includeHidden} onChange={(e) => setIncludeHidden(e.target.checked)} />
+          Gizlenmişleri göster
+        </label>
+      </div>
+
+      <p className="text-xs text-brand-500 mb-3">Toplam: {total}</p>
+
+      {loading ? (
+        <div className="text-center py-10 text-brand-500 text-sm">Yükleniyor...</div>
+      ) : links.length === 0 ? (
+        <div className="text-center py-10 text-brand-500 text-sm">Sonuç yok</div>
+      ) : (
+        <div className="space-y-3">
+          {links.map((link) => (
+            <div key={link.id} className="bg-brand-900 border border-brand-800 rounded-lg px-4 py-3">
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <button
+                      onClick={() => link.game?.slug && onNavigate?.("game", link.game.slug)}
+                      className="text-sm font-bold text-brand-100 truncate hover:text-[#1a9fff] hover:underline transition-colors cursor-pointer text-left"
+                    >
+                      {link.title}
+                    </button>
+                    {link.isHidden && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-brand-800 text-brand-500 rounded">GİZLİ</span>}
+                    {link.isAdminPost && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[#1a9fff]/20 text-[#1a9fff] rounded">ADMIN</span>}
+                    {link.virusReports > 0 && <span className="text-[10px] font-bold px-1.5 py-0.5 bg-red-400/20 text-red-400 rounded">{link.virusReports} rapor</span>}
+                  </div>
+                  <p className="text-xs text-brand-500">
+                    <button
+                      onClick={() => link.game?.slug && onNavigate?.("game", link.game.slug)}
+                      className="text-brand-300 hover:text-[#1a9fff] hover:underline transition-colors cursor-pointer"
+                    >
+                      {link.game?.title}
+                    </button>
+                    {" · "}
+                    <button
+                      onClick={() => link.user?.username && onNavigate?.("user-profile", link.user.username)}
+                      className="text-brand-300 hover:text-[#1a9fff] hover:underline transition-colors cursor-pointer"
+                    >
+                      {link.user?.username}
+                    </button>
+                    {" · "}{link.mirrors?.length ?? 0} mirror · skor {link.score} · {new Date(link.createdAt).toLocaleDateString()}
+                  </p>
+                  {link.mirrors?.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {link.mirrors.map((m: any) => (
+                        <p key={m.id} className="text-[10px] text-brand-600 truncate">{m.sourceName}: {m.url}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 shrink-0">
+                  {!link.isHidden && (
+                    <button onClick={() => handleHide(link.id)} className="text-xs px-3 py-1.5 rounded bg-brand-800 hover:bg-brand-700 transition-colors cursor-pointer">
+                      Gizle
+                    </button>
+                  )}
+                  <button onClick={() => handleDelete(link.id)} className="text-xs px-3 py-1.5 rounded bg-red-400/20 text-red-400 hover:bg-red-400/30 transition-colors cursor-pointer">
+                    Sil
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {total > 20 && (
         <div className="flex justify-center gap-2 mt-4">
           <button onClick={() => load(page - 1)} disabled={page === 1} className="px-3 py-1.5 rounded bg-brand-800 text-xs disabled:opacity-30 cursor-pointer">←</button>

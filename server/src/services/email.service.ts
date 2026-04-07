@@ -141,30 +141,27 @@ export async function sendEmailVerification(to: string, code: string) {
   await sendMail(to, "MIST — Doğrulama Kodun", html);
 }
 
-export async function sendPasswordResetEmail(to: string, token: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:1420"}/reset-password?token=${token}`;
+export async function sendPasswordResetEmail(to: string, code: string) {
+  const digits = code.split("");
   const html = wrapTemplate(`
-    <p style="margin:0 0 6px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Şifre Sıfırlama</p>
+    <p style="margin:0 0 6px;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">Şifre Sıfırlama Kodu</p>
     <p style="margin:0 0 28px;font-size:14px;color:#5e6e80;line-height:1.6;">
-      Hesabın için şifre sıfırlama talebinde bulundun. Aşağıdaki butona tıklayarak devam edebilirsin.
+      Şifreni sıfırlamak için aşağıdaki 6 haneli kodu MIST uygulamasına gir.
     </p>
 
-    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
+    <!-- OTP block -->
+    <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto 24px;background:#070910;border:1px solid rgba(26,159,255,0.15);border-radius:12px;padding:24px 32px;">
       <tr>
-        <td align="center">
-          <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#1a9fff,#0066cc);color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:10px;letter-spacing:0.04em;">
-            Şifremi Sıfırla
-          </a>
-        </td>
+        ${digits.map((d) => `<td style="padding:0 5px;"><span style="font-size:38px;font-weight:900;color:#1a9fff;font-family:'Courier New',Courier,monospace;letter-spacing:2px;">${d}</span></td>`).join("")}
       </tr>
     </table>
 
     <p style="margin:0 0 4px;font-size:12px;color:#3d4755;text-align:center;">
-      &#x23F1; Bu bağlantı <strong style="color:#4a5a6a;">1 saat</strong> geçerlidir.
+      &#x23F1; Bu kod <strong style="color:#4a5a6a;">10 dakika</strong> geçerlidir.
     </p>
     <p style="margin:0;font-size:11px;color:#2a3040;text-align:center;">
       Bu işlemi sen gerçekleştirmediysen e-postayı yok sayabilirsin.
     </p>
-  `, "MIST şifre sıfırlama bağlantın hazır");
-  await sendMail(to, "MIST — Şifre Sıfırlama", html);
+  `, `MIST şifre sıfırlama kodun: ${code}`);
+  await sendMail(to, "MIST — Şifre Sıfırlama Kodu", html);
 }

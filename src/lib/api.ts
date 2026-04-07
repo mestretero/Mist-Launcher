@@ -101,8 +101,8 @@ export const api = {
       request<any>("/auth/preferences", { method: "PATCH", body: JSON.stringify(prefs) }),
     forgotPassword: (email: string) =>
       request<any>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
-    resetPassword: (token: string, password: string) =>
-      request<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ token, newPassword: password }) }),
+    resetPassword: (email: string, code: string, newPassword: string) =>
+      request<any>("/auth/reset-password", { method: "POST", body: JSON.stringify({ email, code, newPassword }) }),
     verifyEmail: (code: string) =>
       request<any>("/auth/verify-email", { method: "POST", body: JSON.stringify({ code }) }),
     resendVerification: () =>
@@ -349,5 +349,25 @@ export const api = {
     },
     deleteGame: (id: string) => request<void>(`/admin/games/${id}`, { method: "DELETE" }),
     addGameByAppId: (appId: number) => request<any>(`/admin/steam/add/${appId}`, { method: "POST" }),
+    // Comments moderation
+    listComments: (filters: { userSearch?: string; startDate?: string; endDate?: string; includeDeleted?: boolean; page?: number; limit?: number }) => {
+      const p = new URLSearchParams({ page: String(filters.page ?? 1), limit: String(filters.limit ?? 20) });
+      if (filters.userSearch) p.set("userSearch", filters.userSearch);
+      if (filters.startDate) p.set("startDate", filters.startDate);
+      if (filters.endDate) p.set("endDate", filters.endDate);
+      if (filters.includeDeleted) p.set("includeDeleted", "true");
+      return request<{ comments: any[]; total: number; page: number; limit: number }>(`/admin/comments?${p}`);
+    },
+    deleteCommentById: (id: string) => request<void>(`/admin/comments/${id}`, { method: "DELETE" }),
+    // All community links
+    listAllLinks: (filters: { userSearch?: string; gameSearch?: string; startDate?: string; endDate?: string; includeHidden?: boolean; page?: number; limit?: number }) => {
+      const p = new URLSearchParams({ page: String(filters.page ?? 1), limit: String(filters.limit ?? 20) });
+      if (filters.userSearch) p.set("userSearch", filters.userSearch);
+      if (filters.gameSearch) p.set("gameSearch", filters.gameSearch);
+      if (filters.startDate) p.set("startDate", filters.startDate);
+      if (filters.endDate) p.set("endDate", filters.endDate);
+      if (filters.includeHidden) p.set("includeHidden", "true");
+      return request<{ links: any[]; total: number; page: number; limit: number }>(`/admin/all-links?${p}`);
+    },
   },
 };

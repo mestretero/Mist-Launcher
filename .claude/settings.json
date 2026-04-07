@@ -201,7 +201,16 @@
       "Bash(ls server/mist-games*.xlsx server/generate_games_excel.py)",
       "Bash(ls *.xlsx *.py)",
       "Bash(ls server/force-seed.ts server/mock-*.ts server/test-api.ts)",
-      "Bash(git remote:*)"
+      "Bash(git remote:*)",
+      "Bash(grep -iE \"\\\\.env$|keys/|UPDATE-GUIDE|password\")",
+      "Bash(curl -s https://raw.githubusercontent.com/hydralauncher/hydra/main/README.md)",
+      "Read(//e/PROJELER/mistlauncher.com/public/**)",
+      "Bash(gh release create v0.1.0 src-tauri/target/release/bundle/nsis/MIST_0.1.0_x64-setup.exe --repo mestretero/Mist-Launcher --title 'MIST Launcher v0.1.0' --notes ':*)",
+      "Bash(where gh:*)",
+      "Bash(gh release create v0.1.1 src-tauri/target/release/bundle/nsis/MIST_0.1.1_x64-setup.exe --title 'MIST Launcher v0.1.1' --notes ':*)",
+      "Bash(grep -n \"AbortController\\\\|cleanup\\\\|return.*=>\" e:/PROJELER/Stealike/src/pages/*.tsx)",
+      "Bash(ssh -o ConnectTimeout=5 root@46.224.18.21 \"pm2 describe mist-api 2>/dev/null | grep -E 'script path|exec interpreter' \")",
+      "Bash(git checkout:*)"
     ],
     "additionalDirectories": [
       "E:\\PROJELER\\Stealike\\docs\\superpowers\\specs",

@@ -141,9 +141,12 @@ export default async function authRoutes(app: FastifyInstance) {
     return reply.send({ data: result });
   });
 
-  app.post("/auth/reset-password", async (request, reply) => {
-    const { token, newPassword } = request.body as { token: string; newPassword: string };
-    const result = await authService.resetPassword(token, newPassword);
+  app.post("/auth/reset-password", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (request, reply) => {
+    const { email, code, newPassword } = request.body as { email: string; code: string; newPassword: string };
+    if (!email || !code || !newPassword) {
+      return reply.status(400).send({ error: { code: "BAD_REQUEST", message: "Missing fields" } });
+    }
+    const result = await authService.resetPassword(email, code, newPassword);
     return reply.send({ data: result });
   });
 

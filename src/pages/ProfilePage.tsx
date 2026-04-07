@@ -45,18 +45,21 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [perfectGames, setPerfectGames] = useState<any[]>([]);
 
   useEffect(() => {
+    let alive = true;
+
     // Ensure we have the latest user data (avatarUrl, bio, etc.)
     useAuthStore.getState().loadSession();
 
     // Fetch library summary (merged store + local games)
     if (user?.username) {
       api.profiles.getLibrarySummary(user.username)
-        .then((data: any) => setLibrarySummary(data))
+        .then((data: any) => { if (alive) setLibrarySummary(data); })
         .catch(() => {});
     }
 
     // Fetch profile blocks
     api.profiles.getMe().then((data: any) => {
+      if (!alive) return;
       setProfileData(data);
       setBlocks(data.blocks || []);
       setEditVisibility(data.visibility || "PUBLIC");
@@ -71,6 +74,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       api.marketplace.getThemes(),
       api.marketplace.getMyThemes(),
     ]).then(([themes, owned]) => {
+      if (!alive) return;
       setAllThemes(Array.isArray(themes) ? themes : []);
       setOwnedThemeIds(Array.isArray(owned) ? owned : []);
     }).catch(() => {});
@@ -78,18 +82,20 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     // Fetch comments for comment wall
     if (user?.username) {
       api.profiles.getComments(user.username).then((data: any) => {
-        setComments(data.comments || []);
+        if (alive) setComments(data.comments || []);
       }).catch(() => {});
 
       // Fetch achievements + perfect games for profile blocks
       api.profiles.getAchievements(user.username).then((data: any) => {
-        setProfileAchievements(Array.isArray(data) ? data : []);
+        if (alive) setProfileAchievements(Array.isArray(data) ? data : []);
       }).catch(() => {});
 
       api.profiles.getPerfectGames(user.username).then((data: any) => {
-        setPerfectGames(Array.isArray(data) ? data : []);
+        if (alive) setPerfectGames(Array.isArray(data) ? data : []);
       }).catch(() => {});
     }
+
+    return () => { alive = false; };
   }, []);
 
   if (!user) return null;

@@ -168,6 +168,46 @@ interface IGDBGame {
 /**
  * Fetch popular/recent games from IGDB and insert into our DB.
  */
+/**
+ * Lightweight lookup used by Tauri launcher scanner.
+ * Returns cover/description/genres for a free-text title without persisting.
+ */
+export async function lookupGameMetadata(title: string): Promise<{
+  title: string;
+  cover_url: string | null;
+  description: string | null;
+  genres: string[] | null;
+} | null> {
+  if (!title || !title.trim()) return null;
+  const clean = title.replace(/"/g, '\\"').slice(0, 120);
+  const body = `search "${clean}"; fields name,cover.image_id,summary,genres.name; limit 5;`;
+
+  let results: any[] = [];
+  try {
+    results = await igdbQuery("games", body);
+  } catch (e) {
+    console.error("[lookupGameMetadata] IGDB query failed:", (e as Error).message);
+    return null;
+  }
+  if (!results.length) return null;
+
+  // Best match: exact > contains > first
+  const q = title.toLowerCase();
+  const best = results.reduce((acc, g) => {
+    const name = (g.name || "").toLowerCase();
+    const score = name === q ? 100 : (name.includes(q) || q.includes(name) ? 50 : 0);
+    return score > acc.score ? { game: g, score } : acc;
+  }, { game: results[0], score: -1 }).game;
+
+  const coverId = best?.cover?.image_id;
+  return {
+    title: best.name ?? title,
+    cover_url: coverId ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${coverId}.jpg` : null,
+    description: best.summary ?? null,
+    genres: Array.isArray(best.genres) ? best.genres.map((g: any) => g.name).filter(Boolean) : null,
+  };
+}
+
 export async function syncGamesFromIGDB(options: {
   mode: "popular" | "new" | "top_rated" | "upcoming";
   limit?: number;

@@ -25,6 +25,7 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
   const [perfectGames, setPerfectGames] = useState<any[]>([]);
 
   useEffect(() => {
+    let alive = true;
     setLoading(true);
     setProfileData(null);
     setRestricted(null);
@@ -34,6 +35,7 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
 
     api.profiles.get(username)
       .then((data: any) => {
+        if (!alive) return;
         if (data?.restricted) {
           setRestricted(data.restricted);
         } else {
@@ -43,19 +45,21 @@ export default function UserProfilePage({ username, onNavigate }: UserProfilePag
           });
           // Fetch library summary for block data
           api.profiles.getLibrarySummary(username)
-            .then((summary: any) => setLibrarySummary(summary))
+            .then((summary: any) => { if (alive) setLibrarySummary(summary); })
             .catch(() => {});
           // Fetch achievements + perfect games
           api.profiles.getAchievements(username)
-            .then((data: any) => setProfileAchievements(Array.isArray(data) ? data : []))
+            .then((data: any) => { if (alive) setProfileAchievements(Array.isArray(data) ? data : []); })
             .catch(() => {});
           api.profiles.getPerfectGames(username)
-            .then((data: any) => setPerfectGames(Array.isArray(data) ? data : []))
+            .then((data: any) => { if (alive) setPerfectGames(Array.isArray(data) ? data : []); })
             .catch(() => {});
         }
       })
-      .catch(() => addToast(t("common.error"), "error"))
-      .finally(() => setLoading(false));
+      .catch(() => { if (alive) addToast(t("common.error"), "error"); })
+      .finally(() => { if (alive) setLoading(false); });
+
+    return () => { alive = false; };
   }, [username]);
 
   const profile = profileData?.profile;

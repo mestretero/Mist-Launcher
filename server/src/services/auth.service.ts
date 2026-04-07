@@ -7,8 +7,11 @@ import { sendPasswordResetEmail, sendEmailVerification } from "./email.service.j
 import type { RegisterInput, LoginInput } from "../schemas/auth.schema.js";
 
 function generateReferralCode(username: string): string {
-  const suffix = randomBytes(2).toString("hex").toUpperCase();
-  return `${username.toUpperCase()}-${suffix}`;
+  // 4 bytes = ~4 billion combinations; extremely low collision risk
+  const suffix = randomBytes(4).toString("hex").toUpperCase();
+  // Sanitize username: strip non-alphanumerics to keep code URL-safe
+  const safe = username.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 16) || "USER";
+  return `${safe}-${suffix}`;
 }
 
 function generateEmailOTP(): string {
@@ -17,10 +20,17 @@ function generateEmailOTP(): string {
 }
 
 export async function registerUser(input: RegisterInput) {
-  const existing = await prisma.user.findFirst({
-    where: { OR: [{ email: input.email }, { username: input.username }] },
-  });
-  if (existing) throw conflict("Email or username already exists");
+  // Normalize inputs — case-insensitive email + trim whitespace
+  const email = input.email.trim().toLowerCase();
+  const username = input.username.trim();
+
+  // Check email and username separately so we can tell the user exactly which one is taken
+  const [emailTaken, usernameTaken] = await Promise.all([
+    prisma.user.findUnique({ where: { email }, select: { id: true } }),
+    prisma.user.findUnique({ where: { username }, select: { id: true } }),
+  ]);
+  if (emailTaken) throw conflict("EMAIL_TAKEN");
+  if (usernameTaken) throw conflict("USERNAME_TAKEN");
 
   // Resolve referrer if a referral code was provided
   let referrerId: string | undefined;
@@ -33,24 +43,47 @@ export async function registerUser(input: RegisterInput) {
   }
 
   const passwordHash = await hash(input.password);
-  const referralCode = generateReferralCode(input.username);
   const startingBalance = referrerId ? 1000 : 500; // bonus for using a referral code
 
   const emailVerifyToken = generateEmailOTP();
   const emailVerifyExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  const user = await prisma.user.create({
-    data: {
-      email: input.email,
-      username: input.username,
-      passwordHash,
-      referralCode,
-      referredBy: referrerId ?? null,
-      emailVerifyToken,
-      emailVerifyExpiry,
-      walletBalance: startingBalance,
-    },
-  });
+  // Create user with retry on referralCode collisions (very rare with 4-byte suffix)
+  let user: Awaited<ReturnType<typeof prisma.user.create>> | null = null;
+  let referralCode = generateReferralCode(username);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      user = await prisma.user.create({
+        data: {
+          email,
+          username,
+          passwordHash,
+          referralCode,
+          referredBy: referrerId ?? null,
+          emailVerifyToken,
+          emailVerifyExpiry,
+          walletBalance: startingBalance,
+        },
+      });
+      break;
+    } catch (err: any) {
+      // P2002 = Prisma unique constraint violation
+      if (err?.code === "P2002") {
+        const target: string[] = err?.meta?.target ?? [];
+        // If collision is on referralCode, regenerate and retry
+        if (target.includes("referral_code") || target.includes("referralCode")) {
+          referralCode = generateReferralCode(username);
+          continue;
+        }
+        // Race condition — recheck which one raced and return specific error
+        if (target.includes("email")) throw conflict("EMAIL_TAKEN");
+        if (target.includes("username")) throw conflict("USERNAME_TAKEN");
+        throw conflict("EMAIL_TAKEN");
+      }
+      throw err;
+    }
+  }
+  if (!user) throw conflict("Could not create user, please try again");
 
   // Signup bonus transaction
   await prisma.walletTransaction.create({
@@ -108,7 +141,8 @@ export async function registerUser(input: RegisterInput) {
 }
 
 export async function loginUser(input: LoginInput & { deviceId?: string }) {
-  const user = await prisma.user.findUnique({ where: { email: input.email } });
+  const email = input.email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw unauthorized("Invalid credentials");
 
   const valid = await verify(user.passwordHash, input.password);
@@ -239,45 +273,45 @@ export async function updateProfile(userId: string, data: { bio?: string; avatar
 }
 
 export async function forgotPassword(email: string) {
-  const user = await prisma.user.findUnique({ where: { email } });
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
   if (!user) return { sent: true }; // Don't reveal if email exists
 
-  const token = randomBytes(32).toString("hex");
-  const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+  // 6-digit OTP, 10 minute expiry — same UX as email verification
+  const code = generateEmailOTP();
+  const expiry = new Date(Date.now() + 10 * 60 * 1000);
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordResetToken: token, passwordResetExpiry: expiry },
+    data: { passwordResetToken: code, passwordResetExpiry: expiry },
   });
 
   // Send reset email (fire-and-forget)
-  sendPasswordResetEmail(user.email, token).catch((err) =>
+  sendPasswordResetEmail(user.email, code).catch((err) =>
     console.error("Failed to send password reset email:", err),
   );
 
   return { sent: true };
 }
 
-export async function resetPassword(token: string, newPassword: string) {
-  // Atomically find AND invalidate token to prevent reuse
-  const user = await prisma.user.findFirst({
-    where: { passwordResetToken: token },
-  });
-  if (!user) throw badRequest("Invalid or expired token");
-  if (!user.passwordResetExpiry || user.passwordResetExpiry < new Date()) {
-    throw badRequest("Invalid or expired token");
+export async function resetPassword(email: string, code: string, newPassword: string) {
+  if (!newPassword || newPassword.length < 8) {
+    throw badRequest("Password must be at least 8 characters");
   }
-
-  // Invalidate token first, then update password
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { passwordResetToken: null, passwordResetExpiry: null },
-  });
+  const normalized = email.trim().toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
+  if (!user) throw badRequest("Invalid or expired code");
+  if (!user.passwordResetToken || user.passwordResetToken !== code) {
+    throw badRequest("Invalid or expired code");
+  }
+  if (!user.passwordResetExpiry || user.passwordResetExpiry < new Date()) {
+    throw badRequest("Invalid or expired code");
+  }
 
   const passwordHash = await hash(newPassword);
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash },
+    data: { passwordHash, passwordResetToken: null, passwordResetExpiry: null },
   });
 
   return { reset: true };

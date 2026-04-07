@@ -119,9 +119,39 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
   };
 
   const tabs = [
-    { key: "about", label: t("gameDetail.about") },
-    { key: "reviews", label: `${t("gameDetail.userReviews")}${reviews?.totalReviews ? ` (${reviews.totalReviews})` : ""}` },
-    { key: "links", label: `${t("gameDetail.communityLinksTab")}${linkCount > 0 ? ` (${linkCount})` : ""}` },
+    {
+      key: "about",
+      label: t("gameDetail.about"),
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="16" x2="12" y2="12" />
+          <line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      ),
+    },
+    {
+      key: "reviews",
+      label: t("gameDetail.userReviews"),
+      badge: reviews?.totalReviews || 0,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ),
+    },
+    {
+      key: "links",
+      label: t("gameDetail.communityLinksTab"),
+      badge: linkCount,
+      icon: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      ),
+    },
   ];
 
   return (
@@ -244,21 +274,31 @@ export function GameDetailPage({ slug, onBack, onNavigate }: Props) {
         )}
 
         {/* ═══ Tabs ═══ */}
-        <div className="flex gap-1 mb-6 border-b border-[#2a2e38]">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
-              className={`px-5 py-3 text-xs font-black uppercase tracking-widest transition-colors relative ${
-                activeTab === tab.key
-                  ? "text-[#1a9fff]"
-                  : "text-[#5e6673] hover:text-[#c6d4df]"
-              }`}
-            >
-              {tab.label}
-              {activeTab === tab.key && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1a9fff]" />}
-            </button>
-          ))}
+        <div className="flex gap-2 mb-6 p-1.5 bg-[#1a1c23] border border-[#2a2e38] rounded-xl">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
+                className={`flex-1 flex items-center justify-center gap-2.5 px-5 py-3.5 text-sm font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                  isActive
+                    ? "bg-[#1a9fff] text-white shadow-lg shadow-[#1a9fff]/20"
+                    : "text-[#8a95a5] hover:text-white hover:bg-[#2a2e38]/60"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className={`ml-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${
+                    isActive ? "bg-white/25 text-white" : "bg-[#2a2e38] text-[#c6d4df]"
+                  }`}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <div>

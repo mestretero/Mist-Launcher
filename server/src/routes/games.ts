@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import { gameListSchema, searchSchema } from "../schemas/game.schema.js";
 import * as gameService from "../services/game.service.js";
 import { searchAndAutoAdd, searchSteamGames, getSteamAchievements } from "../services/steam.service.js";
+import { lookupGameMetadata } from "../services/igdb.service.js";
 import { prisma } from "../lib/prisma.js";
 
 export default async function gameRoutes(app: FastifyInstance) {
@@ -20,6 +21,16 @@ export default async function gameRoutes(app: FastifyInstance) {
   app.get("/games/recommended", { preHandler: [app.authenticate] }, async (request, reply) => {
     const games = await gameService.getRecommendations(request.user!.userId);
     return reply.send({ data: games });
+  });
+
+  // Metadata lookup for Tauri local game scanner (public — no auth, no DB write)
+  app.get("/games/metadata-lookup", async (request, reply) => {
+    const { title } = request.query as { title?: string };
+    if (!title || title.trim().length < 2) {
+      return reply.send({ data: null });
+    }
+    const meta = await lookupGameMetadata(title);
+    return reply.send({ data: meta });
   });
 
   // Auto-match: search Steam by game name, auto-add to DB if found

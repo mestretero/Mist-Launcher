@@ -1,56 +1,68 @@
 import { useEffect, useState } from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { useToastStore } from "../stores/toastStore";
+
+type Phase = "idle" | "checking" | "downloading" | "installing" | "ready" | "error";
 
 export function useAutoUpdate() {
   const [update, setUpdate] = useState<Update | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [phase, setPhase] = useState<Phase>("checking");
   const [progress, setProgress] = useState(0);
-  const addToast = useToastStore((s) => s.addToast);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check for updates 3 seconds after app launch
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+
+    (async () => {
       try {
         const available = await check();
-        if (available) {
-          setUpdate(available);
-          addToast(`MIST ${available.version} available!`, "info");
+        if (cancelled) return;
+        if (!available) {
+          setPhase("idle");
+          return;
         }
-      } catch {
-        // Silently fail — no internet or endpoint not configured yet
+
+        // Auto-install — block UI like Steam does
+        setUpdate(available);
+        setPhase("downloading");
+
+        let totalBytes = 0;
+        let downloadedBytes = 0;
+        await available.downloadAndInstall((event) => {
+          if (cancelled) return;
+          if (event.event === "Started" && event.data.contentLength) {
+            totalBytes = event.data.contentLength;
+          }
+          if (event.event === "Progress") {
+            downloadedBytes += event.data.chunkLength;
+            if (totalBytes > 0) {
+              setProgress(Math.round((downloadedBytes / totalBytes) * 100));
+            }
+          }
+          if (event.event === "Finished") {
+            setProgress(100);
+            setPhase("installing");
+          }
+        });
+
+        if (cancelled) return;
+        setPhase("ready");
+        // Brief pause so user sees "installed" state, then relaunch
+        await new Promise((r) => setTimeout(r, 800));
+        await relaunch();
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error("[updater] failed:", err);
+        // On any error, fall through to normal app — don't block
+        setError(err?.message || "Update failed");
+        setPhase("idle");
       }
-    }, 3000);
-    return () => clearTimeout(timer);
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
-  const installUpdate = async () => {
-    if (!update || downloading) return;
-    setDownloading(true);
-    setProgress(0);
-    try {
-      let totalBytes = 0;
-      let downloadedBytes = 0;
-      await update.downloadAndInstall((event) => {
-        if (event.event === "Started" && event.data.contentLength) {
-          totalBytes = event.data.contentLength;
-        }
-        if (event.event === "Progress") {
-          downloadedBytes += event.data.chunkLength;
-          if (totalBytes > 0) setProgress(Math.round((downloadedBytes / totalBytes) * 100));
-        }
-        if (event.event === "Finished") {
-          setProgress(100);
-        }
-      });
-      addToast("Update installed — restarting...", "success");
-      await relaunch();
-    } catch (err: any) {
-      addToast(err?.message || "Update failed", "error");
-      setDownloading(false);
-    }
-  };
+  const isBlocking = phase === "downloading" || phase === "installing" || phase === "ready";
 
-  return { update, downloading, progress, installUpdate };
+  return { update, phase, progress, error, isBlocking };
 }

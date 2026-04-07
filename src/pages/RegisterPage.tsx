@@ -44,7 +44,10 @@ export function RegisterPage({ onSwitch }: { onSwitch: () => void }) {
     try {
       await register(email, username, password, referralCode.trim() || undefined);
     } catch (err: any) {
-      setError(err.message || t("auth.registerFailed"));
+      const code = err.message;
+      if (code === "EMAIL_TAKEN") setError(t("auth.emailTaken"));
+      else if (code === "USERNAME_TAKEN") setError(t("auth.usernameTaken"));
+      else setError(code || t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }
